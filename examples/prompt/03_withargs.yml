@@ -1,0 +1,11 @@
+##
+## Prompt supports templates, 
+##
+
+format: json
+
+input:
+  name: rainbow
+
+prompt: |
+  What are the colors of {{.name}}?
