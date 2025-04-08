@@ -3,13 +3,7 @@
 Intelligent Query `iq` is a fast and lightweight CLI for running LLM-powered agents.  
 Use it to run prompts and workflows on local files or S3 buckets.
 
-The philosophy behind the tool is to provide two distinct modes of operation:
-batch processing and individual tasks. Commands like 'ask' and 'run' are designed
-for processing groups of files in bulk, whether they are stored locally or in
-S3 buckets. These commands allow you to apply prompts or run workflows across
-multiple files at once. On the other hand, commands like 'exec' and 'tell' are
-focused on isolated operations, where you perform a single task or send a
-one-off prompt to the LLM.
+The philosophy behind the tool is to provide two distinct modes of operation: batch processing and individual tasks. Commands like 'ask' and 'run' are designed for processing groups of files in bulk, whether they are stored locally or in S3 buckets. These commands allow you to apply prompts or run workflows across multiple files at once. On the other hand, commands like 'exec' and 'tell' are focused on isolated operations, where you perform a single task or send a one-off prompt to the LLM.
 
 ## Quick Start
 
@@ -19,8 +13,7 @@ Install utility from GitHub. (Homebrew is coming)
 go install github.com/fogfish/iq@latest
 ```
 
-You need to configure iq with access to an LLM provider before using it.
-It supports multiple backends, including Amazon Bedrock, OpenAI, OpenAI-compatible APIs, and local LM Studio instances. Before doing this you have to create respective accounts, install software (LM Studio) and make sure you have access to the model.
+You need to configure iq with access to an LLM provider before using it. It supports multiple backends, including Amazon Bedrock, OpenAI, OpenAI-compatible APIs, and local LM Studio instances. Before doing this you have to create respective accounts, install software (LM Studio) and make sure you have access to the model.
 
 ```bash
 iq config --bedrock
