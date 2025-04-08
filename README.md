@@ -24,6 +24,8 @@ iq config --openai <secret-key>
 > My personal recommendation is usage of Amazon Bedrock. 
 
 
+Run the tool. Use `iq help` for full guidance.  
+
 ```bash
 echo "What are the colors of rainbow?" | iq tell
 ```
