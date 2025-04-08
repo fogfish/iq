@@ -15,6 +15,10 @@ import (
 
 	"github.com/fogfish/iq/internal/prompt"
 	"github.com/fogfish/iq/internal/service"
+	"github.com/fogfish/opts"
+	"github.com/fogfish/stream"
+	"github.com/fogfish/stream/lfs"
+	"github.com/fogfish/stream/spool"
 	"github.com/kshard/chatter"
 	"github.com/kshard/chatter/aio"
 	"github.com/kshard/chatter/llm/autoconfig"
@@ -29,7 +33,7 @@ func Execute(vsn string) {
 
 	if err := rootCmd.Execute(); err != nil {
 		e := err.Error()
-		fmt.Println(strings.ToUpper(e[:1]) + e[1:])
+		fmt.Fprintf(os.Stderr, "\n ❌ Something went wrong. Check the error below for details.\n   Run `iq help` for guidance.\n\n   %s\n\n", strings.ToUpper(e[:1])+e[1:])
 		os.Exit(1)
 	}
 }
@@ -40,10 +44,11 @@ var (
 	rootPrompt  string
 	rootDebug   bool
 	rootSilent  bool
+	gLLM        chatter.Chatter
 )
 
 func init() {
-	rootCmd.PersistentFlags().StringVarP(&rootProfile, "config", "c", "iq", "access profile to LLM provider at ~/.netrc")
+	rootCmd.PersistentFlags().StringVarP(&rootProfile, "config", "c", "iq", "config profile at ~/.netrc about LLM provider")
 	rootCmd.PersistentFlags().StringVarP(&rootLLM, "llm", "m", "", "overrides LLM model defined at ~/.netrc")
 	rootCmd.PersistentFlags().StringVarP(&rootPrompt, "prompt", "p", "", "path to prompt yaml file")
 	rootCmd.PersistentFlags().BoolVar(&rootDebug, "debug", false, "enable debug output")
@@ -54,9 +59,23 @@ var rootCmd = &cobra.Command{
 	Use:   "iq",
 	Short: "a fast and lightweight CLI tool for running LLM-powered agents",
 	Long: `
-iq is a fast and lightweight CLI tool for running LLM-powered agents.
+'iq' is a fast and lightweight CLI for running LLM-powered agents.  
+Use it to run prompts and workflows on local files or S3 buckets. 
 
-TBD
+The philosophy behind the tool is to provide two distinct modes of operation:
+batch processing and individual tasks. Commands like 'ask' and 'run' are designed
+for processing groups of files in bulk, whether they are stored locally or in
+S3 buckets. These commands allow you to apply prompts or run workflows across
+multiple files at once. On the other hand, commands like 'exec' and 'tell' are
+focused on isolated operations, where you perform a single task or send a
+one-off prompt to the LLM.
+
+For example, below it process files in current directory returning the color
+palletes for things depicted by file.
+
+echo "What are colors of the thing in the attached document?" | iq ask -o /tmp
+
+Run 'iq help' for guidance.
 
 See more info https://github.com/fogfish/iq
 	`,
@@ -119,12 +138,12 @@ func agentForPrompts() (*service.Prompter, *viper.Viper, error) {
 		return nil, nil, err
 	}
 
-	llm, err := configLLM(in.GetString("llm"))
+	gLLM, err = configLLM(in.GetString("llm"))
 	if err != nil {
 		return nil, nil, err
 	}
 
-	agt, err := service.NewPrompter(llm, in)
+	agt, err := service.NewPrompter(gLLM, in)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -138,32 +157,76 @@ func agentForTasks(workdir string) (*service.Worker, *viper.Viper, error) {
 		return nil, nil, err
 	}
 
-	llm, err := configLLM(in.GetString("llm"))
+	gLLM, err = configLLM(in.GetString("llm"))
 	if err != nil {
 		return nil, nil, err
 	}
 
-	if taskWithBash || taskWithGolang || taskWithPython {
+	if execWithBash || execWithGolang || execWithPython {
 		registry := []string{}
-		if taskWithBash {
+		if execWithBash {
 			registry = append(registry, command.BASH)
 		}
-		if taskWithGolang {
+		if execWithGolang {
 			registry = append(registry, command.GOLANG)
 		}
-		if taskWithPython {
+		if execWithPython {
 			registry = append(registry, command.PYTHON)
 		}
 
 		in.Set(prompt.YAML_REGISTRY, registry)
 	}
 
-	agt, err := service.NewWorker(llm, in, workdir)
+	agt, err := service.NewWorker(gLLM, in, workdir)
 	if err != nil {
 		return nil, nil, err
 	}
 
 	return agt, in, nil
+}
+
+//------------------------------------------------------------------------------
+
+func createSpool(pathDir, pathOut string, mutable, strict bool) (*spool.Spool, error) {
+	dir, err := mount(pathDir)
+	if err != nil {
+		return nil, fmt.Errorf("unable to mount input dir (--dir, -d): %w", err)
+	}
+
+	out, err := mount(pathOut)
+	if err != nil {
+		return nil, fmt.Errorf("unable to mount output dir (--out, -o): %w", err)
+	}
+
+	opt := []opts.Option[spool.Spool]{}
+	if mutable {
+		opt = append(opt, spool.IsMutable)
+	} else {
+		opt = append(opt, spool.IsImmutable)
+	}
+
+	if strict {
+		opt = append(opt, spool.WithStrict)
+	} else {
+		opt = append(opt, spool.WithSkipError)
+	}
+
+	q := spool.New(dir, out, opt...)
+
+	return q, nil
+}
+
+func mount(path string) (spool.FileSystem, error) {
+	if len(path) == 0 {
+		return nil, fmt.Errorf("undefined mount point")
+	}
+
+	const s3pfx = "s3://"
+	if strings.HasPrefix(path, s3pfx) {
+		return stream.NewFS(path[len(s3pfx):])
+	}
+
+	return lfs.New(path)
 }
 
 //------------------------------------------------------------------------------
@@ -192,4 +255,33 @@ func createSpinner() spinner {
 		progressbar.OptionShowDescriptionAtLineEnd(),
 		progressbar.OptionSpinnerType(11),
 	)
+}
+
+func ellipses(txt string) string {
+	if len(txt) > 80 {
+		return txt[:80] + "..."
+	}
+	return txt
+}
+
+func respinner(s spinner) {
+	os.Stderr.WriteString("\n")
+	s.Reset()
+}
+
+//------------------------------------------------------------------------------
+
+func withUsage(f func(cmd *cobra.Command, args []string) error) func(cmd *cobra.Command, args []string) error {
+	return func(cmd *cobra.Command, args []string) error {
+		err := f(cmd, args)
+		if err != nil {
+			return err
+		}
+
+		it := gLLM.UsedInputTokens()
+		rt := gLLM.UsedReplyTokens()
+
+		fmt.Fprintf(os.Stderr, "\n\n 💡 Tokens used: %d (input: %d, reply: %d)\n", it+rt, it, rt)
+		return nil
+	}
 }

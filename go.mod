@@ -4,7 +4,8 @@ go 1.24.1
 
 require (
 	github.com/fogfish/opts v0.0.5
-	github.com/fogfish/stream v1.2.5
+	github.com/fogfish/stream v1.2.6
+	github.com/jdxcode/netrc v1.0.0
 	github.com/kshard/chatter v0.5.1
 	github.com/kshard/chatter/llm/autoconfig v0.0.2
 	github.com/kshard/thinker v0.0.18
@@ -53,7 +54,6 @@ require (
 	github.com/go-viper/mapstructure/v2 v2.2.1 // indirect
 	github.com/google/go-cmp v0.6.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
-	github.com/jdxcode/netrc v1.0.0 // indirect
 	github.com/kshard/chatter/llm/bedrock v0.3.1 // indirect
 	github.com/kshard/chatter/llm/openai v0.3.1 // indirect
 	github.com/kshard/float8 v0.0.3 // indirect

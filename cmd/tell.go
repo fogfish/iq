@@ -18,27 +18,28 @@ import (
 )
 
 func init() {
-	rootCmd.AddCommand(promptCmd)
+	rootCmd.AddCommand(tellCmd)
 }
 
-var promptCmd = &cobra.Command{
-	Use:   "prompt",
-	Short: "evaluate prompt with LLM",
+var tellCmd = &cobra.Command{
+	Use:   "tell",
+	Short: "send a prompt to LLM",
 	Long: `
 TBD
 
 See more info https://github.com/fogfish/iq
 	`,
 	Example: `
-	iq prompt -p myprompt.yml
-	iq prompt -p myprompt.yml FILE1 FILE2 ...
-	echo "What are the colors of rainbow?" | iq prompt
+	iq tell -p myprompt.yml
+	iq tell -p myprompt.yml FILE1 FILE2 ...
+	echo "What are the colors of rainbow?" | iq tell
 	`,
-	SilenceUsage: true,
-	RunE:         query,
+	SilenceUsage:  true,
+	SilenceErrors: true,
+	RunE:          withUsage(tell),
 }
 
-func query(cmd *cobra.Command, args []string) error {
+func tell(cmd *cobra.Command, args []string) error {
 	spinner := createSpinner()
 	defer spinner.Finish()
 

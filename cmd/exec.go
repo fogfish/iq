@@ -18,43 +18,44 @@ import (
 )
 
 var (
-	taskWithBash   bool
-	taskWithGolang bool
-	taskWithPython bool
-	taskWorkDir    string
+	execWithBash   bool
+	execWithGolang bool
+	execWithPython bool
+	execWorkDir    string
 )
 
 func init() {
-	rootCmd.AddCommand(taskCmd)
+	rootCmd.AddCommand(execCmd)
 
-	taskCmd.Flags().BoolVar(&taskWithBash, "bash", false, "enable bash in the command registry")
-	taskCmd.Flags().BoolVar(&taskWithGolang, "golang", false, "enable golang in the command registry")
-	taskCmd.Flags().BoolVar(&taskWithPython, "python", false, "enable python in the command registry")
-	taskCmd.Flags().StringVar(&taskWorkDir, "workdir", "", "enable custom workdir")
+	execCmd.Flags().BoolVar(&execWithBash, "bash", false, "enable bash in the command registry")
+	execCmd.Flags().BoolVar(&execWithGolang, "golang", false, "enable golang in the command registry")
+	execCmd.Flags().BoolVar(&execWithPython, "python", false, "enable python in the command registry")
+	execCmd.Flags().StringVar(&execWorkDir, "workdir", "", "work directory for tools and commands")
 }
 
-var taskCmd = &cobra.Command{
+var execCmd = &cobra.Command{
 	Use:   "task",
-	Short: "execute task (workflow) with external commands",
+	Short: "execute a workflow using LLM instructions",
 	Long: `
 TBD
 
 See more info https://github.com/fogfish/iq
 	`,
 	Example: `
-	iq task -p mytask.yml
-	iq task -p mytask.yml FILE1 FILE2 ...
-	echo "Using available tools draw the rainbow?" | iq task --python
+	iq exec -p mytask.yml
+	iq exec -p mytask.yml FILE1 FILE2 ...
+	echo "Using available tools draw the rainbow?" | iq exec --python
 	`,
-	SilenceUsage: true,
-	RunE:         task,
+	SilenceUsage:  true,
+	SilenceErrors: true,
+	RunE:          withUsage(exec),
 }
 
-func task(cmd *cobra.Command, args []string) error {
+func exec(cmd *cobra.Command, args []string) error {
 	spinner := createSpinner()
 	defer spinner.Finish()
 
-	agt, req, err := agentForTasks(taskWorkDir)
+	agt, req, err := agentForTasks(execWorkDir)
 	if err != nil {
 		return err
 	}
