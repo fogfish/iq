@@ -6,7 +6,7 @@ require (
 	github.com/fogfish/opts v0.0.5
 	github.com/fogfish/stream v1.2.5
 	github.com/kshard/chatter v0.5.1
-	github.com/kshard/chatter/llm/autoconfig v0.0.1
+	github.com/kshard/chatter/llm/autoconfig v0.0.2
 	github.com/kshard/thinker v0.0.18
 	github.com/schollz/progressbar/v3 v3.18.0
 	github.com/spf13/cobra v1.9.1
