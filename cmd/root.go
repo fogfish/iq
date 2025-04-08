@@ -132,7 +132,7 @@ func agentForPrompts() (*service.Prompter, *viper.Viper, error) {
 	return agt, in, nil
 }
 
-func agentForTasks() (*service.Worker, *viper.Viper, error) {
+func agentForTasks(workdir string) (*service.Worker, *viper.Viper, error) {
 	in, err := parsePrompt()
 	if err != nil {
 		return nil, nil, err
@@ -158,7 +158,7 @@ func agentForTasks() (*service.Worker, *viper.Viper, error) {
 		in.Set(prompt.YAML_REGISTRY, registry)
 	}
 
-	agt, err := service.NewWorker(llm, in)
+	agt, err := service.NewWorker(llm, in, workdir)
 	if err != nil {
 		return nil, nil, err
 	}

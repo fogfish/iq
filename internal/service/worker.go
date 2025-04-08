@@ -24,10 +24,12 @@ type Worker struct {
 	*agent.Worker[*viper.Viper]
 }
 
-func NewWorker(llm chatter.Chatter, c *viper.Viper) (*Worker, error) {
-	workdir, err := os.MkdirTemp(os.TempDir(), "iq-")
-	if err != nil {
-		return nil, err
+func NewWorker(llm chatter.Chatter, c *viper.Viper, workdir string) (w *Worker, err error) {
+	if len(workdir) == 0 {
+		workdir, err = os.MkdirTemp(os.TempDir(), "iq-")
+		if err != nil {
+			return
+		}
 	}
 
 	registry := command.NewRegistry()
@@ -42,10 +44,10 @@ func NewWorker(llm chatter.Chatter, c *viper.Viper) (*Worker, error) {
 		}
 	}
 
-	w := &Worker{}
+	w = &Worker{}
 	w.Worker = agent.NewWorker(llm, 4, codec.FromEncoder(fromViper), registry)
 
-	return w, nil
+	return
 }
 
 func (w *Worker) PromptOnce(ctx context.Context, input *viper.Viper, opt ...chatter.Opt) ([]byte, error) {

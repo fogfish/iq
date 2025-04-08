@@ -21,6 +21,7 @@ var (
 	taskWithBash   bool
 	taskWithGolang bool
 	taskWithPython bool
+	taskWorkDir    string
 )
 
 func init() {
@@ -29,6 +30,7 @@ func init() {
 	taskCmd.Flags().BoolVar(&taskWithBash, "bash", false, "enable bash in the command registry")
 	taskCmd.Flags().BoolVar(&taskWithGolang, "golang", false, "enable golang in the command registry")
 	taskCmd.Flags().BoolVar(&taskWithPython, "python", false, "enable python in the command registry")
+	taskCmd.Flags().StringVar(&taskWorkDir, "workdir", "", "enable custom workdir")
 }
 
 var taskCmd = &cobra.Command{
@@ -52,7 +54,7 @@ func task(cmd *cobra.Command, args []string) error {
 	spinner := createSpinner()
 	defer spinner.Finish()
 
-	agt, req, err := agentForTasks()
+	agt, req, err := agentForTasks(taskWorkDir)
 	if err != nil {
 		return err
 	}

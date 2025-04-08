@@ -27,6 +27,7 @@ var (
 	spoolOut     string
 	spoolMutable bool
 	spoolStrict  bool
+	spoolWorkDir string
 )
 
 func init() {
@@ -36,9 +37,12 @@ func init() {
 	spoolCmd.PersistentFlags().BoolVar(&spoolMutable, "mutable", false, "mutable spool")
 	spoolCmd.PersistentFlags().BoolVar(&spoolStrict, "strict", false, "strict spool")
 
+	spoolTaskCmd.Flags().StringVar(&spoolWorkDir, "workdir", "", "enable custom workdir")
+
 	spoolCmd.AddCommand(spoolPromptCmd)
 	spoolCmd.AddCommand(spoolTaskCmd)
 	spoolCmd.AddCommand(spoolClassifyCmd)
+
 }
 
 var spoolCmd = &cobra.Command{
@@ -197,7 +201,7 @@ func spoolTask(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	agt, req, err := agentForTasks()
+	agt, req, err := agentForTasks(spoolWorkDir)
 	if err != nil {
 		return err
 	}
