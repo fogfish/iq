@@ -1,8 +1,33 @@
-# iq
+<p align="center">
+  <img src="./doc/iq.svg" height="128" />
+  <h3 align="center">iq</h3>
+  <p align="center"><strong>Intelligent Query</strong></p>
+
+  <p align="center">
+    <!-- Version -->
+    <a href="https://github.com/fogfish/iq/releases">
+      <img src="https://img.shields.io/github/v/tag/fogfish/iq?label=version" />
+    </a>
+    <!-- Build Status  -->
+    <a href="https://github.com/fogfish/iq/actions/">
+      <img src="https://github.com/fogfish/iq/workflows/build/badge.svg" />
+    </a>
+    <!-- GitHub -->
+    <a href="http://github.com/fogfish/iq">
+      <img src="https://img.shields.io/github/last-commit/fogfish/iq.svg" />
+    </a>
+    <!-- Coverage -->
+    <a href="https://coveralls.io/github/fogfish/iq?branch=main">
+      <img src="https://coveralls.io/repos/github/fogfish/iq/badge.svg?branch=main" />
+    </a>
+  </p>
+</p>
+
+--- 
 
 Intelligent Query `iq` is a fast and lightweight CLI for running LLM-powered agents.  Use it to run prompts and workflows on local files or S3 buckets.
 
-The philosophy behind the tool is to provide two distinct modes of operation: batch processing and individual tasks. Commands like 'ask' and 'run' are designed for processing groups of files in bulk, whether they are stored locally or in S3 buckets. These commands allow you to apply prompts or run workflows across multiple files at once. On the other hand, commands like 'exec' and 'tell' are focused on isolated operations, where you perform a single task or send a one-off prompt to the LLM.
+The philosophy behind the tool is to provide two distinct modes of operation: batch processing and individual tasks. Commands like `ask` and `run` are designed for processing groups of files in bulk, whether they are stored locally or in S3 buckets. These commands allow you to apply prompts or run workflows across multiple files at once. On the other hand, commands like `exec` and `tell` are focused on isolated operations, where you perform a single task or send a one-off prompt to the LLM.
 
 ## Quick Start
 
