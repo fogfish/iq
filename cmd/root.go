@@ -9,7 +9,9 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 
@@ -39,18 +41,20 @@ func Execute(vsn string) {
 }
 
 var (
-	rootProfile string
-	rootLLM     string
-	rootPrompt  string
-	rootDebug   bool
-	rootSilent  bool
-	gLLM        chatter.Chatter
+	rootProfile  string
+	rootLLM      string
+	rootPrompt   string
+	rootMaxEpoch int
+	rootDebug    bool
+	rootSilent   bool
+	gLLM         chatter.Chatter
 )
 
 func init() {
 	rootCmd.PersistentFlags().StringVarP(&rootProfile, "config", "c", "iq", "config profile at ~/.netrc about LLM provider")
 	rootCmd.PersistentFlags().StringVarP(&rootLLM, "llm", "m", "", "overrides LLM model defined at ~/.netrc")
 	rootCmd.PersistentFlags().StringVarP(&rootPrompt, "prompt", "p", "", "path to prompt yaml file")
+	rootCmd.PersistentFlags().IntVarP(&rootMaxEpoch, "epoch", "e", 5, "max number of attempts (epoch) to refine the task before give up")
 	rootCmd.PersistentFlags().BoolVar(&rootDebug, "debug", false, "enable debug output")
 	rootCmd.PersistentFlags().BoolVarP(&rootSilent, "silent", "s", false, "not output")
 }
@@ -107,10 +111,28 @@ func createLLM(llmid string) (chatter.Chatter, error) {
 	}
 
 	if len(rootLLM) != 0 {
+		if rootLLM == "mock" {
+			return llmock(0), nil
+		}
 		return autoconfig.New(rootProfile, rootLLM)
 	}
 
 	return autoconfig.New(rootProfile)
+}
+
+type llmock int
+
+func (llmock) UsedInputTokens() int { return 0 }
+func (llmock) UsedReplyTokens() int { return 0 }
+
+func (llmock) Prompt(ctx context.Context, prompt []fmt.Stringer, opt ...chatter.Opt) (chatter.Reply, error) {
+	seq := make([]string, len(prompt))
+	for i, s := range prompt {
+		seq[i] = s.String()
+	}
+	reply := strings.Join(seq, " ")
+
+	return chatter.Reply{Text: reply, UsedInputTokens: len(reply), UsedReplyTokens: len(reply)}, nil
 }
 
 //------------------------------------------------------------------------------
@@ -143,7 +165,7 @@ func agentForPrompts() (*service.Prompter, *viper.Viper, error) {
 		return nil, nil, err
 	}
 
-	agt, err := service.NewPrompter(gLLM, in)
+	agt, err := service.NewPrompter(gLLM, in, rootMaxEpoch)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -177,7 +199,7 @@ func agentForTasks(workdir string) (*service.Worker, *viper.Viper, error) {
 		in.Set(prompt.YAML_REGISTRY, registry)
 	}
 
-	agt, err := service.NewWorker(gLLM, in, workdir)
+	agt, err := service.NewWorker(gLLM, in, workdir, rootMaxEpoch)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -265,6 +287,10 @@ func ellipses(txt string) string {
 }
 
 func respinner(s spinner) {
+	if rootSilent {
+		return
+	}
+
 	os.Stderr.WriteString("\n")
 	s.Reset()
 }
@@ -278,10 +304,21 @@ func withUsage(f func(cmd *cobra.Command, args []string) error) func(cmd *cobra.
 			return err
 		}
 
+		if rootSilent {
+			return nil
+		}
+
 		it := gLLM.UsedInputTokens()
 		rt := gLLM.UsedReplyTokens()
-
 		fmt.Fprintf(os.Stderr, "\n\n 💡 Tokens used: %d (input: %d, reply: %d)\n", it+rt, it, rt)
+
 		return nil
 	}
+}
+
+func fPrintf(w io.Writer, format string, a ...any) (n int, err error) {
+	if rootSilent {
+		return 0, nil
+	}
+	return fmt.Fprintf(w, format, a...)
 }
