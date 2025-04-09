@@ -6,9 +6,16 @@ The philosophy behind the tool is to provide two distinct modes of operation: ba
 
 ## Quick Start
 
-Install utility from GitHub. (Homebrew is coming)
+Install utility using either from [Homebrew](https://brew.sh) or [GitHub Binary Releases](https://github.com/fogfish/iq/releases).
 
 ```bash
+## Install using brew
+brew tap fogfish/iq https://github.com/fogfish/iq
+brew install -q iq
+
+## use `brew upgrade` to upgrade to latest version 
+
+## Alternatively, install from source code
 go install github.com/fogfish/iq@latest
 ```
 
