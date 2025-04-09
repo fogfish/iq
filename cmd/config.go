@@ -76,7 +76,7 @@ func config(cmd *cobra.Command, args []string) error {
 
 	machine := n.Machine(rootProfile)
 	if machine != nil {
-		os.Stdout.WriteString("\n ✅ All good — you're set up and ready to go!\n")
+		fPrintf(os.Stdout, "\n ✅ All good — you're set up and ready to go!\n")
 		return nil
 	}
 
@@ -121,9 +121,9 @@ func config(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	os.Stdout.WriteString("\n ✅ All good — you're set up and ready to go!\n")
-	fmt.Fprintf(os.Stdout, "    %s is default model, use -m, --llm flags to override it.\n", rootLLM)
-	os.Stdout.WriteString("    You might need to adjust config at ~/.netrc later, based on your setup.\n")
+	fPrintf(os.Stdout, "\n ✅ All good — you're set up and ready to go!\n")
+	fPrintf(os.Stdout, "    %s is default model, use -m, --llm flags to override it.\n", rootLLM)
+	fPrintf(os.Stdout, "    You might need to adjust config at ~/.netrc later, based on your setup.\n")
 	return nil
 }
 

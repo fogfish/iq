@@ -11,7 +11,6 @@ package cmd
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"os"
 	"strings"
 
@@ -60,9 +59,9 @@ See more info https://github.com/fogfish/iq
 }
 
 func tag(cmd *cobra.Command, args []string) error {
-	fmt.Fprintf(os.Stderr, " 📂 taging files in %s\n", tagDir)
+	fPrintf(os.Stderr, " 📂 taging files in %s\n", tagDir)
 	if tagMutable {
-		fmt.Fprintf(os.Stderr, " ‼️ removes each input file immediately after it has been processed.\n")
+		fPrintf(os.Stderr, " ‼️ removes each input file immediately after it has been processed.\n")
 	}
 
 	spinner := createSpinner()

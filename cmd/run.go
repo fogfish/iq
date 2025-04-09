@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"context"
-	"fmt"
 	"os"
 
 	spec "github.com/fogfish/iq/internal/prompt"
@@ -75,9 +74,9 @@ See more info https://github.com/fogfish/iq
 }
 
 func run(cmd *cobra.Command, args []string) error {
-	fmt.Fprintf(os.Stderr, " 📂 running workflow with files in %s\n", runDir)
+	fPrintf(os.Stderr, " 📂 running workflow with files in %s\n", runDir)
 	if runMutable {
-		fmt.Fprintf(os.Stderr, " ‼️ removes each input file immediately after it has been processed.\n")
+		fPrintf(os.Stderr, " ‼️ removes each input file immediately after it has been processed.\n")
 	}
 
 	spinner := createSpinner()

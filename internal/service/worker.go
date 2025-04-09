@@ -24,7 +24,7 @@ type Worker struct {
 	*agent.Worker[*viper.Viper]
 }
 
-func NewWorker(llm chatter.Chatter, c *viper.Viper, workdir string) (w *Worker, err error) {
+func NewWorker(llm chatter.Chatter, c *viper.Viper, workdir string, maxEpoch int) (w *Worker, err error) {
 	if len(workdir) == 0 {
 		workdir, err = os.MkdirTemp(os.TempDir(), "iq-")
 		if err != nil {
@@ -45,7 +45,7 @@ func NewWorker(llm chatter.Chatter, c *viper.Viper, workdir string) (w *Worker, 
 	}
 
 	w = &Worker{}
-	w.Worker = agent.NewWorker(llm, 4, codec.FromEncoder(fromViper), registry)
+	w.Worker = agent.NewWorker(llm, maxEpoch, codec.FromEncoder(fromViper), registry)
 
 	return
 }

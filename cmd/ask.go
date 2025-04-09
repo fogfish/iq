@@ -10,7 +10,6 @@ package cmd
 
 import (
 	"context"
-	"fmt"
 	"os"
 
 	spec "github.com/fogfish/iq/internal/prompt"
@@ -69,9 +68,9 @@ See more info https://github.com/fogfish/iq
 }
 
 func ask(cmd *cobra.Command, args []string) error {
-	fmt.Fprintf(os.Stderr, " 📂 asking about files in %s\n", askDir)
+	fPrintf(os.Stderr, " 📂 asking about files in %s\n", askDir)
 	if askMutable {
-		fmt.Fprintf(os.Stderr, " ‼️ removes each input file immediately after it has been processed.\n")
+		fPrintf(os.Stderr, " ‼️ removes each input file immediately after it has been processed.\n")
 	}
 
 	spinner := createSpinner()

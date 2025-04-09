@@ -27,13 +27,13 @@ type Prompter struct {
 	config *viper.Viper
 }
 
-func NewPrompter(llm chatter.Chatter, c *viper.Viper) (*Prompter, error) {
+func NewPrompter(llm chatter.Chatter, c *viper.Viper, maxEpoch int) (*Prompter, error) {
 	w := &Prompter{config: c}
 	w.Automata = agent.NewAutomata(llm,
 		memory.NewStream(memory.INFINITE, chatter.Stratum(c.GetString("role"))),
 		codec.FromEncoder(fromViper),
 		codec.FromDecoder(w.decode),
-		reasoner.NewEpoch(4, reasoner.From(w.deduct)),
+		reasoner.NewEpoch(maxEpoch, reasoner.From(w.deduct)),
 	)
 
 	return w, nil
