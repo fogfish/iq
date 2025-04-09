@@ -63,8 +63,11 @@ var rootCmd = &cobra.Command{
 	Use:   "iq",
 	Short: "a fast and lightweight CLI tool for running LLM-powered agents",
 	Long: `
-'iq' is a fast and lightweight CLI for running LLM-powered agents.  
-Use it to run prompts and workflows on local files or S3 buckets. 
+ _
+(_)__ _      
+| / _' |    a fast and lightweight CLI for running LLM-powered agents.
+|_\__, |    Use it to run prompts and workflows on local files or S3 buckets.
+     |_|
 
 The philosophy behind the tool is to provide two distinct modes of operation:
 batch processing and individual tasks. Commands like 'ask' and 'run' are designed
