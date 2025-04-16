@@ -37,7 +37,8 @@ var execCmd = &cobra.Command{
 	Use:   "task",
 	Short: "execute a workflow using LLM instructions",
 	Long: `
-TBD
+Used to run a full workflow: a prompt that describes a multi-step task and
+leverages built-in tools to read, write, and manipulate files as needed.
 
 See more info https://github.com/fogfish/iq
 	`,
@@ -74,7 +75,7 @@ func exec(cmd *cobra.Command, args []string) error {
 	}
 
 	for _, file := range args {
-		spinner.Describe(fmt.Sprintf("processing with %s ...", file))
+		spinner.Describe(fmt.Sprintf("processing with %s", ellipses(file)))
 		b, err := os.ReadFile(file)
 		if err != nil {
 			return err

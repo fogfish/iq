@@ -59,8 +59,9 @@ suited for temporary or disposable file queues.
 See more info https://github.com/fogfish/iq
 	`,
 	Example: `
-	iq ask -p prompt.yml
-	echo "What are colors of the thing in the attached document?" | iq ask
+	iq ask -p prompt.yml -o ./output
+	
+	echo "What are colors of the thing in the attached document?" | iq ask -o ./output
 	`,
 	SilenceUsage:  true,
 	SilenceErrors: true,

@@ -51,7 +51,7 @@ workflows.
 See more info https://github.com/fogfish/iq
 	`,
 	Example: `
-	iq
+	iq tag -p classify.yml -o ./output
 	`,
 	SilenceUsage:  true,
 	SilenceErrors: true,
@@ -80,15 +80,8 @@ func tag(cmd *cobra.Command, args []string) error {
 
 	q.PartitionFile(context.Background(), "/",
 		func(ctx context.Context, path string, b []byte) (string, error) {
-			if len(path) > 80 {
-				spinner.Describe(path[:80])
-			} else {
-				spinner.Describe(path)
-			}
-			defer func() {
-				os.Stderr.WriteString("\n")
-				spinner.Reset()
-			}()
+			spinner.Describe(ellipses(path))
+			defer respinner(spinner)
 
 			req.Set(spec.YAML_BLOB, string(b))
 			reply, err := agt.PromptOnce(ctx, req)
