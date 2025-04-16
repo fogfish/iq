@@ -66,7 +66,7 @@ suited for temporary or disposable file queues.
 See more info https://github.com/fogfish/iq
 	`,
 	Example: `
-	iq run -p task.yml
+	iq run -p task.yml -o ./output
 	`,
 	SilenceUsage:  true,
 	SilenceErrors: true,

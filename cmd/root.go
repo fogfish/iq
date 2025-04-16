@@ -87,7 +87,18 @@ Run 'iq help' for guidance.
 See more info https://github.com/fogfish/iq
 	`,
 	Example: `
-	iq
+	## Send a prompt to LLM
+	iq tell -p myprompt.yml
+	iq tell -p myprompt.yml FILE1 ...
+
+	## Execute a workflow using LLM instructions
+	iq exec -p mytask.yml
+	iq exec -p mytask.yml FILE1 FILE2 ...
+	echo "Using available tools draw the rainbow?" | iq exec --python
+
+	## Process files with LLM
+	iq ask -p prompt.yml -o ./output
+	echo "What are colors of the thing in the attached document?" | iq ask -o ./output
 	`,
 	SilenceUsage: true,
 	Run:          func(cmd *cobra.Command, args []string) { cmd.Help() },
@@ -150,11 +161,11 @@ func parsePrompt() (*viper.Viper, error) {
 		return nil, err
 	}
 
-	if fi.Size() > 0 {
-		return prompt.Parse(os.Stdin)
+	if fi.Mode()&os.ModeCharDevice != 0 {
+		return nil, fmt.Errorf("no prompt data in stdin")
 	}
 
-	return nil, fmt.Errorf("undefined prompt")
+	return prompt.Parse(os.Stdin)
 }
 
 func agentForPrompts() (*service.Prompter, *viper.Viper, error) {

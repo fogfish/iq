@@ -30,7 +30,7 @@ brews:
   - repository:
       owner: fogfish
       name: iq
-    folder: Formula
+    directory: Formula
     goarm: "7"
     homepage:  https://github.com/fogfish/iq
     description: iq (Intelligent Query) is a fast and lightweight CLI for running LLM-powered agents.
