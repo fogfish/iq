@@ -165,11 +165,7 @@ func parsePrompt() (*viper.Viper, error) {
 		return nil, fmt.Errorf("no prompt data in stdin")
 	}
 
-	// if fi.Size() > 0 {
 	return prompt.Parse(os.Stdin)
-	// }
-
-	// return nil, fmt.Errorf("undefined prompt")
 }
 
 func agentForPrompts() (*service.Prompter, *viper.Viper, error) {
