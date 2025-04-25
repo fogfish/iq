@@ -47,6 +47,33 @@ func TestTellWithFiles(t *testing.T) {
 	)
 }
 
+func TestTellWithArgs(t *testing.T) {
+	// iq tell -s -m ... -p ...
+	rootSilent = true
+	rootLLM = "mock"
+	rootPrompt = "./testdata/args.yml"
+
+	out, err := sut(tellCmd, nil)
+	it.Then(t).Should(
+		it.Nil(err),
+		it.String(out).Contain("What are the colors of rainbow?"),
+	)
+}
+
+func TestTellWithArgsOverride(t *testing.T) {
+	// iq tell -s -m ... -p ... --input "key1=value1,key2=value2"
+	rootSilent = true
+	rootLLM = "mock"
+	rootPrompt = "./testdata/args.yml"
+	rootInput = "key1=value1,key2,key3=,name=sun"
+
+	out, err := sut(tellCmd, nil)
+	it.Then(t).Should(
+		it.Nil(err),
+		it.String(out).Contain("What are the colors of sun?"),
+	)
+}
+
 func TestExec(t *testing.T) {
 	// iq exec -s -m ... -p ...
 	rootSilent = true
