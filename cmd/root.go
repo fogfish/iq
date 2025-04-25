@@ -44,6 +44,7 @@ var (
 	rootProfile  string
 	rootLLM      string
 	rootPrompt   string
+	rootInput    string
 	rootMaxEpoch int
 	rootDebug    bool
 	rootSilent   bool
@@ -54,6 +55,7 @@ func init() {
 	rootCmd.PersistentFlags().StringVarP(&rootProfile, "config", "c", "iq", "config profile at ~/.netrc about LLM provider")
 	rootCmd.PersistentFlags().StringVarP(&rootLLM, "llm", "m", "", "overrides LLM model defined at ~/.netrc")
 	rootCmd.PersistentFlags().StringVarP(&rootPrompt, "prompt", "p", "", "path to prompt yaml file")
+	rootCmd.PersistentFlags().StringVar(&rootInput, "input", "", "override prompt input")
 	rootCmd.PersistentFlags().IntVarP(&rootMaxEpoch, "epoch", "e", 5, "max number of attempts (epoch) to refine the task before give up")
 	rootCmd.PersistentFlags().BoolVar(&rootDebug, "debug", false, "enable debug output")
 	rootCmd.PersistentFlags().BoolVarP(&rootSilent, "silent", "s", false, "not output")
@@ -151,11 +153,39 @@ func (llmock) Prompt(ctx context.Context, prompt []fmt.Stringer, opt ...chatter.
 
 //------------------------------------------------------------------------------
 
-func parsePrompt() (*viper.Viper, error) {
-	if len(rootPrompt) != 0 {
-		return prompt.ParseFile(rootPrompt)
+func parsePrompt() (in *viper.Viper, err error) {
+	if len(rootPrompt) == 0 {
+		in, err = parsePromptStdin()
+	} else {
+		in, err = prompt.ParseFile(rootPrompt)
 	}
 
+	if err != nil {
+		return
+	}
+
+	if len(rootInput) == 0 {
+		return
+	}
+
+	args := in.GetStringMap(prompt.YAML_INPUT)
+	if args == nil {
+		args = map[string]any{}
+	}
+
+	for _, input := range strings.Split(rootInput, ",") {
+		kv := strings.Split(input, "=")
+		if len(kv) != 2 {
+			continue
+		}
+		args[kv[0]] = kv[1]
+	}
+	in.Set(prompt.YAML_INPUT, args)
+
+	return in, nil
+}
+
+func parsePromptStdin() (*viper.Viper, error) {
 	fi, err := os.Stdin.Stat()
 	if err != nil {
 		return nil, err
@@ -165,7 +195,12 @@ func parsePrompt() (*viper.Viper, error) {
 		return nil, fmt.Errorf("no prompt data in stdin")
 	}
 
-	return prompt.Parse(os.Stdin)
+	in, err := prompt.Parse(os.Stdin)
+	if err != nil {
+		return nil, err
+	}
+
+	return in, nil
 }
 
 func agentForPrompts() (*service.Prompter, *viper.Viper, error) {
