@@ -49,7 +49,7 @@ output per file.
 The command support mounting of AWS S3 bucket. Use s3:// prefix
 prefix to direct the utility (e.g. s3://bucket/path).
 
-  echo "What ..." | iq ask -d s3://my/example -o s3://my/result
+  echo "What ..." | iq run -d s3://my/example -o s3://my/result
 
 Processing a large number of files may require the ability to start, stop, and
 resume the utility reliably. To support this, you can use the --mutable flag,
