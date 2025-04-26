@@ -1,7 +1,7 @@
 <p align="center">
   <img src="./doc/iq.svg" height="128" />
   <h3 align="center">iq</h3>
-  <p align="center"><strong>Intelligent Query</strong></p>
+  <p align="center"><strong>Intelligent Query is a lightweight command-line LLM-powered file processor.</strong></p>
 
   <p align="center">
     <!-- Version -->
@@ -25,13 +25,38 @@
 
 --- 
 
-Intelligent Query `iq` is a fast and lightweight CLI for running LLM-powered agents.  Use it to run prompts and workflows on local files or S3 buckets.
+Intelligent Query `iq` is a lightweight command-line LLM-powered file processor. The tool is designed to simplify running LLM-powered agents in the batch against mounted file systems, whether they are simple prompting agents or more complex system that dynamically direct their own processes and tool to accomplish task.
 
-The philosophy behind the tool is to provide two distinct modes of operation: batch processing and individual tasks. Commands like `ask` and `run` are designed for processing groups of files in bulk, whether they are stored locally or in S3 buckets. These commands allow you to apply prompts or run workflows across multiple files at once. On the other hand, commands like `exec` and `tell` are focused on isolated operations, where you perform a single task or send a one-off prompt to the LLM.
+- [Features](#features)
+- [Installation](#installation)
+- [Quick Start](#quick-start)
+- [Usage](#usage)
+  - [Prompt Engineering](#prompt-engineering)
+- [Examples](#examples)
+  - [Basic usage](#basic-usage)
+  - [Processing file](#processing-file)
+  - [Basic agent](#basic-agent)
+  - [Processing files with agent](#processing-files-with-agent)
+  - [Classification](#classification)
+  - [Working with AWS S3](#working-with-aws-s3)
+  - [STDIN/STDOUT](#stdinstdout)
+- [How To Contribute](#how-to-contribute)
+- [License](#license)
 
-## Quick Start
 
-Install utility using either from [Homebrew](https://brew.sh) or [GitHub Binary Releases](https://github.com/fogfish/iq/releases).
+## Features
+
+* Apply prompt-based agents to files within a directory.
+* Execute workflow-driven tools on directory-based files.
+* Enable LLMs to utilize Bash, Golang, and Python for executing tasks.
+* Support prompt templates and meta-prompting (prompts generated dynamically by the LLM).
+* Enable STDIN/STDOUT for shell scripting integration.
+* Support OpenAI, OpenAI-compatible APIs, AWS Bedrock, and LM Studio as LLM backends.
+
+
+## Installation
+
+Install utility using either from [Homebrew](https://brew.sh) (MacOS) or [GitHub Binary Releases](https://github.com/fogfish/iq/releases) (other platforms).
 
 ```bash
 ## Install using brew
@@ -39,13 +64,19 @@ brew tap fogfish/iq https://github.com/fogfish/iq
 brew install -q iq
 
 ## use `brew upgrade` to upgrade to latest version 
+```
 
-## Alternatively, install from source code
+Alternatively, install from source code, it requires Golang 1.24
+```bash
 go install github.com/fogfish/iq@latest
 ```
 
-You need to configure iq with access to an LLM provider before using it. It supports multiple backends, including Amazon Bedrock, OpenAI, OpenAI-compatible APIs, and local LM Studio instances. Before doing this you have to create respective accounts, install software (LM Studio) and make sure you have access to the model.
+Before using `iq`, you need to configure it with access to an LLM provider. The tool supports multiple backends, including Amazon Bedrock, OpenAI, OpenAI-compatible APIs, and local LM Studio instances. The tool keeps the config at the `.netrc` file that generally resides in the user's home directory.
 
+It is your responsibility to obtain access to LLMs either creating the necessary accounts or installed any required software (such as LM Studio), and verified access to the target model.
+
+
+Use following commands to autoconfig `.netrc` record.
 ```bash
 iq config --bedrock
 iq config --lmstudio
@@ -55,8 +86,7 @@ iq config --openai <secret-key>
 > [!TIP]
 > My personal recommendation is usage of Amazon Bedrock. 
 
-
-Run the tool. Use `iq help` for full guidance.  
+## Quick Start
 
 ```bash
 echo "What are the colors of rainbow?" | iq tell
@@ -65,22 +95,43 @@ echo "What are the colors of rainbow?" | iq tell
 > [!TIP]
 > use -m, --llm flags to override the default model
 
+## Usage
 
-## User Guide
-
-### Prompt structure
-
-`iq` recommends structured prompting using the [TELeR framework](https://aclanthology.org/2023.findings-emnlp.946.pdf) — a practical taxonomy that breaks prompts into clear components: Task, Environment, Learner, and Response. This approach helps you craft reusable prompts by clearly defining goals, constraints, tone, and expected outputs. Use it to improve prompt quality, automate workflows, and ensure consistent LLM behavior across files and tasks.
-
-Use draft command to create a prompt YAML file:
 ```bash
-iq draft
+iq help
+
+Available Commands:
+  ask         process files in mounted dir with LLM
+  config      configure utility
+  draft       generate prompt template
+  run         process files in mounted dir with LLM agent
+  tag         classify files in the current directory using LLM
+  task        execute LLM-agent with prompt instructions
+  tell        send a prompt to LLM
+
+Flags:
+  -c, --config string   config profile at ~/.netrc about LLM provider (default "iq")
+      --input string    override prompt input
+  -m, --llm string      overrides LLM model defined at ~/.netrc
+  -p, --prompt string   path to prompt yaml file
+
+Use "iq [command] --help" for more information about a command.
 ```
+
+### Prompt Engineering
+
+Prompts are a core component of how the `iq` utility operates.  It expects prompts to be defined in YAML files, with the `prompt` key containing the actual prompt text.
+
+> [!TIP]
+> [TELeR framework](https://aclanthology.org/2023.findings-emnlp.946.pdf) — a practical taxonomy that breaks prompts into clear components: Task, Environment, Learner, and Response. This approach helps you craft reusable prompts by clearly defining goals, constraints, tone, and expected outputs. Use it to improve prompt quality, automate workflows, and ensure consistent LLM behavior across files and tasks.
+> 
+
+Use `iq draft` command to create an empty structured prompt YAML file:
 
 ```yaml
 prompt: |
   [Describe the task and goals clearly and concisely].
-
+  
   Guidelines:
     (1) [High-level principles or approach to follow.]
     (2) ...
@@ -116,7 +167,7 @@ prompt: |
   What are the colors of {{.name}}?
 ```
 
-In addtion, you can "try" to force [LLM responding in JSON](./examples/prompt/02_jsonify.yml) and reuse the core prompt structure via [include directive](./examples/prompt/04_include.yml).
+In addtion, you can "try" to force [LLM responding in JSON](./examples/prompt/02_jsonify.yml) and build reusable prompt via [include directive](./examples/prompt/04_include.yml).
 
 > [!TIP]
 > Meta-prompting is possible as well. The command below uses 
@@ -124,21 +175,29 @@ In addtion, you can "try" to force [LLM responding in JSON](./examples/prompt/02
 > 
 > `echo "What are the colors of rainbow?" | iq draft`
 
+
+## Examples
+
+### Basic usage
+
+`iq tell` send a standalone prompt and receive an immediate response, ideal for asking questions, drafting text, or running quick ideas past the model.
+
+For example, running the prompt [What are the colors of the rainbow](./examples/prompt/01_basic.yml)
+
+```bash
+iq tell -p ./examples/prompt/01_basic.yml
+```
+
+
 ### Processing file
 
-`iq` treats files as a processing queue — reading from an input folder, applying LLM-powered prompts or workflows, and writing results to an output folder. The `ask` command runs a prompt against each file's content, while `run` executes a full task workflow defined in a prompt template. This batch-oriented design allows you to automate the transformation, summarization, classification, or enhancement of documents at scale — with minimal setup and full traceability of inputs and outputs.
+`iq ask` command treats a mounted directory of files as a processing queue—reading from an input directory, applying LLM-powered prompts to each file's content, and writing the results to an output directory. This batch-oriented processing is ideal for transformation, summarization or enhanced file processing at scale—with minimal setup and full traceability of inputs and outputs.
 
-For example, running the prompt [What are the colors of the thing](./examples/prompt/05_overfile.yml) over [files](./examples/prompt/doc/) containing "earth", "sun", etc would produce the color pallete about it.  
+For example, running the prompt [What are the colors of the thing](./examples/prompt/05_overfile.yml) over [files](./examples/prompt/doc/) containing "earth", "sun", etc would produce the color pallete about each concept.  
 
 ```bash
 iq ask -p ./examples/prompt/05_overfile.yml -d ./examples/prompt/doc -o /tmp
 ```
-
-> [!TIP]
-> iq supports both local file system and AWS S3 buckets.
-> Use s3:// prefix to direct the utility (e.g. s3://bucket/path).
->
-> `echo "What ..." | iq ask -d s3://my/example -o s3://my/result`
 
 > [!IMPORTANT]
 > Use `--mutable` flag to remove input file right after it is processed.
@@ -146,27 +205,53 @@ iq ask -p ./examples/prompt/05_overfile.yml -d ./examples/prompt/doc -o /tmp
 > deal with errors. Use this option with caution — it modifies your input
 > data and is best suited for temporary or disposable file queues.
 
-### Workflow
 
-A workflow in `iq` represents a structured sequence of operations that an LLM can execute autonomously using available commands and tools. Unlike a single prompt, a workflow allows the model to reason through multiple steps — such as reading, generating, modifying, and combining files — to accomplish a complex goal. Each step builds on the last, forming a coherent process that mimics how a human might complete a task using a shell or scripting environment. For example, a workflow might involve generating content into files, transforming or replacing parts of that content, aggregating results, and applying formatting — all before producing a final output. By giving the LLM both a plan and access to command-level operations, workflows unlock a higher level of automation and creativity within your file system. For example, [the workflow about colors](./examples/task/01_bash.yml).
+### Basic agent
 
-`iq` support shell scripting specificly **Bash**, **Golang** and **Python** as available tools (must be installed in your environment). Create an issue if your use-case requires other tools. 
+We assume LLM-powered agent is a system that dynamically direct their own processes and available tool to accomplish task. Unlike a single prompt, a workflow allows the model to reason through multiple steps — such as reading, generating, modifying, and combining files — to accomplish a complex goal. Each step builds on the last, forming a coherent process that mimics how a human might complete a task using a shell or scripting environment.
+
+For example, a workflow might involve generating content into files, transforming or replacing parts of that content, aggregating results, and applying formatting — all before producing a final output. By giving the LLM both a plan and access to command-level operations, workflows unlock a higher level of automation and creativity within your file system.
+
+`iq task` empowers LLMs with **Bash**, **Golang** and **Python** as available tools (must be installed in your environment) to accomplish defined task. [Create an issue](https://github.com/fogfish/iq/issues) if your use-case requires other tools.
+
+For example, [the task about colors](./examples/task/01_basic.yml).
+
 
 ```bash
-iq run -p ./examples/task/01_bash.yml -d ./examples/prompt/doc -o /tmp
+iq task -p ./examples/task/01_basic.yml
+```
+
+### Processing files with agent
+
+`iq run` command treats a mounted directory of files as a processing queue—reading from an input directory, evaluating agent with each file's content, and writing the results to an output directory.
+
+For example, running the prompt [What are the colors of the thing](./examples/task/02_processor.yml) over [files](./examples/prompt/doc/) containing "earth", "sun", etc would produce the color pallete about each concept.  
+
+```bash
+iq run -p ./examples/task/02_processor.yml -d ./examples/prompt/doc -o /tmp
 ```
 
 ### Classification
 
-The 'iq tag' command uses an LLM to classify files based on their content and organize them accordingly. It processes each file, runs a prompt designed to extract metadata or labels (e.g., category, topic, sentiment, priority), and returns a structured response — typically in JSON. This metadata is used to move or copy files into specific directories, effectively sorting your input set into meaningful buckets. 'iq tag' is ideal for organizing large, unstructured datasets, triaging documents, or preparing inputs for downstream workflows.
+`iq tag` command uses an LLM to classify files based on their content and organize them accordingly. It processes each file, runs a prompt designed to extract metadata or labels (e.g., category, topic, sentiment, priority), and returns a structured response — typically in JSON. This metadata is used to move or copy files into specific directories, effectively sorting your input set into meaningful buckets. `iq tag` is ideal for organizing large, unstructured datasets, triaging documents, or preparing inputs for downstream workflows.
 
 ```bash
 iq tag -p ./examples/prompt/05_overfile.yml -d ./examples/prompt/doc -o /tmp
 ```
 
-### On-demand interactions
+### Working with AWS S3
 
-The `tell` and `exec` commands are twins to `ask` and `run`. They are designed for single, on-demand interactions with an LLM — without involving file batches. Use `tell` to send a standalone prompt and receive an immediate response, ideal for asking questions, drafting text, or running quick ideas past the model. In contrast, `exec` is used to run a full workflow: a prompt that describes a multi-step task and leverages built-in tools to read, write, and manipulate files as needed.
+`iq` supports both local file system and AWS S3 buckets. Use `s3://` prefix to direct the utility (e.g. s3://bucket/path).
+
+```bash
+echo "What ..." | iq ask -d s3://my/example -o s3://my/result`
+```
+
+### STDIN/STDOUT
+
+`id` enables STDIN/STDOUT for shell scripting integration.
+* It ONLY reads prompt from STDIN unless `-p` flag is used.
+* It output request of processing to STDOUT for `draft`, `tell` and `task` commands.
 
 
 ## How To Contribute

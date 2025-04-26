@@ -34,15 +34,16 @@ func init() {
 
 var askCmd = &cobra.Command{
 	Use:   "ask",
-	Short: "apply a prompt to files in the directory",
+	Short: "process files in mounted dir with LLM",
 	Long: `
-Apply a single LLM prompt to a batch of files.
 
-'ask' treats the files in your input folder as a queue: each file's content is
-loaded, passed to the prompt, and the result is saved to the output folder — one
-output per file. 
+ask command treats a mounted directory of files as a processing queue—reading
+from an input directory, applying LLM-powered prompts to each file's content,
+and writing the results to an output directory. This batch-oriented processing
+is ideal for transformation, summarization or enhanced file processing at
+scale—with minimal setup and full traceability of inputs and outputs.
 
-It either supports local file system or AWS S3 bucket. Use s3:// prefix
+The command support mounting of AWS S3 bucket. Use s3:// prefix
 prefix to direct the utility (e.g. s3://bucket/path).
 
   echo "What ..." | iq ask -d s3://my/example -o s3://my/result
@@ -52,9 +53,6 @@ resume the utility reliably. To support this, you can use the --mutable flag,
 which removes each input file immediately after it has been successfully processed.
 This enables fault-tolerant, resumable execution by ensuring already-processed
 files are skipped on subsequent runs.
-
-Note: Use this option with caution — it modifies your input data and is best
-suited for temporary or disposable file queues.
 
 See more info https://github.com/fogfish/iq
 	`,

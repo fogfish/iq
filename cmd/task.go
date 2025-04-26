@@ -35,17 +35,25 @@ func init() {
 
 var execCmd = &cobra.Command{
 	Use:   "task",
-	Short: "execute a workflow using LLM instructions",
+	Short: "execute LLM-agent with prompt instructions",
 	Long: `
-Used to run a full workflow: a prompt that describes a multi-step task and
-leverages built-in tools to read, write, and manipulate files as needed.
+We assume LLM-powered agent is a system that dynamically direct their own
+processes and available tool to accomplish task. Unlike a single prompt,
+a workflow allows the model to reason through multiple steps — such as reading,
+generating, modifying, and combining files — to accomplish a complex goal.
+Each step builds on the last, forming a coherent process that mimics how a human
+might complete a task using a shell or scripting environment.
+
+It empowers LLMs with Bash, Golang and Python as available tools to accomplish
+defined task.
+
 
 See more info https://github.com/fogfish/iq
 	`,
 	Example: `
-	iq exec -p mytask.yml
-	iq exec -p mytask.yml FILE1 FILE2 ...
-	echo "Using available tools draw the rainbow?" | iq exec --python
+	iq task -p mytask.yml
+	iq task -p mytask.yml FILE1 FILE2 ...
+	echo "Using available tools draw the rainbow?" | iq task --python
 	`,
 	SilenceUsage:  true,
 	SilenceErrors: true,
