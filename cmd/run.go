@@ -28,10 +28,8 @@ func init() {
 
 var runCmd = &cobra.Command{
 	Use:   "run",
-	Short: "execute a workflow on files in the directory",
+	Short: "process files in mounted dir with LLM agent",
 	Long: `
-Execute a workflow on files in the directory.
-
 A workflow in 'iq' represents a structured sequence of operations that an LLM
 can execute autonomously using available commands and tools. Unlike a single
 prompt, a workflow allows the model to reason through multiple steps — such as
@@ -48,19 +46,16 @@ level of automation and creativity within your file system.
 loaded, passed to the workflow, and the result is saved to the output folder — one
 output per file. 
 
-It either supports local file system or AWS S3 bucket. Use s3:// prefix
+The command support mounting of AWS S3 bucket. Use s3:// prefix
 prefix to direct the utility (e.g. s3://bucket/path).
 
-  echo "What ..." | iq run -d s3://my/example -o s3://my/result
+  echo "What ..." | iq ask -d s3://my/example -o s3://my/result
 
 Processing a large number of files may require the ability to start, stop, and
 resume the utility reliably. To support this, you can use the --mutable flag,
 which removes each input file immediately after it has been successfully processed.
 This enables fault-tolerant, resumable execution by ensuring already-processed
 files are skipped on subsequent runs.
-
-Note: Use this option with caution — it modifies your input data and is best
-suited for temporary or disposable file queues.
 
 
 See more info https://github.com/fogfish/iq

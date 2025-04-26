@@ -55,8 +55,8 @@ See more info https://github.com/fogfish/iq
   iq config --bedrock                 configure Amazon Bedrock usage
   iq config --lmstudio                connect to a local LM Studio instance
 
-	iq config --bedrock --config aws --llm us.meta.llama3-3-70b-instruct-v1:0
-	`,
+  iq config --bedrock --config aws --llm us.meta.llama3-3-70b-instruct-v1:0
+  `,
 	SilenceUsage:  true,
 	SilenceErrors: true,
 	RunE:          config,

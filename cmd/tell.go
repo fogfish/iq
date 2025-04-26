@@ -23,11 +23,13 @@ func init() {
 
 var tellCmd = &cobra.Command{
 	Use:   "tell",
-	Short: "send a prompt to LLM",
+	Short: "prompts LLM",
 	Long: `
 Send a standalone prompt and receive an immediate response from LLM. It is ideal
 for asking questions, drafting text, or running quick ideas before building the
 workflow pipelines.
+
+The command takes prompt either from file -p, --prompt flag or STDIN.
 
 See more info https://github.com/fogfish/iq
 	`,

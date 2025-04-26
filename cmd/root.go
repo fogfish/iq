@@ -65,19 +65,15 @@ var rootCmd = &cobra.Command{
 	Use:   "iq",
 	Short: "a fast and lightweight CLI tool for running LLM-powered agents",
 	Long: `
- _
+ 
 (_)__ _      
-| / _' |    a fast and lightweight CLI for running LLM-powered agents.
-|_\__, |    Use it to run prompts and workflows on local files or S3 buckets.
+| / _' |   A lightweight command-line LLM-powered file processor.
+|_\__, |    
      |_|
 
-The philosophy behind the tool is to provide two distinct modes of operation:
-batch processing and individual tasks. Commands like 'ask' and 'run' are designed
-for processing groups of files in bulk, whether they are stored locally or in
-S3 buckets. These commands allow you to apply prompts or run workflows across
-multiple files at once. On the other hand, commands like 'exec' and 'tell' are
-focused on isolated operations, where you perform a single task or send a
-one-off prompt to the LLM.
+The tool is designed to simplify running LLM-powered agents in the batch against
+mounted file systems, whether they are simple prompting agents or more complex
+system that dynamically direct their own processes and tool to accomplish task.
 
 For example, below it process files in current directory returning the color
 palletes for things depicted by file.
@@ -94,9 +90,9 @@ See more info https://github.com/fogfish/iq
 	iq tell -p myprompt.yml FILE1 ...
 
 	## Execute a workflow using LLM instructions
-	iq exec -p mytask.yml
-	iq exec -p mytask.yml FILE1 FILE2 ...
-	echo "Using available tools draw the rainbow?" | iq exec --python
+	iq task -p mytask.yml
+	iq task -p mytask.yml FILE1 FILE2 ...
+	echo "Using available tools draw the rainbow?" | iq task --python
 
 	## Process files with LLM
 	iq ask -p prompt.yml -o ./output
