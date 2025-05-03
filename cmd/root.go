@@ -12,6 +12,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"strings"
 
@@ -41,14 +42,17 @@ func Execute(vsn string) {
 }
 
 var (
-	rootProfile  string
-	rootLLM      string
-	rootPrompt   string
-	rootInput    string
-	rootMaxEpoch int
-	rootDebug    bool
-	rootSilent   bool
-	gLLM         chatter.Chatter
+	rootProfile      string
+	rootLLM          string
+	rootPrompt       string
+	rootInput        string
+	rootMaxEpoch     int
+	rootDebug        bool
+	rootSilent       bool
+	rootScanner      string
+	rootScannerChunk int
+	rootScannerChars string
+	gLLM             chatter.Chatter
 )
 
 func init() {
@@ -58,7 +62,10 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&rootInput, "input", "", "override prompt input")
 	rootCmd.PersistentFlags().IntVarP(&rootMaxEpoch, "epoch", "e", 5, "max number of attempts (epoch) to refine the task before give up")
 	rootCmd.PersistentFlags().BoolVar(&rootDebug, "debug", false, "enable debug output")
-	rootCmd.PersistentFlags().BoolVarP(&rootSilent, "silent", "s", false, "not output")
+	rootCmd.PersistentFlags().BoolVarP(&rootSilent, "silent", "s", false, "enable silent behaviour")
+	rootCmd.PersistentFlags().StringVar(&rootScanner, "splitter", "none", "split input file into sentence, paragraph or chunk")
+	rootCmd.PersistentFlags().IntVar(&rootScannerChunk, "splitter-chunk", 1024, "chunk size for splitter")
+	rootCmd.PersistentFlags().StringVar(&rootScannerChars, "splitter-chars", "", "sequence of charates used by splitter as delimiter")
 }
 
 var rootCmd = &cobra.Command{
@@ -293,7 +300,28 @@ func mount(path string) (spool.FileSystem, error) {
 		return stream.NewFS(path[len(s3pfx):])
 	}
 
+	const std = "stdout"
+	if path == std {
+		return stdout{}, nil
+	}
+
 	return lfs.New(path)
+}
+
+type fout struct {
+	io.Writer
+}
+
+func (fout) Stat() (fs.FileInfo, error) { return nil, nil }
+func (fout) Close() error               { return nil }
+func (fout) Cancel() error              { return nil }
+
+type stdout struct{}
+
+func (stdout) Open(name string) (fs.File, error) { return nil, nil }
+func (stdout) Remove(path string) error          { return nil }
+func (stdout) Create(path string, attr *struct{}) (stream.File, error) {
+	return fout{Writer: os.Stdout}, nil
 }
 
 //------------------------------------------------------------------------------
