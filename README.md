@@ -38,6 +38,7 @@ Intelligent Query `iq` is a lightweight command-line LLM-powered file processor.
   - [Basic agent](#basic-agent)
   - [Processing files with agent](#processing-files-with-agent)
   - [Classification](#classification)
+  - [Processing large files](#processing-large-files)
   - [Working with AWS S3](#working-with-aws-s3)
   - [STDIN/STDOUT](#stdinstdout)
 - [How To Contribute](#how-to-contribute)
@@ -237,6 +238,42 @@ iq run -p ./examples/task/02_processor.yml -d ./examples/prompt/doc -o /tmp
 
 ```bash
 iq tag -p ./examples/prompt/05_overfile.yml -d ./examples/prompt/doc -o /tmp
+```
+
+### Processing large files
+
+`iq` provides smart input splitting to ensure files fit within the context window limits of LLMs. By default, it includes the largest possible portion of the file directly in the prompt. Splitting behavior is configurable — you can divide input by sentences, paragraphs, or fixed-size chunks. 
+
+```bash
+iq help
+
+  --splitter string         split input file into sentence, paragraph or chunk (default "none")
+  --splitter-chars string   sequence of charates used by splitter as delimiter
+  --splitter-chunk int      chunk size for splitter (default 1024)
+```
+
+**Sentences**: A sentence is defined as a punctuation mark (., !, or ?) followed by a whitespace character. The default punctuation marks are overwritten with `--splitter-chars` flag.
+
+```bash
+iq tell \
+  --splitter sentence --splitter-chars . \
+  ...
+```
+
+**Paragraphs**: A paragraph is defined as a block of text separated by an empty line (essentially using `\n\n` as delimiter). The default delimiter is overwritten with `--splitter-chars` flag.
+
+```bash
+iq tell \
+  --splitter paragraph --splitter-chars $'\x0a\x0a' \
+  ...
+```
+
+**Fixed chunks**: A fixed chunk has a defined size limit, which is extended to include the end of the nearest sentence (it prevents loss of context). The chunk size is configured with `--splitter-chunk` flag and `--splitter-chars` are used to define punctuation marks similar to sentence split.
+
+```bash
+iq tell \
+  --splitter chunk --splitter-chunk 4096 \
+  ...
 ```
 
 ### Working with AWS S3

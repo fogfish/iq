@@ -5,7 +5,8 @@ go 1.24
 require (
 	github.com/fogfish/it/v2 v2.2.1
 	github.com/fogfish/opts v0.0.5
-	github.com/fogfish/stream v1.2.6
+	github.com/fogfish/scanner v0.0.1
+	github.com/fogfish/stream v1.2.8
 	github.com/jdxcode/netrc v1.0.0
 	github.com/kshard/chatter v0.5.1
 	github.com/kshard/chatter/llm/autoconfig v0.0.2

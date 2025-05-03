@@ -2,9 +2,10 @@ package cmd
 
 import (
 	"context"
+	"io"
 	"os"
 
-	spec "github.com/fogfish/iq/internal/prompt"
+	"github.com/fogfish/iq/internal/reader"
 	"github.com/spf13/cobra"
 )
 
@@ -87,18 +88,13 @@ func run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	q.ForEachFile(context.Background(), "/",
-		func(ctx context.Context, path string, b []byte) ([]byte, error) {
+	q.ForEach(context.Background(), "/",
+		func(ctx context.Context, path string, r io.Reader, w io.Writer) error {
 			spinner.Describe(ellipses(path))
 			defer respinner(spinner)
 
-			req.Set(spec.YAML_BLOB, string(b))
-			reply, err := agt.PromptOnce(ctx, req)
-			if err != nil {
-				return nil, err
-			}
-
-			return reply, nil
+			fd := reader.New(rootScanner, rootScannerChars, rootScannerChunk, r)
+			return reader.Process(ctx, agt, req, fd, w)
 		})
 
 	return nil

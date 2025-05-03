@@ -11,6 +11,7 @@ package cmd
 import (
 	"context"
 	"encoding/json"
+	"io"
 	"os"
 	"strings"
 
@@ -78,10 +79,15 @@ func tag(cmd *cobra.Command, args []string) error {
 	}
 	req.Set(spec.YAML_FORMAT, "json")
 
-	q.PartitionFile(context.Background(), "/",
-		func(ctx context.Context, path string, b []byte) (string, error) {
+	q.Partition(context.Background(), "/",
+		func(ctx context.Context, path string, r io.Reader) (string, error) {
 			spinner.Describe(ellipses(path))
 			defer respinner(spinner)
+
+			b, err := io.ReadAll(r)
+			if err != nil {
+				return "", err
+			}
 
 			req.Set(spec.YAML_BLOB, string(b))
 			reply, err := agt.PromptOnce(ctx, req)

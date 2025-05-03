@@ -11,9 +11,11 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
+	"path/filepath"
 
-	spec "github.com/fogfish/iq/internal/prompt"
+	"github.com/fogfish/iq/internal/reader"
 	"github.com/spf13/cobra"
 )
 
@@ -65,22 +67,30 @@ func tell(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	for _, file := range args {
-		spinner.Describe(fmt.Sprintf("prompting with %s", ellipses(file)))
-		b, err := os.ReadFile(file)
+	q, err := createSpool("/", "stdout", false, true)
+	if err != nil {
+		return err
+	}
+
+	for i, arg := range args {
+		path, err := filepath.Abs(arg)
 		if err != nil {
 			return err
 		}
+		args[i] = filepath.Clean(path)
+	}
 
-		req.Set(spec.YAML_BLOB, string(b))
-		reply, err := agt.PromptOnce(context.Background(), req)
-		if err != nil {
-			return err
-		}
-		spinner.Reset()
+	err = q.ForEachPath(context.Background(), args,
+		func(ctx context.Context, path string, r io.Reader, w io.Writer) error {
+			spinner.Describe(fmt.Sprintf("prompting with %s", ellipses(filepath.Base(path))))
+			defer spinner.Reset()
 
-		os.Stdout.Write(reply)
-		os.Stdout.WriteString("\n")
+			fd := reader.New(rootScanner, rootScannerChars, rootScannerChunk, r)
+			return reader.Process(ctx, agt, req, fd, w)
+		},
+	)
+	if err != nil {
+		return err
 	}
 
 	return nil
