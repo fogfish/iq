@@ -19,7 +19,6 @@ import (
 	"github.com/fogfish/iq/internal/prompt"
 	"github.com/fogfish/iq/internal/service"
 	"github.com/fogfish/opts"
-	"github.com/fogfish/scanner"
 	"github.com/fogfish/stream"
 	"github.com/fogfish/stream/lfs"
 	"github.com/fogfish/stream/spool"
@@ -323,38 +322,6 @@ func (stdout) Open(name string) (fs.File, error) { return nil, nil }
 func (stdout) Remove(path string) error          { return nil }
 func (stdout) Create(path string, attr *struct{}) (stream.File, error) {
 	return fout{Writer: os.Stdout}, nil
-}
-
-//------------------------------------------------------------------------------
-
-func createReader(r io.Reader) scanner.Scanner {
-	switch rootScanner {
-	case "sentence":
-		if len(rootScannerChars) == 0 {
-			rootScannerChars = scanner.EndOfSentence
-		}
-		return scanner.NewSentencer(rootScannerChars, r)
-
-	case "paragraph":
-		if len(rootScannerChars) == 0 {
-			rootScannerChars = "\n\n"
-		}
-		return scanner.NewSlicer(rootScannerChars, r)
-
-	case "chunk":
-		if len(rootScannerChars) == 0 {
-			rootScannerChars = scanner.EndOfSentence
-		}
-		if rootScannerChunk == 0 {
-			rootScannerChunk = 1024
-		}
-		return scanner.NewChunker(rootScannerChunk,
-			scanner.NewSentencer(rootScannerChars, r),
-		)
-
-	default:
-		return scanner.NewIdentity(r)
-	}
 }
 
 //------------------------------------------------------------------------------
