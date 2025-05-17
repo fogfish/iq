@@ -39,6 +39,7 @@ Intelligent Query `iq` is a lightweight command-line LLM-powered file processor.
   - [Processing files with agent](#processing-files-with-agent)
   - [Classification](#classification)
   - [Processing large files](#processing-large-files)
+  - [Functions, Tools and Commands](#functions-tools-and-commands)
   - [Working with AWS S3](#working-with-aws-s3)
   - [STDIN/STDOUT](#stdinstdout)
 - [How To Contribute](#how-to-contribute)
@@ -213,7 +214,7 @@ We assume LLM-powered agent is a system that dynamically direct their own proces
 
 For example, a workflow might involve generating content into files, transforming or replacing parts of that content, aggregating results, and applying formatting — all before producing a final output. By giving the LLM both a plan and access to command-level operations, workflows unlock a higher level of automation and creativity within your file system.
 
-`iq task` empowers LLMs with **Bash**, **Golang** and **Python** as available tools (must be installed in your environment) to accomplish defined task. [Create an issue](https://github.com/fogfish/iq/issues) if your use-case requires other tools.
+`iq task` empowers LLMs external tools, see [Functions, Tools and Commands](#functions-tools-and-commands)
 
 For example, [the task about colors](./examples/task/01_basic.yml).
 
@@ -275,6 +276,41 @@ iq tell \
   --splitter chunk --splitter-chunk 4096 \
   ...
 ```
+
+### Functions, Tools and Commands
+
+`iq` enables integration with external tools through an MCP-like approach. To ensure reliable tool invocation and consistent request processing, deterministic control is essential. This necessitates access to the model’s latent generation capabilities. Use either AWS Bedrock API or OpenAI. My personal preferences is `us.anthropic.claude-3-7-sonnet-20250219-v1:0`
+
+`iq` includes built-in tools for **Bash**, **Golang**, and **Python** (which must be installed in your environment) to accomplish defined tasks. Using these tools is straightforward—just declare them in the registry within the prompt file.
+
+```yaml
+registry:
+  - bash
+  - python
+  - golang
+```
+
+The tool support is fully extensible. To add a custom tool, simply declare it in the registry using the following format, all parameters are mandatory:
+
+```yaml
+  - 
+    # Unique name of the tool, used by the LLM to reference and invoke it
+    name: weather
+    # Command-line syntax template; placeholders (e.g., {{.city}}) are replaced with LLM-provided values 
+    syntax: weather --city {{.city}}
+    # Explain what the tool does to LLM
+    about: Queries weather in city at given date.
+    # Input parameters the tool accepts
+    properties:
+      - 
+        # Name of the parameter expected by the tool
+        name: city
+        # The type of the parameter
+        type: string
+        # Explain the purpose of the parameter to LLM
+        about: name of the city to query weather.
+```
+
 
 ### Working with AWS S3
 

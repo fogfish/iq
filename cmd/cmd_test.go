@@ -21,7 +21,7 @@ import (
 func TestTell(t *testing.T) {
 	// iq tell -s -m ... -p ...
 	rootSilent = true
-	rootLLM = "mock"
+	rootLLM.Model = "mock"
 	rootPrompt = "./testdata/prompt.yml"
 
 	out, err := sut(tellCmd, nil)
@@ -35,7 +35,7 @@ func TestTell(t *testing.T) {
 func TestTellWithFiles(t *testing.T) {
 	// iq tell -s -m ... -p ... FILE1 FILE2
 	rootSilent = true
-	rootLLM = "mock"
+	rootLLM.Model = "mock"
 	rootPrompt = "./testdata/prompt.yml"
 
 	out, err := sut(tellCmd, []string{"../examples/prompt/doc/sun.txt", "../examples/prompt/doc/sky.txt"})
@@ -50,7 +50,7 @@ func TestTellWithFiles(t *testing.T) {
 func TestTellWithArgs(t *testing.T) {
 	// iq tell -s -m ... -p ...
 	rootSilent = true
-	rootLLM = "mock"
+	rootLLM.Model = "mock"
 	rootPrompt = "./testdata/args.yml"
 
 	out, err := sut(tellCmd, nil)
@@ -63,7 +63,7 @@ func TestTellWithArgs(t *testing.T) {
 func TestTellWithArgsOverride(t *testing.T) {
 	// iq tell -s -m ... -p ... --input "key1=value1,key2=value2"
 	rootSilent = true
-	rootLLM = "mock"
+	rootLLM.Model = "mock"
 	rootPrompt = "./testdata/args.yml"
 	rootInput = "key1=value1,key2,key3=,name=sun"
 
@@ -77,7 +77,7 @@ func TestTellWithArgsOverride(t *testing.T) {
 func TestExec(t *testing.T) {
 	// iq exec -s -m ... -p ...
 	rootSilent = true
-	rootLLM = "mock"
+	rootLLM.Model = "mock"
 	rootPrompt = "./testdata/task.yml"
 
 	out, err := sut(execCmd, nil)
@@ -91,7 +91,7 @@ func TestExec(t *testing.T) {
 func TestExecWithFiles(t *testing.T) {
 	// iq exec -s -m ... -p ... FILE1 FILE2
 	rootSilent = true
-	rootLLM = "mock"
+	rootLLM.Model = "mock"
 	rootPrompt = "./testdata/task.yml"
 
 	out, err := sut(execCmd, []string{"../examples/prompt/doc/sun.txt", "../examples/prompt/doc/sky.txt"})
@@ -104,7 +104,7 @@ func TestExecWithFiles(t *testing.T) {
 func TestAsk(t *testing.T) {
 	// iq ask -s -m ... -p ... -d ... -o ...
 	rootSilent = true
-	rootLLM = "mock"
+	rootLLM.Model = "mock"
 	rootPrompt = "./testdata/prompt.yml"
 	askDir = "../examples/prompt/doc"
 	askOut = "/tmp"
@@ -118,7 +118,7 @@ func TestAsk(t *testing.T) {
 func TestRun(t *testing.T) {
 	// iq run -s -m ... -p ... -d ... -o ...
 	rootSilent = true
-	rootLLM = "mock"
+	rootLLM.Model = "mock"
 	rootPrompt = "./testdata/task.yml"
 	runDir = "../examples/prompt/doc"
 	runOut = "/tmp"
@@ -132,7 +132,7 @@ func TestRun(t *testing.T) {
 func TestDraft(t *testing.T) {
 	// iq draft
 	rootSilent = true
-	rootLLM = "mock"
+	rootLLM.Model = "mock"
 
 	out, err := sut(draftCmd, nil)
 	it.Then(t).Should(

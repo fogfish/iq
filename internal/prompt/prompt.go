@@ -19,12 +19,18 @@ import (
 )
 
 const (
-	YAML_INCLUDE  = "include"
-	YAML_PROMPT   = "prompt"
-	YAML_INPUT    = "input"
-	YAML_BLOB     = "blob"
-	YAML_FORMAT   = "format"
-	YAML_REGISTRY = "registry"
+	YAML_INCLUDE = "include"
+	YAML_PROMPT  = "prompt"
+	YAML_INPUT   = "input"
+	YAML_BLOB    = "blob"
+	YAML_FORMAT  = "format"
+
+	YAML_REGISTRY            = "registry"
+	YAML_REGISTRY_NAME       = "name"
+	YAML_REGISTRY_TYPE       = "type"
+	YAML_REGISTRY_ABOUT      = "about"
+	YAML_REGISTRY_SYNTAX     = "syntax"
+	YAML_REGISTRY_PROPERTIES = "properties"
 )
 
 // Parse prompt file

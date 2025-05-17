@@ -13,10 +13,9 @@ import (
 	"io"
 	"strings"
 
-	spec "github.com/fogfish/iq/internal/prompt"
+	"github.com/fogfish/iq/internal/core"
 	"github.com/fogfish/scanner"
 	"github.com/kshard/chatter"
-	"github.com/spf13/viper"
 )
 
 const (
@@ -55,17 +54,17 @@ func New(kind string, chars string, size int, r io.Reader) scanner.Scanner {
 }
 
 type Agent interface {
-	PromptOnce(context.Context, *viper.Viper, ...chatter.Opt) ([]byte, error)
+	PromptOnce(context.Context, *core.Prompt, ...chatter.Opt) ([]byte, error)
 }
 
-func Process(ctx context.Context, agt Agent, req *viper.Viper, r scanner.Scanner, w io.Writer) error {
+func Process(ctx context.Context, agt Agent, req *core.Prompt, r scanner.Scanner, w io.Writer) error {
 	for r.Scan() {
 		txt := strings.TrimSpace(r.Text())
 		if len(txt) == 0 {
 			continue
 		}
 
-		req.Set(spec.YAML_BLOB, txt)
+		req.Blob = txt
 		reply, err := agt.PromptOnce(context.Background(), req)
 		if err != nil {
 			return err

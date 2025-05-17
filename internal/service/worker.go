@@ -10,60 +10,63 @@ package service
 
 import (
 	"context"
-	"os"
 
-	"github.com/fogfish/iq/internal/prompt"
+	"github.com/fogfish/iq/internal/core"
 	"github.com/kshard/chatter"
+	"github.com/kshard/thinker"
 	"github.com/kshard/thinker/agent"
 	"github.com/kshard/thinker/codec"
-	"github.com/kshard/thinker/command"
-	"github.com/spf13/viper"
+	"github.com/kshard/thinker/prompt/jsonify"
 )
 
 type Worker struct {
-	*agent.Worker[*viper.Viper]
+	*agent.Manifold[*core.Prompt, []byte]
 }
 
-func NewWorker(llm chatter.Chatter, c *viper.Viper, workdir string, maxEpoch int) (w *Worker, err error) {
-	if len(workdir) == 0 {
-		workdir, err = os.MkdirTemp(os.TempDir(), "iq-")
-		if err != nil {
-			return
-		}
-	}
-
-	registry := command.NewRegistry()
-	for _, cmd := range c.GetStringSlice(prompt.YAML_REGISTRY) {
-		switch cmd {
-		case command.BASH:
-			registry.Register(command.Bash("", workdir))
-		case command.PYTHON:
-			registry.Register(command.Python(workdir))
-		case command.GOLANG:
-			registry.Register(command.Golang(workdir))
-		}
-	}
-
+func NewWorker(llm chatter.Chatter, registry thinker.Registry) (w *Worker, err error) {
 	w = &Worker{}
-	w.Worker = agent.NewWorker(llm, maxEpoch, codec.FromEncoder(fromViper), registry)
+	w.Manifold = agent.NewManifold(llm,
+		codec.FromEncoder(w.encode),
+		codec.FromDecoder(w.decode),
+		registry,
+	)
 
 	return
 }
 
-func (w *Worker) PromptOnce(ctx context.Context, input *viper.Viper, opt ...chatter.Opt) ([]byte, error) {
-	reply, err := w.Worker.PromptOnce(ctx, input, opt...)
-	if err != nil {
-		return nil, err
+func (w *Worker) encode(in *core.Prompt) (chatter.Message, error) {
+	var prompt chatter.Prompt
+	prompt.WithTask(in.Task)
+
+	if len(in.Blob) > 0 {
+		prompt.WithBlob("Input document", in.Blob)
 	}
 
-	return []byte(reply.Output), nil
+	if in.Format == core.FORMAT_JSON {
+		jsonify.Strings.Harden(&prompt)
+	}
+
+	return &prompt, nil
 }
 
-func (w *Worker) Prompt(ctx context.Context, input *viper.Viper, opt ...chatter.Opt) ([]byte, error) {
-	reply, err := w.Worker.Prompt(ctx, input, opt...)
+func (w *Worker) decode(reply *chatter.Reply) (float64, []byte, error) {
+	return 1.0, []byte(reply.String()), nil
+}
+
+func (w *Worker) PromptOnce(ctx context.Context, input *core.Prompt, opt ...chatter.Opt) ([]byte, error) {
+	reply, err := w.Manifold.Prompt(ctx, input, opt...)
 	if err != nil {
 		return nil, err
 	}
 
-	return []byte(reply.Output), nil
+	return reply, nil
+}
+
+func (w *Worker) Prompt(ctx context.Context, input *core.Prompt, opt ...chatter.Opt) ([]byte, error) {
+	reply, err := w.Manifold.Prompt(ctx, input, opt...)
+	if err != nil {
+		return nil, err
+	}
+
+	return reply, nil
 }

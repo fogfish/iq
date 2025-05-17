@@ -9,13 +9,14 @@
 package cmd
 
 import (
-	"context"
 	"fmt"
 	"io"
 	"io/fs"
 	"os"
 	"strings"
 
+	"github.com/fogfish/iq/internal/adapter"
+	"github.com/fogfish/iq/internal/core"
 	"github.com/fogfish/iq/internal/prompt"
 	"github.com/fogfish/iq/internal/service"
 	"github.com/fogfish/opts"
@@ -23,8 +24,6 @@ import (
 	"github.com/fogfish/stream/lfs"
 	"github.com/fogfish/stream/spool"
 	"github.com/kshard/chatter"
-	"github.com/kshard/chatter/aio"
-	"github.com/kshard/chatter/llm/autoconfig"
 	"github.com/kshard/thinker/command"
 	"github.com/schollz/progressbar/v3"
 	"github.com/spf13/cobra"
@@ -42,27 +41,32 @@ func Execute(vsn string) {
 }
 
 var (
-	rootProfile      string
-	rootLLM          string
+	rootLLM          adapter.LLM
+	gLLM             chatter.Chatter
 	rootPrompt       string
 	rootInput        string
-	rootMaxEpoch     int
 	rootDebug        bool
+	rootThink        bool
 	rootSilent       bool
 	rootScanner      string
 	rootScannerChunk int
 	rootScannerChars string
-	gLLM             chatter.Chatter
 )
 
 func init() {
-	rootCmd.PersistentFlags().StringVarP(&rootProfile, "config", "c", "iq", "config profile at ~/.netrc about LLM provider")
-	rootCmd.PersistentFlags().StringVarP(&rootLLM, "llm", "m", "", "overrides LLM model defined at ~/.netrc")
+	rootCmd.PersistentFlags().StringVarP(&rootLLM.Profile, "config", "c", "iq", "config profile at ~/.netrc about LLM provider")
+	rootCmd.PersistentFlags().StringVarP(&rootLLM.Model, "llm", "m", "", "overrides LLM model defined at ~/.netrc")
+	rootCmd.PersistentFlags().IntVar(&rootLLM.MaxEpoch, "max-epoch", 0, "max number of attempts (epoch) to refine the task before give up")
+	rootCmd.PersistentFlags().IntVar(&rootLLM.MaxUsage.InputTokens, "max-input-tokens", 0, "max number of input tokens to consume before give up")
+	rootCmd.PersistentFlags().IntVar(&rootLLM.MaxUsage.ReplyTokens, "max-reply-tokens", 0, "max number of reply tokens to consume before give up")
+
 	rootCmd.PersistentFlags().StringVarP(&rootPrompt, "prompt", "p", "", "path to prompt yaml file")
 	rootCmd.PersistentFlags().StringVar(&rootInput, "input", "", "override prompt input")
-	rootCmd.PersistentFlags().IntVarP(&rootMaxEpoch, "epoch", "e", 5, "max number of attempts (epoch) to refine the task before give up")
+
 	rootCmd.PersistentFlags().BoolVar(&rootDebug, "debug", false, "enable debug output")
+	rootCmd.PersistentFlags().BoolVar(&rootThink, "think", false, "enable thinking output")
 	rootCmd.PersistentFlags().BoolVarP(&rootSilent, "silent", "s", false, "enable silent behaviour")
+
 	rootCmd.PersistentFlags().StringVar(&rootScanner, "splitter", "none", "split input file into sentence, paragraph or chunk")
 	rootCmd.PersistentFlags().IntVar(&rootScannerChunk, "splitter-chunk", 1024, "chunk size for splitter")
 	rootCmd.PersistentFlags().StringVar(&rootScannerChars, "splitter-chars", "", "sequence of charates used by splitter as delimiter")
@@ -107,51 +111,6 @@ See more info https://github.com/fogfish/iq
 	`,
 	SilenceUsage: true,
 	Run:          func(cmd *cobra.Command, args []string) { cmd.Help() },
-}
-
-//------------------------------------------------------------------------------
-
-func configLLM(llmid string) (chatter.Chatter, error) {
-	llm, err := createLLM(llmid)
-	if err != nil {
-		return nil, err
-	}
-
-	if !rootDebug {
-		return llm, nil
-	}
-
-	return aio.NewLogger(os.Stderr, llm), nil
-}
-
-func createLLM(llmid string) (chatter.Chatter, error) {
-	if len(llmid) != 0 {
-		return autoconfig.New(rootProfile, llmid)
-	}
-
-	if len(rootLLM) != 0 {
-		if rootLLM == "mock" {
-			return llmock(0), nil
-		}
-		return autoconfig.New(rootProfile, rootLLM)
-	}
-
-	return autoconfig.New(rootProfile)
-}
-
-type llmock int
-
-func (llmock) UsedInputTokens() int { return 0 }
-func (llmock) UsedReplyTokens() int { return 0 }
-
-func (llmock) Prompt(ctx context.Context, prompt []fmt.Stringer, opt ...chatter.Opt) (chatter.Reply, error) {
-	seq := make([]string, len(prompt))
-	for i, s := range prompt {
-		seq[i] = s.String()
-	}
-	reply := strings.Join(seq, " ")
-
-	return chatter.Reply{Text: reply, UsedInputTokens: len(reply), UsedReplyTokens: len(reply)}, nil
 }
 
 //------------------------------------------------------------------------------
@@ -206,57 +165,110 @@ func parsePromptStdin() (*viper.Viper, error) {
 	return in, nil
 }
 
-func agentForPrompts() (*service.Prompter, *viper.Viper, error) {
-	in, err := parsePrompt()
+func parseInputStdin() ([]byte, error) {
+	fi, err := os.Stdin.Stat()
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
-	gLLM, err = configLLM(in.GetString("llm"))
-	if err != nil {
-		return nil, nil, err
+	if fi.Mode()&os.ModeCharDevice != 0 {
+		return nil, nil
 	}
 
-	agt, err := service.NewPrompter(gLLM, in, rootMaxEpoch)
+	b, err := io.ReadAll(os.Stdin)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
-	return agt, in, nil
+	return b, nil
 }
 
-func agentForTasks(workdir string) (*service.Worker, *viper.Viper, error) {
+func agentForPrompts() (*service.Prompter, *core.Prompt, error) {
 	in, err := parsePrompt()
 	if err != nil {
 		return nil, nil, err
 	}
 
-	gLLM, err = configLLM(in.GetString("llm"))
+	req, err := adapter.DecodeViperToPrompt(in)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if len(rootPrompt) != 0 {
+		doc, err := parseInputStdin()
+		if err != nil {
+			return nil, nil, err
+		}
+		req.Blob = string(doc)
+	}
+
+	gLLM, err = rootLLM.Create(in.GetString("llm"), rootDebug, rootThink)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	agt, err := service.NewPrompter(gLLM)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return agt, req, nil
+}
+
+func agentForTasks(workdir string) (*service.Worker, *core.Prompt, error) {
+	in, err := parsePrompt()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	req, err := adapter.DecodeViperToPrompt(in)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if len(rootPrompt) != 0 {
+		doc, err := parseInputStdin()
+		if err != nil {
+			return nil, nil, err
+		}
+		req.Blob = string(doc)
+	}
+
+	gLLM, err = rootLLM.Create(in.GetString("llm"), rootDebug, rootThink)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if len(workdir) == 0 {
+		workdir, err = os.MkdirTemp(os.TempDir(), "iq-")
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+
+	registry, err := adapter.DecodeViperToRegistry(in, workdir)
 	if err != nil {
 		return nil, nil, err
 	}
 
 	if execWithBash || execWithGolang || execWithPython {
-		registry := []string{}
 		if execWithBash {
-			registry = append(registry, command.BASH)
+			registry.Register(command.Bash("", workdir))
 		}
 		if execWithGolang {
-			registry = append(registry, command.GOLANG)
+			registry.Register(command.Golang(workdir))
 		}
 		if execWithPython {
-			registry = append(registry, command.PYTHON)
+			registry.Register(command.Python(workdir))
 		}
-
-		in.Set(prompt.YAML_REGISTRY, registry)
 	}
 
-	agt, err := service.NewWorker(gLLM, in, workdir, rootMaxEpoch)
+	agt, err := service.NewWorker(gLLM, registry)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	return agt, in, nil
+	return agt, req, nil
 }
 
 //------------------------------------------------------------------------------
@@ -381,9 +393,8 @@ func withUsage(f func(cmd *cobra.Command, args []string) error) func(cmd *cobra.
 			return nil
 		}
 
-		it := gLLM.UsedInputTokens()
-		rt := gLLM.UsedReplyTokens()
-		fmt.Fprintf(os.Stderr, "\n\n 💡 Tokens used: %d (input: %d, reply: %d)\n", it+rt, it, rt)
+		usage := gLLM.Usage()
+		fmt.Fprintf(os.Stderr, "\n\n 💡 Tokens used: %d (input: %d, reply: %d)\n", usage.InputTokens+usage.ReplyTokens, usage.InputTokens, usage.ReplyTokens)
 
 		return nil
 	}
