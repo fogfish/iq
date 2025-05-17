@@ -14,11 +14,10 @@ import (
 	"strings"
 	"testing"
 
-	spec "github.com/fogfish/iq/internal/prompt"
+	"github.com/fogfish/iq/internal/core"
 	"github.com/fogfish/iq/internal/reader"
 	"github.com/fogfish/it/v2"
 	"github.com/kshard/chatter"
-	"github.com/spf13/viper"
 )
 
 func TestReaderNone(t *testing.T) {
@@ -26,8 +25,7 @@ func TestReaderNone(t *testing.T) {
 	r := strings.NewReader("Hello World.\n")
 	s := reader.New(reader.STRATEGY_NONE, "", 0, r)
 
-	req := viper.New()
-	req.SetConfigType("yaml")
+	req := &core.Prompt{}
 
 	err := reader.Process(context.Background(), mock{}, req, s, b)
 
@@ -42,8 +40,7 @@ func TestReaderSentence(t *testing.T) {
 	r := strings.NewReader("Hello. World.\n")
 	s := reader.New(reader.STRATEGY_SENTENCE, "", 0, r)
 
-	req := viper.New()
-	req.SetConfigType("yaml")
+	req := &core.Prompt{}
 
 	err := reader.Process(context.Background(), mock{}, req, s, b)
 
@@ -58,8 +55,7 @@ func TestReaderParagraph(t *testing.T) {
 	r := strings.NewReader("Hello.\nWorld.\n")
 	s := reader.New(reader.STRATEGY_PARAGRAPH, ".\n", 0, r)
 
-	req := viper.New()
-	req.SetConfigType("yaml")
+	req := &core.Prompt{}
 
 	err := reader.Process(context.Background(), mock{}, req, s, b)
 
@@ -74,8 +70,7 @@ func TestReaderChunk(t *testing.T) {
 	r := strings.NewReader("Hello. World.")
 	s := reader.New(reader.STRATEGY_CHUNK, "", 2, r)
 
-	req := viper.New()
-	req.SetConfigType("yaml")
+	req := &core.Prompt{}
 
 	err := reader.Process(context.Background(), mock{}, req, s, b)
 
@@ -87,7 +82,7 @@ func TestReaderChunk(t *testing.T) {
 
 type mock struct{}
 
-func (mock) PromptOnce(ctx context.Context, req *viper.Viper, opts ...chatter.Opt) ([]byte, error) {
-	blob := req.GetString(spec.YAML_BLOB)
+func (mock) PromptOnce(ctx context.Context, req *core.Prompt, opts ...chatter.Opt) ([]byte, error) {
+	blob := req.Blob
 	return []byte(blob), nil
 }

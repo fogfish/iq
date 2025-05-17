@@ -58,7 +58,7 @@ func draft(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	llm, err := createLLM("")
+	llm, err := rootLLM.Create("", rootDebug, false)
 	if err != nil {
 		return err
 	}
@@ -70,20 +70,18 @@ func draft(cmd *cobra.Command, args []string) error {
 		a specific task for another LLM to perform: %s.
 	`, subj)
 
-	prompt.With(
-		chatter.Rules(
-			`The prompt you write should be:`,
+	prompt.WithRules(
+		`The prompt you write should be:`,
 
-			`Define task, guidelines and requirments`,
-			`Clear and unambiguous`,
-			`Purpose-driven (have a clear goal)`,
-			`Engaging and motivating`,
-			`Scalable for variations of the task`,
-			`The output should be YAML, text under prompt key`,
-			`Please include the prompt only, without any explanation or commentary.
+		`Define task, guidelines and requirments`,
+		`Clear and unambiguous`,
+		`Purpose-driven (have a clear goal)`,
+		`Engaging and motivating`,
+		`Scalable for variations of the task`,
+		`The output should be YAML, text under prompt key`,
+		`Please include the prompt only, without any explanation or commentary.
 			The task should be moderately challenging and involve reasoning,
 			creativity, or structured output.`,
-		),
 	)
 
 	prompt.With(
@@ -98,7 +96,7 @@ func draft(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	os.Stdout.Write([]byte(reply.Text))
+	os.Stdout.Write([]byte(reply.String()))
 	return nil
 }
 

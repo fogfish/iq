@@ -15,7 +15,7 @@ import (
 	"os"
 	"strings"
 
-	spec "github.com/fogfish/iq/internal/prompt"
+	"github.com/fogfish/iq/internal/core"
 	"github.com/spf13/cobra"
 )
 
@@ -77,7 +77,7 @@ func tag(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return err
 	}
-	req.Set(spec.YAML_FORMAT, "json")
+	req.Format = core.FORMAT_JSON
 
 	q.Partition(context.Background(), "/",
 		func(ctx context.Context, path string, r io.Reader) (string, error) {
@@ -89,7 +89,7 @@ func tag(cmd *cobra.Command, args []string) error {
 				return "", err
 			}
 
-			req.Set(spec.YAML_BLOB, string(b))
+			req.Blob = string(b)
 			reply, err := agt.PromptOnce(ctx, req)
 			if err != nil {
 				return "", err

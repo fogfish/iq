@@ -52,7 +52,7 @@ See more info https://github.com/fogfish/iq
 	`,
 	Example: `
   iq config --openai <secret-key>     configure OpenAI usage
-  iq config --bedrock                 configure Amazon Bedrock usage
+  iq config --bedrock                 configure Amazon Bedrock (Converse API) usage
   iq config --lmstudio                connect to a local LM Studio instance
 
   iq config --bedrock --config aws --llm us.meta.llama3-3-70b-instruct-v1:0
@@ -74,7 +74,7 @@ func config(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	machine := n.Machine(rootProfile)
+	machine := n.Machine(rootLLM.Profile)
 	if machine != nil {
 		fPrintf(os.Stdout, "\n ✅ All good — you're set up and ready to go!\n")
 		return nil
@@ -91,17 +91,17 @@ func config(cmd *cobra.Command, args []string) error {
 	}
 
 	if configBedrock {
-		if len(rootLLM) == 0 {
-			rootLLM = "us.meta.llama3-3-70b-instruct-v1:0"
+		if len(rootLLM.Model) == 0 {
+			rootLLM.Model = "us.anthropic.claude-3-7-sonnet-20250219-v1:0"
 		}
-		if err := bedrock(f); err != nil {
+		if err := converse(f); err != nil {
 			return err
 		}
 	}
 
 	if configOpenAI {
-		if len(rootLLM) == 0 {
-			rootLLM = "gpt-4o"
+		if len(rootLLM.Model) == 0 {
+			rootLLM.Model = "gpt-4o"
 		}
 		secret := "<secret>"
 		if len(args) > 0 {
@@ -113,8 +113,8 @@ func config(cmd *cobra.Command, args []string) error {
 	}
 
 	if configLMStudio {
-		if len(rootLLM) == 0 {
-			rootLLM = "gemma-3-27b-it"
+		if len(rootLLM.Model) == 0 {
+			rootLLM.Model = "gemma-3-27b-it"
 		}
 		if err = lmstudio(f); err != nil {
 			return err
@@ -122,21 +122,21 @@ func config(cmd *cobra.Command, args []string) error {
 	}
 
 	fPrintf(os.Stdout, "\n ✅ All good — you're set up and ready to go!\n")
-	fPrintf(os.Stdout, "    %s is default model, use -m, --llm flags to override it.\n", rootLLM)
+	fPrintf(os.Stdout, "    %s is default model, use -m, --llm flags to override it.\n", rootLLM.Model)
 	fPrintf(os.Stdout, "    You might need to adjust config at ~/.netrc later, based on your setup.\n")
 	return nil
 }
 
-func bedrock(w io.Writer) error {
+func converse(w io.Writer) error {
 	_, err := fmt.Fprintf(w, `
 #
 # added by iq
 machine %s
-        provider bedrock
+        provider converse
         region us-west-2
-        family llama3
         model %s
-`, rootProfile, rootLLM)
+
+`, rootLLM.Profile, rootLLM.Model)
 	return err
 }
 
@@ -149,7 +149,8 @@ machine %s
         host https://api.openai.com
         model %s
         secret %s
-`, rootProfile, rootLLM, secret)
+
+`, rootLLM.Profile, rootLLM.Model, secret)
 	return err
 }
 
@@ -162,6 +163,7 @@ machine %s
         host http://localhost:1234
         model %s
         timeout 30
-`, rootProfile, rootLLM)
+
+`, rootLLM.Profile, rootLLM.Model)
 	return err
 }

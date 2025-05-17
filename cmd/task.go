@@ -66,6 +66,10 @@ func exec(cmd *cobra.Command, args []string) error {
 	spinner := createSpinner()
 	defer spinner.Finish()
 
+	if rootThink {
+		spinner.Finish()
+	}
+
 	agt, req, err := agentForTasks(execWorkDir)
 	if err != nil {
 		return err
