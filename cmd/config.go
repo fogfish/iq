@@ -132,9 +132,9 @@ func converse(w io.Writer) error {
 #
 # added by iq
 machine %s
-        provider converse
-        region us-west-2
+        provider provider:bedrock/foundation/converse
         model %s
+        region us-west-2
 
 `, rootLLM.Profile, rootLLM.Model)
 	return err
@@ -145,9 +145,9 @@ func openai(w io.Writer, secret string) error {
 #
 # added by iq
 machine %s
-        provider openai
-        host https://api.openai.com
+        provider provider:openai/foundation/gpt
         model %s
+        host https://api.openai.com
         secret %s
 
 `, rootLLM.Profile, rootLLM.Model, secret)
@@ -159,9 +159,9 @@ func lmstudio(w io.Writer) error {
 #
 # added by iq
 machine %s
-        provider openai
-        host http://localhost:1234
+        provider provider:openai/foundation/gpt
         model %s
+        host http://localhost:1234
         timeout 30
 
 `, rootLLM.Profile, rootLLM.Model)

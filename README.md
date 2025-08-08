@@ -122,7 +122,7 @@ Use "iq [command] --help" for more information about a command.
 
 ### Prompt Engineering
 
-Prompts are a core component of how the `iq` utility operates.  It expects prompts to be defined in YAML files, with the `prompt` key containing the actual prompt text.
+Prompts are a core component of how the `iq` utility operates. It expects prompts to be defined in YAML files, with the `prompt` key containing the actual prompt text.
 
 > [!TIP]
 > [TELeR framework](https://aclanthology.org/2023.findings-emnlp.946.pdf) — a practical taxonomy that breaks prompts into clear components: Task, Environment, Learner, and Response. This approach helps you craft reusable prompts by clearly defining goals, constraints, tone, and expected outputs. Use it to improve prompt quality, automate workflows, and ensure consistent LLM behavior across files and tasks.
