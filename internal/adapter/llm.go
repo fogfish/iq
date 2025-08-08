@@ -16,7 +16,7 @@ import (
 
 	"github.com/kshard/chatter"
 	"github.com/kshard/chatter/aio"
-	"github.com/kshard/chatter/llm/autoconfig"
+	"github.com/kshard/chatter/provider/autoconfig"
 )
 
 // LLM adapter for
@@ -55,14 +55,14 @@ func (adapter LLM) create(model string) (chatter.Chatter, error) {
 	}
 
 	if len(model) != 0 {
-		return autoconfig.New(adapter.Profile, model)
+		return autoconfig.FromNetRC(adapter.Profile, model)
 	}
 
 	if len(adapter.Model) != 0 {
-		return autoconfig.New(adapter.Profile, adapter.Model)
+		return autoconfig.FromNetRC(adapter.Profile, adapter.Model)
 	}
 
-	return autoconfig.New(adapter.Profile)
+	return autoconfig.FromNetRC(adapter.Profile)
 }
 
 //------------------------------------------------------------------------------
