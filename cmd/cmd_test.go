@@ -47,6 +47,22 @@ func TestTellWithFiles(t *testing.T) {
 	)
 }
 
+func TestTellWithMergedFiles(t *testing.T) {
+	// iq tell -s -m ... -p ... --merge FILE1 FILE2
+	rootSilent = true
+	rootLLM.Model = "mock"
+	rootPrompt = "./testdata/prompt.yml"
+	tellMergeFiles = true
+
+	out, err := sut(tellCmd, []string{"../examples/prompt/doc/sun.txt", "../examples/prompt/doc/sky.txt"})
+	it.Then(t).Should(
+		it.Nil(err),
+		it.String(out).Contain("What are the colors of rainbow?"),
+		it.String(out).Contain("sun"),
+		it.String(out).Contain("sky"),
+	)
+}
+
 func TestTellWithArgs(t *testing.T) {
 	// iq tell -s -m ... -p ...
 	rootSilent = true
