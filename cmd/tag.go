@@ -79,7 +79,7 @@ func tag(cmd *cobra.Command, args []string) error {
 	}
 	req.Format = core.FORMAT_JSON
 
-	q.Partition(context.Background(), "/",
+	err = q.Partition(context.Background(), "/",
 		func(ctx context.Context, path string, r io.Reader) (string, error) {
 			spinner.Describe(ellipses(path))
 			defer respinner(spinner)
@@ -108,6 +108,9 @@ func tag(cmd *cobra.Command, args []string) error {
 			shard := strings.ReplaceAll(strings.ToLower(class), " ", "_")
 			return shard, nil
 		})
+	if err != nil {
+		return err
+	}
 
 	return nil
 }

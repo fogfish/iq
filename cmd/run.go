@@ -88,7 +88,7 @@ func run(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	q.ForEach(context.Background(), "/",
+	err = q.ForEach(context.Background(), "/",
 		func(ctx context.Context, path string, r io.Reader, w io.Writer) error {
 			spinner.Describe(ellipses(path))
 			defer respinner(spinner)
@@ -96,6 +96,9 @@ func run(cmd *cobra.Command, args []string) error {
 			fd := reader.New(rootScanner, rootScannerChars, rootScannerChunk, r)
 			return reader.Process(ctx, agt, req, fd, w)
 		})
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
