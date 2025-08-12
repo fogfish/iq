@@ -322,7 +322,7 @@ echo "What ..." | iq ask -d s3://my/example -o s3://my/result`
 
 ### STDIN/STDOUT
 
-`id` enables STDIN/STDOUT for shell scripting integration.
+`iq` enables STDIN/STDOUT for shell scripting integration.
 * It ONLY reads prompt from STDIN unless `-p` flag is used.
 * It output request of processing to STDOUT for `draft`, `tell` and `task` commands.
 
