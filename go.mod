@@ -6,7 +6,7 @@ require (
 	github.com/fogfish/it/v2 v2.2.4
 	github.com/fogfish/opts v0.0.5
 	github.com/fogfish/scanner v0.0.1
-	github.com/fogfish/stream v1.3.0
+	github.com/fogfish/stream v1.3.1
 	github.com/jdxcode/netrc v1.0.0
 	github.com/kshard/chatter v0.10.0
 	github.com/kshard/chatter/provider/autoconfig v0.10.0
