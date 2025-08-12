@@ -5,24 +5,24 @@
 class Iq < Formula
   desc "iq (Intelligent Query) is a fast and lightweight CLI for running LLM-powered agents."
   homepage "https://github.com/fogfish/iq"
-  version "0.0.7"
+  version "0.0.8"
   license "MIT"
 
   on_macos do
     on_intel do
-      url "https://github.com/fogfish/iq/releases/download/v0.0.7/iq_0.0.7_darwin_amd64"
-      sha256 "7d3dc48971c4f9217fd46dc86072d38da68b882fd2da003b4cd666fa9f39a9b1"
+      url "https://github.com/fogfish/iq/releases/download/v0.0.8/iq_0.0.8_darwin_amd64"
+      sha256 "97ea5470cb6aa6ee1837ec1032db6ea644a48fcc7b32ecdb2bc502051b64c57a"
 
       def install
-        bin.install "iq_0.0.7_darwin_amd64" => "iq"
+        bin.install "iq_0.0.8_darwin_amd64" => "iq"
       end
     end
     on_arm do
-      url "https://github.com/fogfish/iq/releases/download/v0.0.7/iq_0.0.7_darwin_arm64"
-      sha256 "4c2d835f3ddf0c1f17011ddb595db7ba4fbf612b0a5d0e2206baada399770beb"
+      url "https://github.com/fogfish/iq/releases/download/v0.0.8/iq_0.0.8_darwin_arm64"
+      sha256 "8bc5e3b72d541ac25404166f7cce5977b29d3d1e5b57f0647d19065b8c438748"
 
       def install
-        bin.install "iq_0.0.7_darwin_arm64" => "iq"
+        bin.install "iq_0.0.8_darwin_arm64" => "iq"
       end
     end
   end
@@ -30,21 +30,21 @@ class Iq < Formula
   on_linux do
     on_intel do
       if Hardware::CPU.is_64_bit?
-        url "https://github.com/fogfish/iq/releases/download/v0.0.7/iq_0.0.7_linux_amd64"
-        sha256 "e7d5a501e8f44a61c30dd8eb6de60aa36c31542766d19382e91eaf0ad3025eaa"
+        url "https://github.com/fogfish/iq/releases/download/v0.0.8/iq_0.0.8_linux_amd64"
+        sha256 "a4a9aa8b3770f61c777d449c96116c39b96e505f9c67c602b13f280c5e174394"
 
         def install
-          bin.install "iq_0.0.7_linux_amd64" => "iq"
+          bin.install "iq_0.0.8_linux_amd64" => "iq"
         end
       end
     end
     on_arm do
       if Hardware::CPU.is_64_bit?
-        url "https://github.com/fogfish/iq/releases/download/v0.0.7/iq_0.0.7_linux_arm64"
-        sha256 "720c7f1654df4acd1d152f6399af40742d2e12ada94f5daa5637409c52359f25"
+        url "https://github.com/fogfish/iq/releases/download/v0.0.8/iq_0.0.8_linux_arm64"
+        sha256 "82ffe2eb5cbd6efc22ff0014a34a3f57e29307b4301270bd968bd40a4f496137"
 
         def install
-          bin.install "iq_0.0.7_linux_arm64" => "iq"
+          bin.install "iq_0.0.8_linux_arm64" => "iq"
         end
       end
     end
