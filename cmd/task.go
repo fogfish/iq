@@ -10,17 +10,11 @@ package cmd
 
 import (
 	"context"
-	"fmt"
-	"io"
 	"os"
-	"path/filepath"
 
 	"github.com/TylerBrock/colorjson"
 	"github.com/fogfish/iq/internal/blueprint"
-	"github.com/fogfish/iq/internal/reader"
-	"github.com/kshard/chatter"
-	"github.com/kshard/chatter/aio"
-	"github.com/kshard/chatter/provider/autoconfig"
+	"github.com/fogfish/iq/internal/service/llm"
 	"github.com/spf13/cobra"
 )
 
@@ -68,6 +62,15 @@ See more info https://github.com/fogfish/iq
 }
 
 func task(cmd *cobra.Command, args []string) error {
+	factory := llm.New(llm.Config{
+		Profile:  rootLLM.Profile,
+		Model:    rootLLM.Model,
+		Debug:    rootDebug,
+		Think:    rootThink,
+		MaxEpoch: rootLLM.MaxEpoch,
+		MaxUsage: rootLLM.MaxUsage,
+	})
+
 	spinner := createSpinner()
 	defer spinner.Finish()
 
@@ -80,12 +83,12 @@ func task(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	bp, err := blueprint.New(context.Background(), rootPrompt, &factory{})
+	bp, err := blueprint.New(context.Background(), rootPrompt, factory)
 	if err != nil {
 		return err
 	}
 
-	reply, err := bp.Run(context.Background(), string(b))
+	reply, err := bp.Prompt(context.Background(), string(b))
 	if err != nil {
 		return err
 	}
@@ -100,60 +103,60 @@ func task(cmd *cobra.Command, args []string) error {
 
 	return nil
 
-	agt, req, err := agentForTasks(execWorkDir)
-	if err != nil {
-		return err
-	}
+	// agt, req, err := agentForTasks(execWorkDir)
+	// if err != nil {
+	// 	return err
+	// }
 
-	if len(args) == 0 {
-		spinner.Describe("processing ...")
-		reply, err := agt.PromptOnce(context.Background(), req)
-		if err != nil {
-			return err
-		}
-		spinner.Finish()
+	// if len(args) == 0 {
+	// 	spinner.Describe("processing ...")
+	// 	reply, err := agt.PromptOnce(context.Background(), req)
+	// 	if err != nil {
+	// 		return err
+	// 	}
+	// 	spinner.Finish()
 
-		os.Stdout.Write(reply)
-		os.Stdout.WriteString("\n")
-		return nil
-	}
+	// 	os.Stdout.Write(reply)
+	// 	os.Stdout.WriteString("\n")
+	// 	return nil
+	// }
 
-	q, err := createSpool("/", "stdout", false, true)
-	if err != nil {
-		return err
-	}
+	// q, err := createSpool("/", "stdout", false, true)
+	// if err != nil {
+	// 	return err
+	// }
 
-	for i, arg := range args {
-		path, err := filepath.Abs(arg)
-		if err != nil {
-			return err
-		}
-		args[i] = filepath.Clean(path)
-	}
+	// for i, arg := range args {
+	// 	path, err := filepath.Abs(arg)
+	// 	if err != nil {
+	// 		return err
+	// 	}
+	// 	args[i] = filepath.Clean(path)
+	// }
 
-	err = q.ForEachPath(context.Background(), args,
-		func(ctx context.Context, path string, r io.Reader, w io.Writer) error {
-			spinner.Describe(fmt.Sprintf("processing with %s", ellipses(filepath.Base(path))))
-			defer spinner.Reset()
+	// err = q.ForEachPath(context.Background(), args,
+	// 	func(ctx context.Context, path string, r io.Reader, w io.Writer) error {
+	// 		spinner.Describe(fmt.Sprintf("processing with %s", ellipses(filepath.Base(path))))
+	// 		defer spinner.Reset()
 
-			fd := reader.New(rootScanner, rootScannerChars, rootScannerChunk, r)
-			return reader.Process(ctx, agt, req, fd, w)
-		},
-	)
-	if err != nil {
-		return err
-	}
+	// 		fd := reader.New(rootScanner, rootScannerChars, rootScannerChunk, r)
+	// 		return reader.Process(ctx, agt, req, fd, w)
+	// 	},
+	// )
+	// if err != nil {
+	// 	return err
+	// }
 
-	return nil
+	// return nil
 }
 
-type factory struct{}
+// type factory struct{}
 
-func (f *factory) LLM(name string) (chatter.Chatter, error) {
-	llm, err := autoconfig.FromNetRC("iq")
-	if err != nil {
-		return nil, err
-	}
-	llm = aio.NewJsonLogger(os.Stderr, llm)
-	return llm, nil
-}
+// func (f *factory) LLM(name string) (chatter.Chatter, error) {
+// 	llm, err := autoconfig.FromNetRC("iq")
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// 	llm = aio.NewJsonLogger(os.Stderr, llm)
+// 	return llm, nil
+// }

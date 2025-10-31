@@ -109,7 +109,7 @@ func run() error {
 
 			// Create ephemeral source/sink from spool's reader/writer
 			src := source.NewReader(path, r)
-			snk := sink.NewWriterSink(w)
+			snk := sink.NewWriter(w)
 
 			// Run the reusable pipeline with this file
 			stats, err := pipeline.Run(ctx, src, snk)
@@ -192,7 +192,7 @@ func migrationExample() {
 		func(ctx context.Context, path string, r io.Reader, w io.Writer) error {
 			// Wrap spool's reader/writer
 			src := source.NewReader(path, r)
-			snk := sink.NewWriterSink(w)
+			snk := sink.NewWriter(w)
 
 			// Run pipeline
 			stats, err := pipeline.Run(ctx, src, snk)

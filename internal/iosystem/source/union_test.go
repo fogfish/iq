@@ -11,8 +11,8 @@ import (
 	"github.com/fogfish/it/v2"
 )
 
-func TestMergedSource(t *testing.T) {
-	t.Run("Merge/TwoFiles", func(t *testing.T) {
+func TestUnionSource(t *testing.T) {
+	t.Run("Union/TwoFiles", func(t *testing.T) {
 		// Create temp files
 		tmpDir := t.TempDir()
 		file1 := filepath.Join(tmpDir, "file1.txt")
@@ -22,10 +22,13 @@ func TestMergedSource(t *testing.T) {
 			it.Nil(os.WriteFile(file2, []byte("content2"), 0644)),
 		)
 
+		// Create filesystem
+		fsys := os.DirFS(tmpDir)
+
 		// Create sources
-		src1, err := source.NewFileSource(file1)
+		src1, err := source.NewFile(fsys, "file1.txt")
 		it.Then(t).Should(it.Nil(err))
-		src2, err := source.NewFileSource(file2)
+		src2, err := source.NewFile(fsys, "file2.txt")
 		it.Then(t).Should(it.Nil(err))
 
 		// Create merged source
@@ -48,7 +51,7 @@ func TestMergedSource(t *testing.T) {
 		)
 	})
 
-	t.Run("Merge/SecondCallReturnsEOF", func(t *testing.T) {
+	t.Run("Union/SecondCallReturnsEOF", func(t *testing.T) {
 		// Create temp file
 		tmpDir := t.TempDir()
 		file1 := filepath.Join(tmpDir, "file1.txt")
@@ -56,8 +59,11 @@ func TestMergedSource(t *testing.T) {
 			it.Nil(os.WriteFile(file1, []byte("content"), 0644)),
 		)
 
+		// Create filesystem
+		fsys := os.DirFS(tmpDir)
+
 		// Create source
-		src1, _ := source.NewFileSource(file1)
+		src1, _ := source.NewFile(fsys, "file1.txt")
 
 		// Create merged source
 		merged, err := source.NewUnion(src1)
@@ -80,12 +86,14 @@ func TestMergedSource(t *testing.T) {
 		)
 	})
 
-	t.Run("Merge/EmptySource", func(t *testing.T) {
+	t.Run("Union/EmptySource", func(t *testing.T) {
 		// Create temp directory with no files
 		tmpDir := t.TempDir()
+		fsys := os.DirFS(tmpDir)
 
-		// Create walk source that will return no documents
-		src, err := source.NewWalkSource(tmpDir, source.WalkConfig{})
+		// Create file source with empty directory (no files)
+		// This will return EOF immediately
+		src, err := source.NewFile(fsys, "nonexistent.txt")
 		it.Then(t).Should(it.Nil(err))
 
 		// Create merged source
@@ -93,7 +101,7 @@ func TestMergedSource(t *testing.T) {
 		it.Then(t).Should(it.Nil(err))
 		defer merged.Close()
 
-		// Read merged document
+		// Read merged document - should get error since file doesn't exist
 		ctx := context.Background()
 		_, err = merged.Next(ctx)
 		it.Then(t).ShouldNot(it.Nil(err))

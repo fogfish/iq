@@ -11,6 +11,7 @@ import (
 	"github.com/fogfish/iq/internal/iosystem"
 	"github.com/fogfish/iq/internal/iosystem/sink"
 	"github.com/fogfish/it/v2"
+	"github.com/fogfish/stream/lfs"
 )
 
 func TestFSSink(t *testing.T) {
@@ -18,12 +19,16 @@ func TestFSSink(t *testing.T) {
 		// Create temp directory
 		tmpDir := t.TempDir()
 
+		// Create filesystem
+		fsys, err := lfs.New(tmpDir)
+		it.Then(t).Should(it.Nil(err))
+
 		// Create FSSink
-		snk, err := sink.NewFSSink(tmpDir)
+		snk, err := sink.NewFS(fsys)
 		it.Then(t).Should(it.Nil(err))
 		defer snk.Close()
 
-		// Write document
+		// Write document (lfs paths don't need leading slash)
 		ctx := context.Background()
 		doc := iosystem.NewDocument("/test.txt", io.NopCloser(strings.NewReader("test content")))
 		err = snk.Write(ctx, doc)
@@ -41,8 +46,12 @@ func TestFSSink(t *testing.T) {
 		// Create temp directory
 		tmpDir := t.TempDir()
 
+		// Create filesystem
+		fsys, err := lfs.New(tmpDir)
+		it.Then(t).Should(it.Nil(err))
+
 		// Create FSSink
-		snk, err := sink.NewFSSink(tmpDir)
+		snk, err := sink.NewFS(fsys)
 		it.Then(t).Should(it.Nil(err))
 		defer snk.Close()
 
@@ -65,8 +74,12 @@ func TestFSSink(t *testing.T) {
 		// Create temp directory
 		tmpDir := t.TempDir()
 
+		// Create filesystem
+		fsys, err := lfs.New(tmpDir)
+		it.Then(t).Should(it.Nil(err))
+
 		// Create FSSink
-		snk, err := sink.NewFSSink(tmpDir)
+		snk, err := sink.NewFS(fsys)
 		it.Then(t).Should(it.Nil(err))
 		defer snk.Close()
 
@@ -98,35 +111,37 @@ func TestFSSink(t *testing.T) {
 		}
 	})
 
-	t.Run("Write/WithoutLeadingSlash", func(t *testing.T) {
+	t.Run("Write/PathWithoutLeadingSlash", func(t *testing.T) {
 		// Create temp directory
 		tmpDir := t.TempDir()
 
+		// Create filesystem
+		fsys, err := lfs.New(tmpDir)
+		it.Then(t).Should(it.Nil(err))
+
 		// Create FSSink
-		snk, err := sink.NewFSSink(tmpDir)
+		snk, err := sink.NewFS(fsys)
 		it.Then(t).Should(it.Nil(err))
 		defer snk.Close()
 
-		// Write document without leading slash
+		// Write document without leading slash (lfs requires leading slash)
+		// This should fail
 		ctx := context.Background()
 		doc := iosystem.NewDocument("test.txt", io.NopCloser(strings.NewReader("test content")))
 		err = snk.Write(ctx, doc)
-		it.Then(t).Should(it.Nil(err))
-
-		// Verify file was created
-		content, err := os.ReadFile(filepath.Join(tmpDir, "test.txt"))
-		it.Then(t).Should(
-			it.Nil(err),
-			it.Equal(string(content), "test content"),
-		)
+		it.Then(t).ShouldNot(it.Nil(err)) // Expect error - lfs requires leading /
 	})
 
 	t.Run("Write/LargeFile", func(t *testing.T) {
 		// Create temp directory
 		tmpDir := t.TempDir()
 
+		// Create filesystem
+		fsys, err := lfs.New(tmpDir)
+		it.Then(t).Should(it.Nil(err))
+
 		// Create FSSink
-		snk, err := sink.NewFSSink(tmpDir)
+		snk, err := sink.NewFS(fsys)
 		it.Then(t).Should(it.Nil(err))
 		defer snk.Close()
 
@@ -151,8 +166,12 @@ func TestFSSink(t *testing.T) {
 		// Create temp directory
 		tmpDir := t.TempDir()
 
+		// Create filesystem
+		fsys, err := lfs.New(tmpDir)
+		it.Then(t).Should(it.Nil(err))
+
 		// Create FSSink
-		snk, err := sink.NewFSSink(tmpDir)
+		snk, err := sink.NewFS(fsys)
 		it.Then(t).Should(it.Nil(err))
 		defer snk.Close()
 
@@ -164,25 +183,11 @@ func TestFSSink(t *testing.T) {
 		)
 	})
 
-	t.Run("ErrorInvalidPath", func(t *testing.T) {
-		// Try to create FSSink with empty path
-		snk, err := sink.NewFSSink("")
-		it.Then(t).ShouldNot(
-			it.Nil(err),
-		)
-		it.Then(t).Should(
-			it.Nil(snk),
-		)
-	})
-
 	t.Run("ErrorNonexistentPath", func(t *testing.T) {
-		// Try to create FSSink with nonexistent path
-		snk, err := sink.NewFSSink("/nonexistent/path/that/does/not/exist")
+		// Try to create filesystem with nonexistent path
+		_, err := lfs.New("/nonexistent/path/that/does/not/exist")
 		it.Then(t).ShouldNot(
 			it.Nil(err),
-		)
-		it.Then(t).Should(
-			it.Nil(snk),
 		)
 	})
 
@@ -194,8 +199,12 @@ func TestFSSink(t *testing.T) {
 			it.Nil(os.WriteFile(existingFile, []byte("old content"), 0644)),
 		)
 
+		// Create filesystem
+		fsys, err := lfs.New(tmpDir)
+		it.Then(t).Should(it.Nil(err))
+
 		// Create FSSink
-		snk, err := sink.NewFSSink(tmpDir)
+		snk, err := sink.NewFS(fsys)
 		it.Then(t).Should(it.Nil(err))
 		defer snk.Close()
 

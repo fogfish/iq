@@ -14,7 +14,7 @@ import (
 
 func TestWriterSink_SingleDocument(t *testing.T) {
 	var buf bytes.Buffer
-	snk := sink.NewWriterSink(&buf)
+	snk := sink.NewWriter(&buf)
 
 	doc := iosystem.NewDocument("test.txt", strings.NewReader("test content"))
 	ctx := context.Background()
@@ -28,7 +28,7 @@ func TestWriterSink_SingleDocument(t *testing.T) {
 
 func TestWriterSink_MultipleWrites(t *testing.T) {
 	var buf bytes.Buffer
-	snk := sink.NewWriterSink(&buf)
+	snk := sink.NewWriter(&buf)
 
 	ctx := context.Background()
 
@@ -48,7 +48,7 @@ func TestWriterSink_MultipleWrites(t *testing.T) {
 
 func TestWriterSink_EmptyDocument(t *testing.T) {
 	var buf bytes.Buffer
-	snk := sink.NewWriterSink(&buf)
+	snk := sink.NewWriter(&buf)
 
 	doc := iosystem.NewDocument("empty.txt", strings.NewReader(""))
 	ctx := context.Background()
@@ -62,7 +62,7 @@ func TestWriterSink_EmptyDocument(t *testing.T) {
 
 func TestWriterSink_Close(t *testing.T) {
 	var buf bytes.Buffer
-	snk := sink.NewWriterSink(&buf)
+	snk := sink.NewWriter(&buf)
 
 	// Close should not return error
 	err := snk.Close()
@@ -77,7 +77,7 @@ func TestWriterSink_Close(t *testing.T) {
 
 func TestWriterSink_WithMetadata(t *testing.T) {
 	var buf bytes.Buffer
-	snk := sink.NewWriterSink(&buf)
+	snk := sink.NewWriter(&buf)
 
 	doc := iosystem.NewDocument("test.txt", strings.NewReader("content"))
 	doc.WithMetadata("key", "value")
@@ -95,7 +95,7 @@ func TestWriterSink_WithMetadata(t *testing.T) {
 
 func TestWriterSink_LargeContent(t *testing.T) {
 	var buf bytes.Buffer
-	snk := sink.NewWriterSink(&buf)
+	snk := sink.NewWriter(&buf)
 
 	// Create a large string (1MB)
 	largeContent := strings.Repeat("x", 1024*1024)
@@ -114,7 +114,7 @@ func TestWriterSink_WithPipeline(t *testing.T) {
 	// Test that WriterSink integrates properly with Pipeline
 	// This is the primary use case for spool integration
 	var buf bytes.Buffer
-	snk := sink.NewWriterSink(&buf)
+	snk := sink.NewWriter(&buf)
 
 	doc := iosystem.NewDocument("pipeline.txt", strings.NewReader("pipeline test"))
 	ctx := context.Background()
@@ -128,7 +128,7 @@ func TestWriterSink_WithPipeline(t *testing.T) {
 
 func TestWriterSink_ReadError(t *testing.T) {
 	var buf bytes.Buffer
-	snk := sink.NewWriterSink(&buf)
+	snk := sink.NewWriter(&buf)
 
 	// Create a reader that fails
 	failingReader := &errorReader{err: io.ErrUnexpectedEOF}

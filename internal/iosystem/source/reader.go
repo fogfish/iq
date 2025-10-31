@@ -34,7 +34,7 @@ func NewReader(path string, r io.Reader) *Reader {
 }
 
 // NewStdin creates a source that reads from os.Stdin.
-func NewStdin() iosystem.Source {
+func NewStdin() *Reader {
 	return NewReader("stdin", os.Stdin)
 }
 

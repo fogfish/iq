@@ -11,7 +11,7 @@ import (
 	"github.com/fogfish/it/v2"
 )
 
-func TestFileSource(t *testing.T) {
+func TestFileSource_SingleFile(t *testing.T) {
 	// Create a temporary file
 	tmpDir := t.TempDir()
 	testFile := filepath.Join(tmpDir, "test.txt")
@@ -19,7 +19,10 @@ func TestFileSource(t *testing.T) {
 	err := os.WriteFile(testFile, content, 0644)
 	it.Then(t).Should(it.Nil(err))
 
-	src, err := source.NewFileSource(testFile)
+	// Create filesystem
+	fsys := os.DirFS(tmpDir)
+
+	src, err := source.NewFile(fsys, "test.txt")
 	it.Then(t).Should(it.Nil(err))
 
 	if src == nil {
@@ -38,7 +41,7 @@ func TestFileSource(t *testing.T) {
 	}
 
 	it.Then(t).Should(
-		it.Equal(doc.Path, testFile),
+		it.Equal(doc.Path, "test.txt"),
 		it.True(doc.Reader != nil),
 	)
 
@@ -55,15 +58,18 @@ func TestFileSource(t *testing.T) {
 }
 
 func TestFileSource_EmptyPath(t *testing.T) {
-	_, err := source.NewFileSource("")
+	tmpDir := t.TempDir()
+	fsys := os.DirFS(tmpDir)
+
+	_, err := source.NewFile(fsys)
 	it.Then(t).Should(it.True(err != nil))
 }
 
 func TestFileSource_NonExistentFile(t *testing.T) {
 	tmpDir := t.TempDir()
-	nonExistent := filepath.Join(tmpDir, "nonexistent.txt")
+	fsys := os.DirFS(tmpDir)
 
-	src, err := source.NewFileSource(nonExistent)
+	src, err := source.NewFile(fsys, "nonexistent.txt")
 	it.Then(t).Should(it.Nil(err))
 
 	if src != nil {
@@ -75,7 +81,7 @@ func TestFileSource_NonExistentFile(t *testing.T) {
 	it.Then(t).Should(it.True(err != nil))
 }
 
-func TestFileSeqSource(t *testing.T) {
+func TestFileSource_MultipleFiles(t *testing.T) {
 	// Create temporary files
 	tmpDir := t.TempDir()
 	file1 := filepath.Join(tmpDir, "file1.txt")
@@ -86,7 +92,10 @@ func TestFileSeqSource(t *testing.T) {
 	os.WriteFile(file2, []byte("content 2"), 0644)
 	os.WriteFile(file3, []byte("content 3"), 0644)
 
-	src, err := source.NewFileSeqSource(file1, file2, file3)
+	// Create filesystem
+	fsys := os.DirFS(tmpDir)
+
+	src, err := source.NewFile(fsys, "file1.txt", "file2.txt", "file3.txt")
 	it.Then(t).Should(it.Nil(err))
 
 	if src != nil {
@@ -112,17 +121,15 @@ func TestFileSeqSource(t *testing.T) {
 	it.Then(t).Should(it.Equal(err, io.EOF))
 }
 
-func TestFileSeqSource_EmptyList(t *testing.T) {
-	_, err := source.NewFileSeqSource()
-	it.Then(t).Should(it.True(err != nil))
-}
-
-func TestFileSeqSource_MultipleEOF(t *testing.T) {
+func TestFileSource_MultipleEOF(t *testing.T) {
 	tmpDir := t.TempDir()
 	file := filepath.Join(tmpDir, "test.txt")
 	os.WriteFile(file, []byte("content"), 0644)
 
-	src, err := source.NewFileSeqSource(file)
+	// Create filesystem
+	fsys := os.DirFS(tmpDir)
+
+	src, err := source.NewFile(fsys, "test.txt")
 	it.Then(t).Should(it.Nil(err))
 
 	if src != nil {
@@ -137,4 +144,37 @@ func TestFileSeqSource_MultipleEOF(t *testing.T) {
 		_, err := src.Next(ctx)
 		it.Then(t).Should(it.Equal(err, io.EOF))
 	}
+}
+
+func TestFileSource_AutoClose(t *testing.T) {
+	tmpDir := t.TempDir()
+	file := filepath.Join(tmpDir, "test.txt")
+	os.WriteFile(file, []byte("auto close test"), 0644)
+
+	// Create filesystem
+	fsys := os.DirFS(tmpDir)
+
+	src, err := source.NewFile(fsys, "test.txt")
+	it.Then(t).Should(it.Nil(err))
+	defer src.Close()
+
+	ctx := context.Background()
+	doc, err := src.Next(ctx)
+	it.Then(t).Should(it.Nil(err))
+
+	// Read the entire file - this should trigger auto-close
+	data, err := io.ReadAll(doc.Reader)
+	it.Then(t).Should(
+		it.Nil(err),
+		it.Equal(string(data), "auto close test"),
+	)
+
+	// Attempt to read again from the same reader should return EOF
+	// because the auto-closer closed the file
+	buf := make([]byte, 10)
+	n, err := doc.Reader.Read(buf)
+	it.Then(t).Should(
+		it.Equal(n, 0),
+		it.Equal(err, io.EOF),
+	)
 }
