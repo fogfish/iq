@@ -11,7 +11,6 @@ package adapter
 import (
 	"fmt"
 	"html/template"
-	"os"
 	"strings"
 
 	"github.com/fogfish/iq/internal/core"
@@ -68,74 +67,74 @@ func DecodeViperToRegistry(in *viper.Viper, workdir string) (thinker.Registry, e
 	}
 
 	for _, cmd := range cmds {
-		switch v := cmd.(type) {
+		switch cmd.(type) {
 		case string:
-			switch v {
-			case command.BASH:
-				r.Register(command.Bash("", workdir))
-			case command.PYTHON:
-				r.Register(command.Python(workdir))
-			case command.GOLANG:
-				r.Register(command.Golang(workdir))
-			default:
-				fmt.Fprintf(os.Stderr, " ‼️ command %s is unknown, define custom command", v)
-			}
+			// switch v {
+			// case command.BASH:
+			// 	r.Register(command.Bash("", workdir))
+			// case command.PYTHON:
+			// 	r.Register(command.Python(workdir))
+			// case command.GOLANG:
+			// 	r.Register(command.Golang(workdir))
+			// default:
+			// 	fmt.Fprintf(os.Stderr, " ‼️ command %s is unknown, define custom command", v)
+			// }
 
 		case map[string]any:
 			var (
-				err        error
-				c          thinker.Cmd
-				properties []any
+			// err error
+			// c          thinker.Cmd
+			// properties []any
 			)
-			c.Cmd, err = value[string](v, prompt.YAML_REGISTRY_NAME)
-			if err != nil {
-				return nil, err
-			}
+			// c.Cmd, err = value[string](v, prompt.YAML_REGISTRY_NAME)
+			// if err != nil {
+			// 	return nil, err
+			// }
 
-			c.About, err = value[string](v, prompt.YAML_REGISTRY_ABOUT)
-			if err != nil {
-				return nil, err
-			}
+			// c.About, err = value[string](v, prompt.YAML_REGISTRY_ABOUT)
+			// if err != nil {
+			// 	return nil, err
+			// }
 
-			c.Syntax, err = value[string](v, prompt.YAML_REGISTRY_SYNTAX)
-			if err != nil {
-				return nil, err
-			}
+			// c.Syntax, err = value[string](v, prompt.YAML_REGISTRY_SYNTAX)
+			// if err != nil {
+			// 	return nil, err
+			// }
 
-			properties, err = value[[]any](v, prompt.YAML_REGISTRY_PROPERTIES)
-			if err != nil {
-				return nil, err
-			}
+			// properties, err = value[[]any](v, prompt.YAML_REGISTRY_PROPERTIES)
+			// if err != nil {
+			// 	return nil, err
+			// }
 
-			c.Args = make([]thinker.Arg, len(properties))
-			for i, prop := range properties {
-				kv, ok := prop.(map[string]any)
-				if !ok {
-					return nil, fmt.Errorf("command registry is misconfigured, properties of %s has to be a list of objects", c.Cmd)
-				}
+			// c.Args = make([]thinker.Arg, len(properties))
+			// for _ := range properties {
+			// _, ok := prop.(map[string]any)
+			// if !ok {
+			// 	return nil, fmt.Errorf("command registry is misconfigured, properties of %s has to be a list of objects", c.Cmd)
+			// }
 
-				var arg thinker.Arg
-				arg.Name, err = value[string](kv, prompt.YAML_REGISTRY_NAME)
-				if err != nil {
-					return nil, err
-				}
+			// var arg thinker.Arg
+			// arg.Name, err = value[string](kv, prompt.YAML_REGISTRY_NAME)
+			// if err != nil {
+			// 	return nil, err
+			// }
 
-				arg.Type, err = value[string](kv, prompt.YAML_REGISTRY_TYPE)
-				if err != nil {
-					return nil, err
-				}
+			// arg.Type, err = value[string](kv, prompt.YAML_REGISTRY_TYPE)
+			// if err != nil {
+			// 	return nil, err
+			// }
 
-				arg.About, err = value[string](kv, prompt.YAML_REGISTRY_ABOUT)
-				if err != nil {
-					return nil, err
-				}
+			// arg.About, err = value[string](kv, prompt.YAML_REGISTRY_ABOUT)
+			// if err != nil {
+			// 	return nil, err
+			// }
 
-				c.Args[i] = arg
-			}
+			// c.Args[i] = arg
+			// }
 
-			if err = r.Register(command.Cmd(workdir, c)); err != nil {
-				return nil, err
-			}
+			// if err = r.Register(command.Cmd(workdir, c)); err != nil {
+			// 	return nil, err
+			// }
 		}
 	}
 

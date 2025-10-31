@@ -1,0 +1,124 @@
+package ast
+
+// AST represents the complete workflow abstract syntax tree
+type AST struct {
+	Blueprint *BlueprintNode
+	Agents    map[string]*AgentNode // Keyed by file path
+}
+
+// BlueprintNode represents the root workflow definition
+type BlueprintNode struct {
+	Name       string
+	Entrypoint string // Optional: default job to run. If empty, uses job named "main"
+	RunsOn     string
+	Jobs       map[string]*JobNode
+}
+
+// JobNode represents a job within a blueprint
+type JobNode struct {
+	Name   string
+	RunsOn string
+	Steps  []StepNode
+}
+
+// StepNode is an interface for different step types
+type StepNode interface {
+	stepNode()
+	GetName() string
+	GetUses() string
+	GetRetry() *RetryNode
+	GetOutput() string
+}
+
+// AgentStepNode represents a simple agent execution step
+type AgentStepNode struct {
+	Name   string
+	Uses   string // Path to agent file
+	Output string // Optional name to store output in context
+	Retry  *RetryNode
+}
+
+func (n *AgentStepNode) stepNode()            {}
+func (n *AgentStepNode) GetName() string      { return n.Name }
+func (n *AgentStepNode) GetUses() string      { return n.Uses }
+func (n *AgentStepNode) GetRetry() *RetryNode { return n.Retry }
+func (n *AgentStepNode) GetOutput() string    { return n.Output }
+
+// RouterStepNode represents a conditional routing step
+type RouterStepNode struct {
+	Name    string
+	Uses    string      // Path to agent file
+	Output  string      // Optional name to store output in context
+	Routes  []RouteNode // Ordered routes (first match wins)
+	Default string      // Default job name if no route matches
+	Retry   *RetryNode
+}
+
+func (n *RouterStepNode) stepNode()            {}
+func (n *RouterStepNode) GetName() string      { return n.Name }
+func (n *RouterStepNode) GetUses() string      { return n.Uses }
+func (n *RouterStepNode) GetRetry() *RetryNode { return n.Retry }
+func (n *RouterStepNode) GetOutput() string    { return n.Output }
+
+// RouteNode represents a single conditional route
+type RouteNode struct {
+	When  string // CEL expression
+	Route string // Target job name
+}
+
+// ForeachStepNode represents an array iteration step
+type ForeachStepNode struct {
+	Name   string
+	Uses   string // Optional: Path to agent file to generate array
+	Job    string // Job to execute for each array item
+	Output string // Optional name to store results array in context
+	Retry  *RetryNode
+}
+
+func (n *ForeachStepNode) stepNode()            {}
+func (n *ForeachStepNode) GetName() string      { return n.Name }
+func (n *ForeachStepNode) GetUses() string      { return n.Uses }
+func (n *ForeachStepNode) GetRetry() *RetryNode { return n.Retry }
+func (n *ForeachStepNode) GetOutput() string    { return n.Output }
+
+type RetryNode struct {
+	Attempts int    // Number of retry attempts
+	Delay    int    // Delay between attempts in seconds
+	Yield    string // Path to agent file if all retries fail
+}
+
+// AgentNode represents an agent definition
+type AgentNode struct {
+	Name    string
+	Format  string       // "json" or empty
+	Schema  *SchemaNode  // Input/Output schemas
+	Servers []ServerNode // MCP servers
+	Prompt  string       // Template text
+}
+
+type SchemaNode struct {
+	Input map[string]any // JSON Schema for input validation
+	Reply map[string]any // JSON Schema for output validation
+}
+
+// ServerNode represents an MCP server configuration
+type ServerNode struct {
+	Type    string
+	Name    string
+	Command string
+}
+
+// Validate performs semantic validation on the AST
+func (ast *AST) Validate() error {
+	// Will be implemented by compiler
+	return nil
+}
+
+// JobNames returns all job names in the blueprint
+func (b *BlueprintNode) JobNames() []string {
+	names := make([]string, 0, len(b.Jobs))
+	for name := range b.Jobs {
+		names = append(names, name)
+	}
+	return names
+}

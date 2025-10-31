@@ -15,27 +15,32 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/TylerBrock/colorjson"
+	"github.com/fogfish/iq/internal/blueprint"
 	"github.com/fogfish/iq/internal/reader"
+	"github.com/kshard/chatter"
+	"github.com/kshard/chatter/aio"
+	"github.com/kshard/chatter/provider/autoconfig"
 	"github.com/spf13/cobra"
 )
 
 var (
-	execWithBash   bool
-	execWithGolang bool
-	execWithPython bool
-	execWorkDir    string
+// execWithBash   bool
+// execWithGolang bool
+// execWithPython bool
+// execWorkDir string
 )
 
 func init() {
-	rootCmd.AddCommand(execCmd)
+	rootCmd.AddCommand(taskCmd)
 
-	execCmd.Flags().BoolVar(&execWithBash, "bash", false, "enable bash in the command registry")
-	execCmd.Flags().BoolVar(&execWithGolang, "golang", false, "enable golang in the command registry")
-	execCmd.Flags().BoolVar(&execWithPython, "python", false, "enable python in the command registry")
-	execCmd.Flags().StringVar(&execWorkDir, "workdir", "", "work directory for tools and commands")
+	// execCmd.Flags().BoolVar(&execWithBash, "bash", false, "enable bash in the command registry")
+	// execCmd.Flags().BoolVar(&execWithGolang, "golang", false, "enable golang in the command registry")
+	// execCmd.Flags().BoolVar(&execWithPython, "python", false, "enable python in the command registry")
+	// taskCmd.Flags().StringVar(&execWorkDir, "workdir", "", "work directory for tools and commands")
 }
 
-var execCmd = &cobra.Command{
+var taskCmd = &cobra.Command{
 	Use:   "task",
 	Short: "execute LLM-agent with prompt instructions",
 	Long: `
@@ -59,16 +64,41 @@ See more info https://github.com/fogfish/iq
 	`,
 	SilenceUsage:  true,
 	SilenceErrors: true,
-	RunE:          withUsage(exec),
+	RunE:          withUsage(task),
 }
 
-func exec(cmd *cobra.Command, args []string) error {
+func task(cmd *cobra.Command, args []string) error {
 	spinner := createSpinner()
 	defer spinner.Finish()
 
 	if rootThink {
 		spinner.Finish()
 	}
+
+	b, err := parseInputStdin()
+	if err != nil {
+		return err
+	}
+
+	bp, err := blueprint.New(context.Background(), rootPrompt, &factory{})
+	if err != nil {
+		return err
+	}
+
+	reply, err := bp.Run(context.Background(), string(b))
+	if err != nil {
+		return err
+	}
+
+	f := colorjson.NewFormatter()
+	f.Indent = 2
+
+	s, _ := f.Marshal(reply)
+
+	os.Stdout.Write(s)
+	os.Stdout.WriteString("\n")
+
+	return nil
 
 	agt, req, err := agentForTasks(execWorkDir)
 	if err != nil {
@@ -115,4 +145,15 @@ func exec(cmd *cobra.Command, args []string) error {
 	}
 
 	return nil
+}
+
+type factory struct{}
+
+func (f *factory) LLM(name string) (chatter.Chatter, error) {
+	llm, err := autoconfig.FromNetRC("iq")
+	if err != nil {
+		return nil, err
+	}
+	llm = aio.NewJsonLogger(os.Stderr, llm)
+	return llm, nil
 }

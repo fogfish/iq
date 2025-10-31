@@ -1,0 +1,6 @@
+name: chain
+jobs:
+  main:
+    steps:
+      - uses: prompts/extract.md
+      - uses: prompts/transform.md

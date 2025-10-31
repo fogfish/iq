@@ -1,0 +1,295 @@
+package parser
+
+import (
+	"bytes"
+	"fmt"
+	"io"
+	"os"
+	"path/filepath"
+
+	"github.com/fogfish/iq/internal/blueprint/ast"
+	"github.com/goccy/go-yaml"
+)
+
+// Parser handles YAML to AST conversion
+type Parser struct {
+	baseDir string // Base directory for resolving relative paths
+}
+
+// New creates a new parser
+func New(baseDir string) *Parser {
+	return &Parser{baseDir: baseDir}
+}
+
+// Parse parses a blueprint file and all referenced agents
+func (p *Parser) Parse(file string) (*ast.AST, error) {
+	blueprint, err := p.ParseBlueprint(file)
+	if err != nil {
+		return nil, err
+	}
+
+	// Collect all agent file references
+	agentFiles := make(map[string]bool)
+	for _, job := range blueprint.Jobs {
+		for _, step := range job.Steps {
+			if step.GetUses() != "" {
+				agentFiles[step.GetUses()] = true
+			}
+
+			retry := step.GetRetry()
+			if retry != nil && retry.Yield != "" {
+				agentFiles[retry.Yield] = true
+			}
+		}
+	}
+
+	// Parse all agents
+	agents := make(map[string]*ast.AgentNode)
+	for agentFile := range agentFiles {
+		agentPath := p.resolvePath(agentFile)
+		agent, err := p.ParseAgent(agentPath)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse agent %s: %w", agentFile, err)
+		}
+		agents[agentFile] = agent
+	}
+
+	return &ast.AST{
+		Blueprint: blueprint,
+		Agents:    agents,
+	}, nil
+}
+
+// ParseBlueprint parses a blueprint YAML file
+func (p *Parser) ParseBlueprint(file string) (*ast.BlueprintNode, error) {
+	fd, err := os.Open(file)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open blueprint: %w", err)
+	}
+	defer fd.Close()
+
+	var raw blueprintYAML
+	if err := yaml.NewDecoder(fd).Decode(&raw); err != nil {
+		return nil, fmt.Errorf("failed to parse blueprint YAML: %w", err)
+	}
+
+	// Update baseDir based on blueprint file location
+	p.baseDir = filepath.Dir(file)
+
+	return p.convertBlueprint(&raw), nil
+}
+
+// ParseAgent parses an agent definition file
+func (p *Parser) ParseAgent(file string) (*ast.AgentNode, error) {
+	fd, err := os.Open(file)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open agent file: %w", err)
+	}
+	defer fd.Close()
+
+	content, err := io.ReadAll(fd)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read agent file: %w", err)
+	}
+
+	return p.parseAgentContent(filepath.Base(file), content)
+}
+
+// parseAgentContent parses agent content (YAML frontmatter + prompt)
+func (p *Parser) parseAgentContent(name string, content []byte) (*ast.AgentNode, error) {
+	parts := bytes.Split(content, []byte("\n---\n"))
+
+	switch len(parts) {
+	case 1:
+		// No frontmatter, just prompt
+		return &ast.AgentNode{
+			Name:   name,
+			Prompt: string(content),
+		}, nil
+
+	case 2:
+		// Has frontmatter
+		var raw agentYAML
+		if err := yaml.Unmarshal(parts[0], &raw); err != nil {
+			return nil, fmt.Errorf("failed to parse agent frontmatter: %w", err)
+		}
+
+		agent := p.convertAgent(&raw)
+		agent.Name = name
+		agent.Prompt = string(parts[1])
+		return agent, nil
+
+	default:
+		return nil, fmt.Errorf("invalid agent format: expected 0 or 1 '\\n---\\n' separator, got %d", len(parts)-1)
+	}
+}
+
+// resolvePath resolves relative paths based on baseDir
+func (p *Parser) resolvePath(path string) string {
+	if filepath.IsAbs(path) {
+		return path
+	}
+	return filepath.Join(p.baseDir, path)
+}
+
+// YAML structure definitions (internal)
+
+type blueprintYAML struct {
+	Name       string             `yaml:"name,omitempty"`
+	Entrypoint string             `yaml:"entrypoint,omitempty"`
+	RunsOn     string             `yaml:"runs-on,omitempty"`
+	Jobs       map[string]jobYAML `yaml:"jobs,omitempty"`
+}
+
+type jobYAML struct {
+	RunsOn string     `yaml:"runs-on,omitempty"`
+	Steps  []stepYAML `yaml:"steps,omitempty"`
+}
+
+type stepYAML struct {
+	Name    string       `yaml:"name,omitempty"`
+	Uses    string       `yaml:"uses,omitempty"`
+	Output  string       `yaml:"output,omitempty"`
+	Switch  []routeYAML  `yaml:"switch,omitempty"`
+	Default string       `yaml:"default,omitempty"`
+	Foreach *foreachYAML `yaml:"foreach,omitempty"`
+	Retry   *retryYAML   `yaml:"retry,omitempty"`
+}
+
+type foreachYAML struct {
+	Job string `yaml:"job,omitempty"`
+}
+
+type routeYAML struct {
+	When  string `yaml:"when,omitempty"`
+	Route string `yaml:"route,omitempty"`
+}
+
+type retryYAML struct {
+	Attempts int    `yaml:"attempts,omitempty"`
+	Delay    int    `yaml:"delay,omitempty"` // in seconds
+	Yield    string `yaml:"yield,omitempty"`
+}
+
+type agentYAML struct {
+	Name    string       `yaml:"name,omitempty"`
+	Format  string       `yaml:"format,omitempty"`
+	Schema  *schemaYAML  `yaml:"schema,omitempty"`
+	Servers []serverYAML `yaml:"servers,omitempty"`
+}
+
+type schemaYAML struct {
+	Input map[string]any `yaml:"input,omitempty"`
+	Reply map[string]any `yaml:"reply,omitempty"`
+}
+
+type serverYAML struct {
+	Type    string `yaml:"type,omitempty"`
+	Name    string `yaml:"name,omitempty"`
+	Command string `yaml:"command,omitempty"`
+}
+
+// Conversion functions
+
+func (p *Parser) convertBlueprint(raw *blueprintYAML) *ast.BlueprintNode {
+	jobs := make(map[string]*ast.JobNode)
+	for name, jobYAML := range raw.Jobs {
+		jobs[name] = p.convertJob(name, &jobYAML)
+	}
+
+	return &ast.BlueprintNode{
+		Name:       raw.Name,
+		Entrypoint: raw.Entrypoint,
+		RunsOn:     raw.RunsOn,
+		Jobs:       jobs,
+	}
+}
+
+func (p *Parser) convertJob(name string, raw *jobYAML) *ast.JobNode {
+	steps := make([]ast.StepNode, 0, len(raw.Steps))
+	for _, stepYAML := range raw.Steps {
+		steps = append(steps, p.convertStep(&stepYAML))
+	}
+
+	return &ast.JobNode{
+		Name:   name,
+		RunsOn: raw.RunsOn,
+		Steps:  steps,
+	}
+}
+
+func (p *Parser) convertStep(raw *stepYAML) ast.StepNode {
+	var retry *ast.RetryNode
+	if raw.Retry != nil {
+		retry = &ast.RetryNode{
+			Attempts: raw.Retry.Attempts,
+			Delay:    raw.Retry.Delay,
+			Yield:    raw.Retry.Yield,
+		}
+	}
+
+	// Check if this is a foreach step
+	if raw.Foreach != nil {
+		return &ast.ForeachStepNode{
+			Name:   raw.Name,
+			Uses:   raw.Uses,
+			Job:    raw.Foreach.Job,
+			Output: raw.Output,
+			Retry:  retry,
+		}
+	}
+
+	// Check if this is a router step
+	if len(raw.Switch) > 0 {
+		routes := make([]ast.RouteNode, 0, len(raw.Switch))
+		for _, routeYAML := range raw.Switch {
+			routes = append(routes, ast.RouteNode{
+				When:  routeYAML.When,
+				Route: routeYAML.Route,
+			})
+		}
+
+		return &ast.RouterStepNode{
+			Name:    raw.Name,
+			Uses:    raw.Uses,
+			Output:  raw.Output,
+			Routes:  routes,
+			Default: raw.Default,
+			Retry:   retry,
+		}
+	}
+
+	// Simple agent step
+	return &ast.AgentStepNode{
+		Name:   raw.Name,
+		Uses:   raw.Uses,
+		Output: raw.Output,
+		Retry:  retry,
+	}
+}
+
+func (p *Parser) convertAgent(raw *agentYAML) *ast.AgentNode {
+	servers := make([]ast.ServerNode, 0, len(raw.Servers))
+	for _, srv := range raw.Servers {
+		servers = append(servers, ast.ServerNode{
+			Type:    srv.Type,
+			Name:    srv.Name,
+			Command: srv.Command,
+		})
+	}
+
+	var schema *ast.SchemaNode
+	if raw.Schema != nil {
+		schema = &ast.SchemaNode{
+			Input: raw.Schema.Input,
+			Reply: raw.Schema.Reply,
+		}
+	}
+
+	return &ast.AgentNode{
+		Name:    raw.Name,
+		Format:  raw.Format,
+		Schema:  schema,
+		Servers: servers,
+	}
+}

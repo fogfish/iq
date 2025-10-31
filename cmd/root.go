@@ -24,7 +24,6 @@ import (
 	"github.com/fogfish/stream/lfs"
 	"github.com/fogfish/stream/spool"
 	"github.com/kshard/chatter"
-	"github.com/kshard/thinker/command"
 	"github.com/schollz/progressbar/v3"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -251,17 +250,17 @@ func agentForTasks(workdir string) (*service.Worker, *core.Prompt, error) {
 		return nil, nil, err
 	}
 
-	if execWithBash || execWithGolang || execWithPython {
-		if execWithBash {
-			registry.Register(command.Bash("", workdir))
-		}
-		if execWithGolang {
-			registry.Register(command.Golang(workdir))
-		}
-		if execWithPython {
-			registry.Register(command.Python(workdir))
-		}
-	}
+	// if execWithBash || execWithGolang || execWithPython {
+	// 	if execWithBash {
+	// 		registry.Register(command.Bash("", workdir))
+	// 	}
+	// 	if execWithGolang {
+	// 		registry.Register(command.Golang(workdir))
+	// 	}
+	// 	if execWithPython {
+	// 		registry.Register(command.Python(workdir))
+	// 	}
+	// }
 
 	agt, err := service.NewWorker(gLLM, registry)
 	if err != nil {
@@ -393,8 +392,8 @@ func withUsage(f func(cmd *cobra.Command, args []string) error) func(cmd *cobra.
 			return nil
 		}
 
-		usage := gLLM.Usage()
-		fmt.Fprintf(os.Stderr, "\n\n 💡 Tokens used: %d (input: %d, reply: %d)\n", usage.InputTokens+usage.ReplyTokens, usage.InputTokens, usage.ReplyTokens)
+		// usage := gLLM.Usage()
+		// fmt.Fprintf(os.Stderr, "\n\n 💡 Tokens used: %d (input: %d, reply: %d)\n", usage.InputTokens+usage.ReplyTokens, usage.InputTokens, usage.ReplyTokens)
 
 		return nil
 	}

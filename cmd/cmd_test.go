@@ -96,7 +96,7 @@ func TestExec(t *testing.T) {
 	rootLLM.Model = "mock"
 	rootPrompt = "./testdata/task.yml"
 
-	out, err := sut(execCmd, nil)
+	out, err := sut(taskCmd, nil)
 
 	it.Then(t).Should(
 		it.Nil(err),
@@ -110,7 +110,7 @@ func TestExecWithFiles(t *testing.T) {
 	rootLLM.Model = "mock"
 	rootPrompt = "./testdata/task.yml"
 
-	out, err := sut(execCmd, []string{"../examples/prompt/doc/sun.txt", "../examples/prompt/doc/sky.txt"})
+	out, err := sut(taskCmd, []string{"../examples/prompt/doc/sun.txt", "../examples/prompt/doc/sky.txt"})
 	it.Then(t).Should(
 		it.Nil(err),
 		it.String(out).Contain("Use available tools to complete the workflow"),
