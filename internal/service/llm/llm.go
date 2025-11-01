@@ -37,70 +37,55 @@ type Builder struct {
 
 // New creates a new LLM builder with mock LLM as default.
 func New() *Builder {
-	return &Builder{
-		llm: &Mock{},
-	}
+	return &Builder{}
 }
 
-// Profile sets the LLM provider profile and model.
-// Format: "provider/model" or just "provider" to use default model.
-// Special value "mock" creates a mock LLM for testing.
-func (b *Builder) Profile(profile string) *Builder {
-	if b.err != nil {
+// Creates LLM from profile defined at ~/.netrc
+//
+// machine iq
+//
+//	provider provider:bedrock/foundation/converse
+//	model us.anthropic.claude-3-7-sonnet-20250219-v1:0
+//	region us-west-2
+//
+// Special value "mock" creates a mock LLM for testing of client applications.
+func (b *Builder) Profile(profile, model string) *Builder {
+	if b.err != nil || b.llm != nil || len(profile) == 0 {
 		return b
-	}
-
-	parts := strings.Split(profile, "/")
-	if len(parts) == 0 {
-		b.err = fmt.Errorf("invalid profile format: %s", profile)
-		return b
-	}
-
-	provider := parts[0]
-	model := ""
-	if len(parts) > 1 {
-		model = parts[1]
 	}
 
 	// Mock mode
-	if provider == "mock" || model == "mock" {
+	if profile == "mock" || model == "mock" {
 		b.llm = &Mock{}
 		return b
 	}
 
 	// Create LLM from autoconfig
-	var llm chatter.Chatter
-	var err error
-	if model != "" {
-		llm, err = autoconfig.FromNetRC(provider, model)
-	} else {
-		llm, err = autoconfig.FromNetRC(provider)
+	switch {
+	case len(model) > 0:
+		b.llm, b.err = autoconfig.FromNetRC(profile, model)
+	default:
+		b.llm, b.err = autoconfig.FromNetRC(profile)
 	}
 
-	if err != nil {
-		b.err = err
-		return b
-	}
-
-	b.llm = llm
 	return b
 }
 
 // Think enables thinking mode (prints thinking content to stderr).
 // Returns builder for chaining.
 func (b *Builder) Think(enable bool) *Builder {
-	if b.err != nil || !enable {
+	if b.err != nil || b.llm == nil || !enable {
 		return b
 	}
 
-	b.llm = &Thinking{Chatter: b.llm}
+	b.llm = &thinking{Chatter: b.llm}
 	return b
 }
 
 // Debug enables debug logging to stderr.
 // Returns builder for chaining.
 func (b *Builder) Debug(enable bool) *Builder {
-	if b.err != nil || !enable {
+	if b.err != nil || b.llm == nil || !enable {
 		return b
 	}
 
@@ -108,25 +93,14 @@ func (b *Builder) Debug(enable bool) *Builder {
 	return b
 }
 
-// MaxEpoch sets the maximum number of epochs (quota decorator).
+// Quota the maximum number of epochs and tokens.
 // Returns builder for chaining.
-func (b *Builder) MaxEpoch(max int) *Builder {
-	if b.err != nil || max <= 0 {
+func (b *Builder) Quota(epoch int, usage chatter.Usage) *Builder {
+	if b.err != nil {
 		return b
 	}
 
-	b.llm = aio.NewQuota(max, chatter.Usage{}, b.llm)
-	return b
-}
-
-// MaxTokens sets the maximum number of reply tokens (quota decorator).
-// Returns builder for chaining.
-func (b *Builder) MaxTokens(max int) *Builder {
-	if b.err != nil || max <= 0 {
-		return b
-	}
-
-	b.llm = aio.NewQuota(0, chatter.Usage{ReplyTokens: max}, b.llm)
+	b.llm = aio.NewQuota(epoch, usage, b.llm)
 	return b
 }
 
@@ -136,6 +110,11 @@ func (b *Builder) Build() (chatter.Chatter, error) {
 	if b.err != nil {
 		return nil, b.err
 	}
+
+	if b.llm == nil {
+		return nil, fmt.Errorf("llm: no LLM configured")
+	}
+
 	return b.llm, nil
 }
 
@@ -143,12 +122,12 @@ func (b *Builder) Build() (chatter.Chatter, error) {
 // Thinking Decorator
 //------------------------------------------------------------------------------
 
-// Thinking wraps an LLM to print thinking content to stderr.
-type Thinking struct {
+// thinking wraps an LLM to print thinking content to stderr.
+type thinking struct {
 	chatter.Chatter
 }
 
-func (t *Thinking) Prompt(ctx context.Context, prompt []chatter.Message, opts ...chatter.Opt) (*chatter.Reply, error) {
+func (t *thinking) Prompt(ctx context.Context, prompt []chatter.Message, opts ...chatter.Opt) (*chatter.Reply, error) {
 	reply, err := t.Chatter.Prompt(ctx, prompt, opts...)
 	if err != nil {
 		return nil, err

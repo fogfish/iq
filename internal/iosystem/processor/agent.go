@@ -95,16 +95,20 @@ func (p *Agent) Process(ctx context.Context, doc *iosystem.Document) ([]*iosyste
 
 	// Convert result to bytes
 	var reply []byte
+	var contentType string
 	switch v := result.(type) {
 	case string:
 		reply = []byte(v)
+		contentType = "text/plain"
 	case []byte:
 		reply = v
+		contentType = "application/octet-stream"
 	default:
 		reply, err = json.Marshal(v)
 		if err != nil {
 			return nil, fmt.Errorf("failed to marshal agent response for '%s': %w", doc.Path, err)
 		}
+		contentType = "application/json"
 	}
 
 	// Create output document
@@ -113,10 +117,13 @@ func (p *Agent) Process(ctx context.Context, doc *iosystem.Document) ([]*iosyste
 		path = doc.Path + p.config.Suffix
 	}
 
+	metadata := copyMetadata(doc.Metadata)
+	metadata["content-type"] = contentType
+
 	out := &iosystem.Document{
 		Path:     path,
 		Reader:   bytes.NewReader(reply),
-		Metadata: copyMetadata(doc.Metadata),
+		Metadata: metadata,
 	}
 
 	return []*iosystem.Document{out}, nil

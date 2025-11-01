@@ -53,22 +53,28 @@ var (
 )
 
 func init() {
-	rootCmd.PersistentFlags().StringVarP(&rootLLM.Profile, "config", "c", "iq", "config profile at ~/.netrc about LLM provider")
-	rootCmd.PersistentFlags().StringVarP(&rootLLM.Model, "llm", "m", "", "overrides LLM model defined at ~/.netrc")
-	rootCmd.PersistentFlags().IntVar(&rootLLM.MaxEpoch, "max-epoch", 0, "max number of attempts (epoch) to refine the task before give up")
-	rootCmd.PersistentFlags().IntVar(&rootLLM.MaxUsage.InputTokens, "max-input-tokens", 0, "max number of input tokens to consume before give up")
-	rootCmd.PersistentFlags().IntVar(&rootLLM.MaxUsage.ReplyTokens, "max-reply-tokens", 0, "max number of reply tokens to consume before give up")
+	fmodel.apply(rootCmd)
+	fagent.apply(rootCmd)
+	finput.apply(rootCmd)
+	freply.apply(rootCmd)
 
-	rootCmd.PersistentFlags().StringVarP(&rootPrompt, "prompt", "p", "", "path to prompt yaml file")
+	// rootCmd.PersistentFlags().StringVarP(&rootLLM.Profile, "config", "c", "iq", "config profile at ~/.netrc about LLM provider")
+	// rootCmd.PersistentFlags().StringVarP(&rootLLM.Model, "llm", "m", "", "overrides LLM model defined at ~/.netrc")
+	// rootCmd.PersistentFlags().IntVar(&rootLLM.MaxEpoch, "max-epoch", 0, "max number of attempts (epoch) to refine the task before give up")
+	// rootCmd.PersistentFlags().IntVar(&rootLLM.MaxUsage.InputTokens, "max-input-tokens", 0, "max number of input tokens to consume before give up")
+	// rootCmd.PersistentFlags().IntVar(&rootLLM.MaxUsage.ReplyTokens, "max-reply-tokens", 0, "max number of reply tokens to consume before give up")
+
+	// TODO: agent -a
+	//rootCmd.PersistentFlags().StringVar(&rootPrompt, "prompt", "", "path to prompt yaml file")
 	rootCmd.PersistentFlags().StringVar(&rootInput, "input", "", "override prompt input")
 
-	rootCmd.PersistentFlags().BoolVar(&rootDebug, "debug", false, "enable debug output")
-	rootCmd.PersistentFlags().BoolVar(&rootThink, "think", false, "enable thinking output")
-	rootCmd.PersistentFlags().BoolVarP(&rootSilent, "silent", "s", false, "enable silent behaviour")
+	// rootCmd.PersistentFlags().BoolVar(&rootDebug, "debug", false, "enable debug output")
+	// rootCmd.PersistentFlags().BoolVar(&rootThink, "think", false, "enable thinking output")
+	// rootCmd.PersistentFlags().BoolVarP(&rootSilent, "silent", "s", false, "enable silent behaviour")
 
-	rootCmd.PersistentFlags().StringVar(&rootScanner, "splitter", "none", "split input file into sentence, paragraph or chunk")
-	rootCmd.PersistentFlags().IntVar(&rootScannerChunk, "splitter-chunk", 1024, "chunk size for splitter")
-	rootCmd.PersistentFlags().StringVar(&rootScannerChars, "splitter-chars", "", "sequence of charates used by splitter as delimiter")
+	// rootCmd.PersistentFlags().StringVar(&rootScanner, "splitter", "none", "split input file into sentence, paragraph or chunk")
+	// rootCmd.PersistentFlags().IntVar(&rootScannerChunk, "splitter-chunk", 1024, "chunk size for splitter")
+	// rootCmd.PersistentFlags().StringVar(&rootScannerChars, "splitter-chars", "", "sequence of charates used by splitter as delimiter")
 }
 
 var rootCmd = &cobra.Command{

@@ -9,16 +9,12 @@
 package worker
 
 import (
-	"errors"
+	"fmt"
 
 	"github.com/fogfish/iq/internal/blueprint"
 	"github.com/fogfish/iq/internal/iosystem/conduit"
 	"github.com/fogfish/iq/internal/iosystem/processor"
 	"github.com/kshard/chatter"
-)
-
-var (
-	ErrBlueprintRequired = errors.New("blueprint is required")
 )
 
 // Builder creates a configured conduit with processors using builder pattern.
@@ -32,31 +28,19 @@ var (
 //	    Concurrency(4).
 //	    Build()
 type Builder struct {
-	blueprint   *blueprint.Blueprint
-	concurrency int
-	errorMode   conduit.ErrorMode
-	progress    conduit.ProgressFunc
-	metrics     conduit.MetricsFunc
-	err         error
+	conduit conduit.Config
+	runtime *conduit.Conduit
+	err     error
 }
 
 // New creates a new conduit builder with default configuration.
 func New() *Builder {
 	return &Builder{
-		concurrency: 1,
-		errorMode:   conduit.FailFast,
+		conduit: conduit.Config{
+			Concurrency: 1,
+			ErrorMode:   conduit.FailFast,
+		},
 	}
-}
-
-// Blueprint sets the blueprint to use for creating processors.
-// This is required.
-func (b *Builder) Blueprint(file string, llm chatter.Chatter) *Builder {
-	if b.err != nil {
-		return b
-	}
-
-	b.blueprint, b.err = blueprint.New(file, llm)
-	return b
 }
 
 // Concurrency sets the number of parallel processing workers.
@@ -67,7 +51,7 @@ func (b *Builder) Concurrency(n int) *Builder {
 	}
 
 	if n > 0 {
-		b.concurrency = n
+		b.conduit.Concurrency = n
 	}
 
 	return b
@@ -80,7 +64,7 @@ func (b *Builder) ErrorMode(mode conduit.ErrorMode) *Builder {
 		return b
 	}
 
-	b.errorMode = mode
+	b.conduit.ErrorMode = mode
 	return b
 }
 
@@ -90,7 +74,7 @@ func (b *Builder) Progress(fn conduit.ProgressFunc) *Builder {
 		return b
 	}
 
-	b.progress = fn
+	b.conduit.Progress = fn
 	return b
 }
 
@@ -100,7 +84,60 @@ func (b *Builder) Metrics(fn conduit.MetricsFunc) *Builder {
 		return b
 	}
 
-	b.metrics = fn
+	b.conduit.Metrics = fn
+	return b
+}
+
+func (b *Builder) Runtime() *Builder {
+	if b.err != nil {
+		return b
+	}
+
+	b.runtime = conduit.New(&b.conduit)
+	return b
+}
+
+func (b *Builder) Splitter(conf processor.ChunkConfig) *Builder {
+	if b.err != nil || b.runtime == nil {
+		return b
+	}
+
+	b.runtime.AddProcessor(
+		processor.NewChunker(conf),
+	)
+	return b
+}
+
+// Workflow sets the blueprint to use for creating processors.
+// This is required.
+func (b *Builder) Workflow(file string, llm chatter.Chatter) *Builder {
+	if b.err != nil || b.runtime == nil {
+		return b
+	}
+
+	wrk, err := blueprint.New(file, llm)
+	if err != nil {
+		b.err = fmt.Errorf("failed to create blueprint from %s: %w", file, err)
+		return b
+	}
+
+	b.runtime.AddProcessor(
+		processor.NewAgent(wrk, &processor.AgentConfig{}),
+	)
+	return b
+}
+
+func (b *Builder) Jsonify(enable bool) *Builder {
+	if b.err != nil || b.runtime == nil || !enable {
+		return b
+	}
+
+	b.runtime.AddProcessor(
+		processor.NewJsonify(processor.JsonifyConfig{
+			Indent: 2,
+			Color:  true,
+		}),
+	)
 	return b
 }
 
@@ -111,21 +148,9 @@ func (b *Builder) Build() (*conduit.Conduit, error) {
 		return nil, b.err
 	}
 
-	if b.blueprint == nil {
-		return nil, ErrBlueprintRequired
+	if b.runtime == nil {
+		return nil, fmt.Errorf("undefined workflow")
 	}
 
-	// Create conduit with configuration
-	pipe := conduit.New(&conduit.Config{
-		Concurrency: b.concurrency,
-		ErrorMode:   b.errorMode,
-		Progress:    b.progress,
-		Metrics:     b.metrics,
-	})
-
-	pipe.AddProcessor(
-		processor.NewAgent(b.blueprint, &processor.AgentConfig{}),
-	)
-
-	return pipe, nil
+	return b.runtime, nil
 }

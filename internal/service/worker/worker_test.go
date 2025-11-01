@@ -20,19 +20,16 @@ import (
 	"github.com/fogfish/iq/internal/iosystem/source"
 	"github.com/fogfish/iq/internal/service/llm"
 	"github.com/fogfish/iq/internal/service/worker"
+	"github.com/fogfish/it/v2"
 )
 
 func TestBuilder_NoBlueprint(t *testing.T) {
 	// Try to build without blueprint
 	_, err := worker.New().Build()
 
-	if err == nil {
-		t.Fatal("expected error when building without blueprint")
-	}
-
-	if err != worker.ErrBlueprintRequired {
-		t.Errorf("expected ErrBlueprintRequired, got %v", err)
-	}
+	it.Then(t).Should(
+		it.True(err != nil),
+	)
 }
 
 func TestBuilder_WithBlueprint(t *testing.T) {
@@ -47,28 +44,22 @@ jobs:
   main:
     prompt: "Echo this input"
 `
-	if err := os.WriteFile(bpFile, []byte(bpContent), 0644); err != nil {
-		t.Fatalf("failed to write blueprint file: %v", err)
-	}
+	err := os.WriteFile(bpFile, []byte(bpContent), 0644)
+	it.Then(t).Should(it.Nil(err))
 
 	// Create mock LLM
-	mockLLM, err := llm.New().Profile("mock").Build()
-	if err != nil {
-		t.Fatalf("failed to create mock LLM: %v", err)
-	}
+	mockLLM, err := llm.New().Profile("mock", "").Build()
+	it.Then(t).Should(it.Nil(err))
 
 	// Build conduit with blueprint
 	pipe, err := worker.New().
-		Blueprint(bpFile, mockLLM).
+		Workflow(bpFile, mockLLM).
 		Build()
 
-	if err != nil {
-		t.Fatalf("failed to build conduit: %v", err)
-	}
-
-	if pipe == nil {
-		t.Fatal("expected conduit, got nil")
-	}
+	it.Then(t).Should(
+		it.Nil(err),
+		it.True(pipe != nil),
+	)
 }
 
 func TestBuilder_WithOptions(t *testing.T) {
@@ -83,19 +74,16 @@ jobs:
   main:
     prompt: "Process this"
 `
-	if err := os.WriteFile(bpFile, []byte(bpContent), 0644); err != nil {
-		t.Fatalf("failed to write blueprint file: %v", err)
-	}
+	err := os.WriteFile(bpFile, []byte(bpContent), 0644)
+	it.Then(t).Should(it.Nil(err))
 
 	// Create mock LLM
-	mockLLM, err := llm.New().Profile("mock").Build()
-	if err != nil {
-		t.Fatalf("failed to create mock LLM: %v", err)
-	}
+	mockLLM, err := llm.New().Profile("mock", "").Build()
+	it.Then(t).Should(it.Nil(err))
 
 	// Build with options
 	pipe, err := worker.New().
-		Blueprint(bpFile, mockLLM).
+		Workflow(bpFile, mockLLM).
 		Concurrency(4).
 		ErrorMode(conduit.SkipError).
 		Progress(func(doc *iosystem.Document, err error) {
@@ -103,13 +91,10 @@ jobs:
 		}).
 		Build()
 
-	if err != nil {
-		t.Fatalf("failed to build conduit: %v", err)
-	}
-
-	if pipe == nil {
-		t.Fatal("expected conduit, got nil")
-	}
+	it.Then(t).Should(
+		it.Nil(err),
+		it.True(pipe != nil),
+	)
 }
 
 func TestBuilder_BuildAndRun(t *testing.T) {
@@ -124,24 +109,19 @@ jobs:
   main:
     prompt: "Process this input"
 `
-	if err := os.WriteFile(bpFile, []byte(bpContent), 0644); err != nil {
-		t.Fatalf("failed to write blueprint file: %v", err)
-	}
+	err := os.WriteFile(bpFile, []byte(bpContent), 0644)
+	it.Then(t).Should(it.Nil(err))
 
 	// Create mock LLM
-	mockLLM, err := llm.New().Profile("mock").Build()
-	if err != nil {
-		t.Fatalf("failed to create mock LLM: %v", err)
-	}
+	mockLLM, err := llm.New().Profile("mock", "").Build()
+	it.Then(t).Should(it.Nil(err))
 
 	// Build conduit
 	pipe, err := worker.New().
-		Blueprint(bpFile, mockLLM).
+		Workflow(bpFile, mockLLM).
 		Build()
 
-	if err != nil {
-		t.Fatalf("failed to build conduit: %v", err)
-	}
+	it.Then(t).Should(it.Nil(err))
 
 	// Create source and sink
 	input := []byte("test input data")
@@ -151,21 +131,13 @@ jobs:
 	snk := sink.NewWriter(&output)
 
 	// Run conduit
-	stats, err := pipe.Run(nil, src, snk)
+	ctx := t.Context()
+	stats, err := pipe.Run(ctx, src, snk)
 
-	if err != nil {
-		t.Fatalf("conduit run failed: %v", err)
-	}
-
-	if stats == nil {
-		t.Fatal("expected stats, got nil")
-	}
-
-	if stats.DocsProcessed == 0 {
-		t.Error("expected at least one document processed")
-	}
-
-	if output.Len() == 0 {
-		t.Error("expected output, got empty")
-	}
+	it.Then(t).Should(
+		it.Nil(err),
+		it.True(stats != nil),
+		it.True(stats.DocsProcessed > 0),
+		it.True(output.Len() > 0),
+	)
 }

@@ -21,8 +21,22 @@ func New(baseDir string) *Parser {
 	return &Parser{baseDir: baseDir}
 }
 
-// Parse parses a blueprint file and all referenced agents
+// Parse parses a file (YAML or Markdown) and returns unified AST
 func (p *Parser) Parse(file string) (*ast.AST, error) {
+	ext := filepath.Ext(file)
+
+	switch ext {
+	case ".yml", ".yaml":
+		return p.parseYAML(file)
+	case ".md", ".markdown":
+		return p.parseMarkdown(file)
+	default:
+		return nil, fmt.Errorf("unsupported file format: %s (expected .yml, .yaml, .md, .markdown)", ext)
+	}
+}
+
+// parseYAML parses a blueprint YAML file and all referenced agents
+func (p *Parser) parseYAML(file string) (*ast.AST, error) {
 	blueprint, err := p.ParseBlueprint(file)
 	if err != nil {
 		return nil, err
@@ -57,6 +71,44 @@ func (p *Parser) Parse(file string) (*ast.AST, error) {
 	return &ast.AST{
 		Blueprint: blueprint,
 		Agents:    agents,
+	}, nil
+}
+
+// parseMarkdown parses a standalone Markdown file as a single-step workflow
+func (p *Parser) parseMarkdown(file string) (*ast.AST, error) {
+	// Parse the markdown file as an agent
+	agent, err := p.ParseAgent(file)
+	if err != nil {
+		return nil, err
+	}
+
+	// Create synthetic blueprint with single job
+	blueprint := &ast.BlueprintNode{
+		Name:       filepath.Base(file),
+		Entrypoint: "main",
+		RunsOn:     "", // Will use default LLM
+		Jobs: map[string]*ast.JobNode{
+			"main": {
+				Name:   "main",
+				RunsOn: "",
+				Steps: []ast.StepNode{
+					&ast.AgentStepNode{
+						Name:   "prompt",
+						Uses:   file,
+						Output: "",
+						Retry:  nil,
+					},
+				},
+			},
+		},
+	}
+
+	// Return AST with inline agent
+	return &ast.AST{
+		Blueprint: blueprint,
+		Agents: map[string]*ast.AgentNode{
+			file: agent,
+		},
 	}, nil
 }
 
@@ -95,33 +147,45 @@ func (p *Parser) ParseAgent(file string) (*ast.AgentNode, error) {
 	return p.parseAgentContent(filepath.Base(file), content)
 }
 
-// parseAgentContent parses agent content (YAML frontmatter + prompt)
+// parseAgentContent parses agent content (YAML frontmatter + prompt OR pure markdown)
 func (p *Parser) parseAgentContent(name string, content []byte) (*ast.AgentNode, error) {
-	parts := bytes.Split(content, []byte("\n---\n"))
+	// Check if content starts with YAML frontmatter
+	if bytes.HasPrefix(content, []byte("---\n")) {
+		// Has frontmatter delimiter at start
+		parts := bytes.Split(content[4:], []byte("\n---\n")) // Skip first "---\n"
 
-	switch len(parts) {
-	case 1:
-		// No frontmatter, just prompt
-		return &ast.AgentNode{
-			Name:   name,
-			Prompt: string(content),
-		}, nil
+		switch len(parts) {
+		case 1:
+			// Only starting delimiter, no ending delimiter - treat as pure prompt
+			return &ast.AgentNode{
+				Name:   name,
+				Prompt: string(content),
+				Format: "", // text format
+			}, nil
 
-	case 2:
-		// Has frontmatter
-		var raw agentYAML
-		if err := yaml.Unmarshal(parts[0], &raw); err != nil {
-			return nil, fmt.Errorf("failed to parse agent frontmatter: %w", err)
+		case 2:
+			// Has frontmatter and prompt
+			var raw agentYAML
+			if err := yaml.Unmarshal(parts[0], &raw); err != nil {
+				return nil, fmt.Errorf("failed to parse agent frontmatter: %w", err)
+			}
+
+			agent := p.convertAgent(&raw)
+			agent.Name = name
+			agent.Prompt = string(parts[1])
+			return agent, nil
+
+		default:
+			return nil, fmt.Errorf("invalid agent format: expected 1 '\\n---\\n' separator after frontmatter, got %d", len(parts)-1)
 		}
-
-		agent := p.convertAgent(&raw)
-		agent.Name = name
-		agent.Prompt = string(parts[1])
-		return agent, nil
-
-	default:
-		return nil, fmt.Errorf("invalid agent format: expected 0 or 1 '\\n---\\n' separator, got %d", len(parts)-1)
 	}
+
+	// Pure markdown - no frontmatter
+	return &ast.AgentNode{
+		Name:   name,
+		Prompt: string(content),
+		Format: "", // text format
+	}, nil
 }
 
 // resolvePath resolves relative paths based on baseDir

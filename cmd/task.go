@@ -10,13 +10,7 @@ package cmd
 
 import (
 	"context"
-	"os"
 
-	"github.com/TylerBrock/colorjson"
-	"github.com/fogfish/iq/internal/iosystem/sink"
-	"github.com/fogfish/iq/internal/iosystem/source"
-	"github.com/fogfish/iq/internal/service/llm"
-	"github.com/fogfish/iq/internal/service/worker"
 	"github.com/spf13/cobra"
 )
 
@@ -64,31 +58,61 @@ See more info https://github.com/fogfish/iq
 }
 
 func task(cmd *cobra.Command, args []string) error {
-	llm, err := llm.New().
-		Profile(rootLLM.Profile).
-		// Model(rootLLM.Model).
-		Debug(rootDebug).
-		Think(rootThink).
-		MaxEpoch(rootLLM.MaxEpoch).
-		// MaxUsage(rootLLM.MaxUsage).
-		Build()
+	llm, err := fmodel.build()
 	if err != nil {
 		return err
 	}
 
-	srv, err := worker.New().
-		Blueprint(rootPrompt, llm).
-		Build()
+	srv, err := fagent.build(llm)
 	if err != nil {
 		return err
 	}
 
-	spinner := createSpinner()
-	defer spinner.Finish()
-
-	if rootThink {
-		spinner.Finish()
+	src, err := finput.build(args)
+	if err != nil {
+		return err
 	}
+
+	snk, err := freply.build()
+	if err != nil {
+		return err
+	}
+
+	// spinner := createSpinner()
+	// defer spinner.Finish()
+
+	// if rootThink {
+	// 	spinner.Finish()
+	// }
+
+	// srv, err := worker.New().
+	// 	Blueprint(rootPrompt, llm).
+	// 	// Progress(func(doc *iosystem.Document, err error) {
+	// 	// 	fmt.Fprintf(os.Stderr, "==> %s\n", ellipses(filepath.Base(doc.Path)))
+	// 	// 	// spinner.Describe(
+	// 	// 	// 	fmt.Sprintf("processing with %s", ellipses(filepath.Base(doc.Path))),
+	// 	// 	// )
+	// 	// }).
+	// 	Build()
+	// if err != nil {
+	// 	return err
+	// }
+
+	// src, err := source.New().
+	// 	Files(".", args...).
+	// 	Stdin().
+	// 	Build()
+	// if err != nil {
+	// 	return err
+	// }
+
+	// snk, err := sink.New().
+	// 	File("xxx.txt").
+	// 	Stdout(true).
+	// 	Build()
+	// if err != nil {
+	// 	return err
+	// }
 
 	// b, err := parseInputStdin()
 	// if err != nil {
@@ -99,19 +123,19 @@ func task(cmd *cobra.Command, args []string) error {
 	// if err != nil {
 	// 	return err
 	// }
-	reply, err := srv.Run(context.Background(), source.NewStdin(), sink.NewStdout())
+	_, err = srv.Run(context.Background(), src, snk)
 	// reply, err := srv.Prompt(context.Background(), string(b))
 	if err != nil {
 		return err
 	}
 
-	f := colorjson.NewFormatter()
-	f.Indent = 2
+	// f := colorjson.NewFormatter()
+	// f.Indent = 2
 
-	s, _ := f.Marshal(reply)
+	// s, _ := f.Marshal(reply)
 
-	os.Stdout.Write(s)
-	os.Stdout.WriteString("\n")
+	// os.Stdout.Write(s)
+	// os.Stdout.WriteString("\n")
 
 	return nil
 

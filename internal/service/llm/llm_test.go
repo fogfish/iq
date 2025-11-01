@@ -13,17 +13,20 @@ import (
 	"testing"
 
 	"github.com/fogfish/iq/internal/service/llm"
+	"github.com/fogfish/it/v2"
 	"github.com/kshard/chatter"
 )
 
 func TestBuilder_Mock(t *testing.T) {
 	chat, err := llm.New().
-		Profile("mock").
+		Profile("mock", "").
 		Build()
 
-	if err != nil {
-		t.Fatalf("failed to create mock LLM: %v", err)
-	}
+	it.Then(t).Should(
+		it.Nil(err),
+	).ShouldNot(
+		it.Nil(chat),
+	)
 
 	// Test mock echoes input
 	ctx := context.Background()
@@ -32,32 +35,26 @@ func TestBuilder_Mock(t *testing.T) {
 	}
 
 	reply, err := chat.Prompt(ctx, messages)
-	if err != nil {
-		t.Fatalf("mock prompt failed: %v", err)
-	}
+	it.Then(t).Should(it.Nil(err))
 
-	if reply.Stage != chatter.LLM_RETURN {
-		t.Errorf("expected stage LLM_RETURN, got %v", reply.Stage)
-	}
+	it.Then(t).Should(
+		it.Equal(reply.Stage, chatter.LLM_RETURN),
+	)
 }
 
 func TestBuilder_WithDecorators(t *testing.T) {
 	chat, err := llm.New().
-		Profile("mock").
+		Profile("mock", "").
 		Debug(true).
 		Think(true).
-		MaxEpoch(5).
-		MaxTokens(1000).
+		Quota(5, chatter.Usage{ReplyTokens: 1000}).
 		Build()
 
-	if err != nil {
-		t.Fatalf("failed to create LLM with decorators: %v", err)
-	}
-
-	// Verify it's decorated by checking it's not nil
-	if chat == nil {
-		t.Fatal("expected decorated LLM, got nil")
-	}
+	it.Then(t).Should(
+		it.Nil(err),
+	).ShouldNot(
+		it.Nil(chat),
+	)
 
 	// Test it still works
 	ctx := context.Background()
@@ -66,61 +63,77 @@ func TestBuilder_WithDecorators(t *testing.T) {
 	}
 
 	reply, err := chat.Prompt(ctx, messages)
-	if err != nil {
-		t.Fatalf("decorated LLM prompt failed: %v", err)
-	}
-
-	if reply == nil {
-		t.Fatal("expected reply, got nil")
-	}
+	it.Then(t).Should(
+		it.Nil(err),
+		it.True(reply != nil),
+	)
 }
 
 func TestBuilder_ChainOrder(t *testing.T) {
 	// Test that decorators are applied in the correct order
 	chat, err := llm.New().
-		Profile("mock").
+		Profile("mock", "").
 		Think(true). // First decorator
 		Debug(true). // Second decorator (should see thinking output)
 		Build()
 
-	if err != nil {
-		t.Fatalf("failed to build: %v", err)
-	}
-
-	if chat == nil {
-		t.Fatal("expected LLM, got nil")
-	}
+	it.Then(t).Should(
+		it.Nil(err),
+	).ShouldNot(
+		it.Nil(chat),
+	)
 }
 
 func TestBuilder_DisabledDecorators(t *testing.T) {
 	chat, err := llm.New().
-		Profile("mock").
-		Debug(false). // Should not apply
-		Think(false). // Should not apply
-		MaxEpoch(0).  // Should not apply
-		MaxTokens(0). // Should not apply
+		Profile("mock", "").
+		Debug(false).              // Should not apply
+		Think(false).              // Should not apply
+		Quota(0, chatter.Usage{}). // Should not apply (0 epoch)
 		Build()
 
-	if err != nil {
-		t.Fatalf("failed to build: %v", err)
-	}
-
-	if chat == nil {
-		t.Fatal("expected LLM, got nil")
-	}
+	it.Then(t).Should(
+		it.Nil(err),
+	).ShouldNot(
+		it.Nil(chat),
+	)
 }
 
-func TestBuilder_ErrorPropagation(t *testing.T) {
+func TestBuilder_ProfileWithModel(t *testing.T) {
+	// Test profile with explicit model override
 	chat, err := llm.New().
-		Profile("invalid-format-no-slash").
-		Debug(true). // Should still chain even with error
+		Profile("mock", "mock-model").
 		Build()
 
-	if err == nil {
-		t.Fatal("expected error for invalid profile, got nil")
+	it.Then(t).Should(
+		it.Nil(err),
+		it.True(chat != nil),
+	)
+}
+
+func TestBuilder_QuotaDecorator(t *testing.T) {
+	chat, err := llm.New().
+		Profile("mock", "").
+		Quota(10, chatter.Usage{
+			InputTokens: 5000,
+			ReplyTokens: 2000,
+		}).
+		Build()
+
+	it.Then(t).Should(
+		it.Nil(err),
+		it.True(chat != nil),
+	)
+
+	// Test it works
+	ctx := context.Background()
+	messages := []chatter.Message{
+		&chatter.Prompt{Task: "test"},
 	}
 
-	if chat != nil {
-		t.Fatal("expected nil LLM on error, got non-nil")
-	}
+	reply, err := chat.Prompt(ctx, messages)
+	it.Then(t).Should(
+		it.Nil(err),
+		it.True(reply != nil),
+	)
 }
