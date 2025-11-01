@@ -10,7 +10,13 @@ package cmd
 
 import (
 	"context"
+	"io"
 
+	snk "github.com/fogfish/iq/internal/iosystem/sink"
+	src "github.com/fogfish/iq/internal/iosystem/source"
+	"github.com/fogfish/iq/internal/service/sink"
+	"github.com/fogfish/iq/internal/service/source"
+	"github.com/fogfish/stream/spool"
 	"github.com/spf13/cobra"
 )
 
@@ -66,6 +72,23 @@ func task(cmd *cobra.Command, args []string) error {
 	srv, err := fagent.build(llm)
 	if err != nil {
 		return err
+	}
+
+	if len(finput.dir) > 0 && len(freply.dir) > 0 {
+		rfs, err := source.Mount(finput.dir)
+		if err != nil {
+			return err
+		}
+		wfs, err := sink.Mount(freply.dir)
+		if err != nil {
+			return err
+		}
+		sp := spool.New(rfs, wfs, spool.IsImmutable)
+		return sp.ForEach(context.Background(), "/",
+			func(ctx context.Context, path string, r io.Reader, w io.Writer) error {
+				_, err := srv.Run(ctx, src.NewReader(path, r), snk.NewWriter(w))
+				return err
+			})
 	}
 
 	src, err := finput.build(args)

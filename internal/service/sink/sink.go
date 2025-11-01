@@ -17,6 +17,7 @@ import (
 	"github.com/fogfish/iq/internal/iosystem/sink"
 	"github.com/fogfish/stream"
 	"github.com/fogfish/stream/lfs"
+	"github.com/fogfish/stream/spool"
 )
 
 // Builder creates iosystem.Sink instances from CLI flags.
@@ -88,24 +89,7 @@ func (b *Builder) Path(path string) *Builder {
 		return b
 	}
 
-	if strings.HasPrefix(path, "s3://") {
-		fs, err := stream.NewFS(path[len("s3://"):])
-		if err != nil {
-			b.err = fmt.Errorf("failed to mount S3 bucket for path %s: %w", path, err)
-			return b
-		}
-		b.snk, b.err = sink.NewFS(fs)
-		return b
-	}
-
-	pabs, err := filepath.Abs(path)
-	if err != nil {
-		b.err = fmt.Errorf("failed to resolve path %s: %w", path, err)
-		return b
-	}
-
-	// Use lfs for local paths to avoid versioning
-	fs, err := lfs.New(pabs)
+	fs, err := Mount(path)
 	if err != nil {
 		b.err = fmt.Errorf("failed to mount path %s: %w", path, err)
 		return b
@@ -125,4 +109,26 @@ func (b *Builder) Build() (iosystem.Sink, error) {
 	}
 
 	return b.snk, b.err
+}
+
+func Mount(path string) (spool.FileSystem, error) {
+	if strings.HasPrefix(path, "s3://") {
+		fs, err := stream.NewFS(path[len("s3://"):])
+		if err != nil {
+			return nil, fmt.Errorf("failed to mount S3 bucket for path %s: %w", path, err)
+		}
+		return fs, nil
+	}
+
+	pabs, err := filepath.Abs(path)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve path %s: %w", path, err)
+	}
+
+	// Use lfs for local paths to avoid versioning
+	fs, err := lfs.New(pabs)
+	if err != nil {
+		return nil, fmt.Errorf("failed to mount path %s: %w", path, err)
+	}
+	return fs, nil
 }

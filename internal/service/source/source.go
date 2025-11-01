@@ -10,7 +10,6 @@ package source
 
 import (
 	"fmt"
-	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -18,6 +17,8 @@ import (
 	"github.com/fogfish/iq/internal/iosystem"
 	"github.com/fogfish/iq/internal/iosystem/source"
 	"github.com/fogfish/stream"
+	"github.com/fogfish/stream/lfs"
+	"github.com/fogfish/stream/spool"
 )
 
 // Builder creates iosystem.Source instances from CLI flags.
@@ -53,7 +54,7 @@ func (b *Builder) Files(dir string, paths ...string) *Builder {
 		return b
 	}
 
-	fs, err := mount(dir)
+	fs, err := Mount(dir)
 	if err != nil {
 		b.err = fmt.Errorf("failed to mount input dir %s: %w", dir, err)
 		return b
@@ -80,7 +81,7 @@ func (b *Builder) Path(path string) *Builder {
 	}
 
 	dir, base := filepath.Split(path)
-	fs, err := mount(dir)
+	fs, err := Mount(dir)
 	if err != nil {
 		b.err = fmt.Errorf("failed to mount input dir %s: %w", dir, err)
 		return b
@@ -113,7 +114,7 @@ func HasStdinBytes() bool {
 	return (fi.Mode() & os.ModeCharDevice) == 0
 }
 
-func mount(path string) (fs.FS, error) {
+func Mount(path string) (spool.FileSystem, error) {
 	if len(path) == 0 {
 		return nil, fmt.Errorf("undefined mount point")
 	}
@@ -123,6 +124,5 @@ func mount(path string) (fs.FS, error) {
 		return stream.NewFS(path[len(s3pfx):])
 	}
 
-	// For local paths, use os.DirFS which works correctly with relative paths
-	return os.DirFS(path), nil
+	return lfs.New(path)
 }
