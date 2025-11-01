@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/fogfish/iq/internal/iosystem"
@@ -65,24 +66,31 @@ func (b *Builder) Files(dir string, paths ...string) *Builder {
 // Merge enables merge mode - all files are concatenated into a single document.
 // Only applies when multiple files are specified.
 func (b *Builder) Merge(enable bool) *Builder {
-	if b.err != nil {
+	if b.err != nil || b.src == nil || !enable {
 		return b
 	}
 
-	if enable {
-		b.src, b.err = source.NewUnion(b.src)
+	b.src, b.err = source.NewUnion(b.src)
+	return b
+}
+
+func (b *Builder) Path(path string) *Builder {
+	if b.err != nil || b.src != nil || len(path) == 0 {
+		return b
 	}
 
+	dir, base := filepath.Split(path)
+	fs, err := mount(dir)
+	if err != nil {
+		b.err = fmt.Errorf("failed to mount input dir %s: %w", dir, err)
+		return b
+	}
+
+	b.src, b.err = source.NewFS(fs, base)
 	return b
 }
 
 // Build creates the source based on configuration.
-// Rules (in priority order):
-//  1. If stdin is set → source.NewReader with stdin
-//  2. If files are empty → source.NewStdin (check if stdin has data)
-//  3. If single file → source.NewFile with that file
-//  4. If multiple files + merge → source.NewUnion of all files
-//  5. If multiple files → source.NewFile with all files (sequential)
 func (b *Builder) Build() (iosystem.Source, error) {
 	if b.err != nil {
 		return nil, b.err

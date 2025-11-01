@@ -73,7 +73,7 @@ func TestBuilder_Dir(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	snk, err := sink.New().
-		Dir(tmpDir).
+		Path(tmpDir).
 		Build()
 
 	it.Then(t).Should(it.Nil(err))
@@ -105,7 +105,7 @@ func TestBuilder_FileBeforeDir(t *testing.T) {
 
 	snk, err := sink.New().
 		File(outFile).
-		Dir(tmpDir).
+		Path(tmpDir).
 		Build()
 
 	it.Then(t).Should(it.Nil(err))
@@ -138,7 +138,7 @@ func TestBuilder_DirMultipleFiles(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	snk, err := sink.New().
-		Dir(tmpDir).
+		Path(tmpDir).
 		Build()
 
 	it.Then(t).Should(it.Nil(err))

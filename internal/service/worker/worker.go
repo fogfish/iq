@@ -98,7 +98,7 @@ func (b *Builder) Runtime() *Builder {
 }
 
 func (b *Builder) Splitter(conf processor.ChunkConfig) *Builder {
-	if b.err != nil || b.runtime == nil {
+	if b.err != nil || b.runtime == nil || conf.Strategy == processor.StrategyNone {
 		return b
 	}
 

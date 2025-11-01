@@ -23,6 +23,8 @@ require (
 
 replace github.com/kshard/thinker => ../../kshard/thinker
 
+replace github.com/fogfish/stream => ../stream
+
 require (
 	cel.dev/expr v0.24.0 // indirect
 	github.com/ajg/form v1.5.2-0.20200323032839-9aeb3cf462e1 // indirect

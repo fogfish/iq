@@ -81,9 +81,9 @@ func (b *Builder) File(path string) *Builder {
 	return b
 }
 
-// Dir sets the output directory.
+// Path sets the output directory.
 // Documents will be written preserving their path structure.
-func (b *Builder) Dir(path string) *Builder {
+func (b *Builder) Path(path string) *Builder {
 	if b.err != nil || b.snk != nil || len(path) == 0 {
 		return b
 	}

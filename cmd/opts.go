@@ -109,19 +109,25 @@ func (opts *optsAgent) build(llm chatter.Chatter) (*conduit.Conduit, error) {
 var finput optsInput
 
 type optsInput struct {
-	dir string
+	dir   string
+	merge bool
 }
 
 func (opts *optsInput) apply(cmd *cobra.Command) {
 	f := cmd.PersistentFlags()
 
 	f.StringVarP(&opts.dir, "input-dir", "I", "",
-		"input directory or S3 path to read files from")
+		"Input directory or S3 URI containing files to process")
+
+	f.BoolVar(&opts.merge, "merge", false,
+		"Combine all input files into a single document before processing")
 }
 
 func (opts *optsInput) build(files []string) (iosystem.Source, error) {
 	return source.New().
 		Files(".", files...).
+		Path(opts.dir).
+		Merge(opts.merge).
 		Stdin().
 		Build()
 }
@@ -141,7 +147,7 @@ func (opts *optsReply) apply(cmd *cobra.Command) {
 	f := cmd.PersistentFlags()
 
 	f.StringVarP(&opts.dir, "output-dir", "O", "",
-		"output directory or S3 path to read files from")
+		"Output directory or S3 URI to write files to")
 
 	f.StringVarP(&opts.file, "output", "o", "",
 		"Path to the output file")
@@ -156,6 +162,7 @@ func (opts *optsReply) apply(cmd *cobra.Command) {
 func (opts *optsReply) build() (iosystem.Sink, error) {
 	return sink.New().
 		File(opts.file).
+		Path(opts.dir).
 		Stdout(!opts.quiet && !opts.silent).
 		Build()
 }
