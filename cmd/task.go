@@ -13,8 +13,10 @@ import (
 	"os"
 
 	"github.com/TylerBrock/colorjson"
-	"github.com/fogfish/iq/internal/blueprint"
+	"github.com/fogfish/iq/internal/iosystem/sink"
+	"github.com/fogfish/iq/internal/iosystem/source"
 	"github.com/fogfish/iq/internal/service/llm"
+	"github.com/fogfish/iq/internal/service/worker"
 	"github.com/spf13/cobra"
 )
 
@@ -62,14 +64,24 @@ See more info https://github.com/fogfish/iq
 }
 
 func task(cmd *cobra.Command, args []string) error {
-	factory := llm.New(llm.Config{
-		Profile:  rootLLM.Profile,
-		Model:    rootLLM.Model,
-		Debug:    rootDebug,
-		Think:    rootThink,
-		MaxEpoch: rootLLM.MaxEpoch,
-		MaxUsage: rootLLM.MaxUsage,
-	})
+	llm, err := llm.New().
+		Profile(rootLLM.Profile).
+		// Model(rootLLM.Model).
+		Debug(rootDebug).
+		Think(rootThink).
+		MaxEpoch(rootLLM.MaxEpoch).
+		// MaxUsage(rootLLM.MaxUsage).
+		Build()
+	if err != nil {
+		return err
+	}
+
+	srv, err := worker.New().
+		Blueprint(rootPrompt, llm).
+		Build()
+	if err != nil {
+		return err
+	}
 
 	spinner := createSpinner()
 	defer spinner.Finish()
@@ -78,17 +90,17 @@ func task(cmd *cobra.Command, args []string) error {
 		spinner.Finish()
 	}
 
-	b, err := parseInputStdin()
-	if err != nil {
-		return err
-	}
+	// b, err := parseInputStdin()
+	// if err != nil {
+	// 	return err
+	// }
 
-	bp, err := blueprint.New(context.Background(), rootPrompt, factory)
-	if err != nil {
-		return err
-	}
-
-	reply, err := bp.Prompt(context.Background(), string(b))
+	// bp, err := blueprint.New(context.Background(), rootPrompt, factory)
+	// if err != nil {
+	// 	return err
+	// }
+	reply, err := srv.Run(context.Background(), source.NewStdin(), sink.NewStdout())
+	// reply, err := srv.Prompt(context.Background(), string(b))
 	if err != nil {
 		return err
 	}

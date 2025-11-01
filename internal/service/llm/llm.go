@@ -19,76 +19,124 @@ import (
 	"github.com/kshard/chatter/provider/autoconfig"
 )
 
-// Config configures LLM creation.
-type Config struct {
-	Profile  string        // Provider profile (e.g., "bedrock", "openai")
-	Model    string        // Model name
-	MaxEpoch int           // Maximum number of epochs
-	MaxUsage chatter.Usage // Maximum token usage
-	Debug    bool          // Enable debug logging
-	Think    bool          // Enable thinking mode
+// Builder creates LLM instances with configured capabilities using builder pattern.
+// Each method immediately creates/decorates the instance.
+//
+// Example:
+//
+//	llm, err := llm.New().
+//	    Profile("bedrock/claude-3-sonnet").
+//	    Debug(true).
+//	    Think(true).
+//	    MaxEpoch(10).
+//	    Build()
+type Builder struct {
+	llm chatter.Chatter
+	err error
 }
 
-// Factory creates LLM instances with configured capabilities.
-// Supports: debug logging, thinking mode, quota limits, mock mode.
-type Factory struct {
-	config Config
-}
-
-// New creates a new LLM factory from config.
-func New(config Config) *Factory {
-	return &Factory{
-		config: config,
+// New creates a new LLM builder with mock LLM as default.
+func New() *Builder {
+	return &Builder{
+		llm: &Mock{},
 	}
 }
 
-// LLM creates a configured chatter.Chatter instance.
-// Applies decorators in order: base → thinking → debug → quota.
-func (f *Factory) LLM(model string) (chatter.Chatter, error) {
-	// Create base LLM
-	llm, err := f.create(model)
-	if err != nil {
-		return nil, err
+// Profile sets the LLM provider profile and model.
+// Format: "provider/model" or just "provider" to use default model.
+// Special value "mock" creates a mock LLM for testing.
+func (b *Builder) Profile(profile string) *Builder {
+	if b.err != nil {
+		return b
 	}
 
-	// Apply thinking decorator
-	if f.config.Think {
-		llm = &Thinking{Chatter: llm}
+	parts := strings.Split(profile, "/")
+	if len(parts) == 0 {
+		b.err = fmt.Errorf("invalid profile format: %s", profile)
+		return b
 	}
 
-	// Apply debug decorator
-	if f.config.Debug {
-		llm = aio.NewJsonLogger(os.Stderr, llm)
+	provider := parts[0]
+	model := ""
+	if len(parts) > 1 {
+		model = parts[1]
 	}
 
-	// Apply quota decorator
-	if f.config.MaxEpoch > 0 || f.config.MaxUsage.InputTokens > 0 || f.config.MaxUsage.ReplyTokens > 0 {
-		llm = aio.NewQuota(f.config.MaxEpoch, f.config.MaxUsage, llm)
-	}
-
-	return llm, nil
-}
-
-// create creates the base LLM instance.
-// Supports mock mode and autoconfig from ~/.netrc.
-func (f *Factory) create(model string) (chatter.Chatter, error) {
 	// Mock mode
-	if f.config.Model == "mock" || model == "mock" {
-		return &Mock{}, nil
+	if provider == "mock" || model == "mock" {
+		b.llm = &Mock{}
+		return b
 	}
 
-	// Use provided model parameter if set
+	// Create LLM from autoconfig
+	var llm chatter.Chatter
+	var err error
 	if model != "" {
-		return autoconfig.FromNetRC(f.config.Profile, model)
+		llm, err = autoconfig.FromNetRC(provider, model)
+	} else {
+		llm, err = autoconfig.FromNetRC(provider)
 	}
 
-	// Use config model if set
-	if f.config.Model != "" {
-		return autoconfig.FromNetRC(f.config.Profile, f.config.Model)
+	if err != nil {
+		b.err = err
+		return b
 	}
 
-	// Use profile default
-	return autoconfig.FromNetRC(f.config.Profile)
+	b.llm = llm
+	return b
+}
+
+// Think enables thinking mode (prints thinking content to stderr).
+// Returns builder for chaining.
+func (b *Builder) Think(enable bool) *Builder {
+	if b.err != nil || !enable {
+		return b
+	}
+
+	b.llm = &Thinking{Chatter: b.llm}
+	return b
+}
+
+// Debug enables debug logging to stderr.
+// Returns builder for chaining.
+func (b *Builder) Debug(enable bool) *Builder {
+	if b.err != nil || !enable {
+		return b
+	}
+
+	b.llm = aio.NewJsonLogger(os.Stderr, b.llm)
+	return b
+}
+
+// MaxEpoch sets the maximum number of epochs (quota decorator).
+// Returns builder for chaining.
+func (b *Builder) MaxEpoch(max int) *Builder {
+	if b.err != nil || max <= 0 {
+		return b
+	}
+
+	b.llm = aio.NewQuota(max, chatter.Usage{}, b.llm)
+	return b
+}
+
+// MaxTokens sets the maximum number of reply tokens (quota decorator).
+// Returns builder for chaining.
+func (b *Builder) MaxTokens(max int) *Builder {
+	if b.err != nil || max <= 0 {
+		return b
+	}
+
+	b.llm = aio.NewQuota(0, chatter.Usage{ReplyTokens: max}, b.llm)
+	return b
+}
+
+// Build returns the configured LLM instance.
+// Returns any error encountered during building.
+func (b *Builder) Build() (chatter.Chatter, error) {
+	if b.err != nil {
+		return nil, b.err
+	}
+	return b.llm, nil
 }
 
 //------------------------------------------------------------------------------

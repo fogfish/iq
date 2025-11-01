@@ -11,8 +11,8 @@ import (
 
 // Compiler compiles AST to executable workflow
 type Compiler struct {
-	factory Factory
-	celEnv  *cel.Env
+	llm    chatter.Chatter
+	celEnv *cel.Env
 }
 
 // Factory provides dependencies for compilation
@@ -21,7 +21,7 @@ type Factory interface {
 }
 
 // New creates a new compiler
-func New(factory Factory) (*Compiler, error) {
+func New(llm chatter.Chatter) (*Compiler, error) {
 	// Create CEL environment for route conditions
 	env, err := cel.NewEnv(
 		cel.Variable("choice", cel.DynType),
@@ -31,8 +31,8 @@ func New(factory Factory) (*Compiler, error) {
 	}
 
 	return &Compiler{
-		factory: factory,
-		celEnv:  env,
+		llm:    llm,
+		celEnv: env,
 	}, nil
 }
 
@@ -127,16 +127,10 @@ func (c *Compiler) validate(tree *ast.AST) error {
 func (c *Compiler) compile(ctx context.Context, tree *ast.AST) (*Workflow, error) {
 	bp := tree.Blueprint
 
-	// Get system LLM
-	sysLLM, err := c.factory.LLM(bp.RunsOn)
-	if err != nil {
-		return nil, err
-	}
-
 	// Compile all jobs
 	jobs := make(map[string]*Job)
 	for jobName, jobNode := range bp.Jobs {
-		job, err := c.compileJob(ctx, jobName, jobNode, tree, sysLLM)
+		job, err := c.compileJob(ctx, jobName, jobNode, tree, c.llm)
 		if err != nil {
 			return nil, fmt.Errorf("failed to compile job '%s': %w", jobName, err)
 		}
@@ -174,14 +168,14 @@ func (c *Compiler) compile(ctx context.Context, tree *ast.AST) (*Workflow, error
 // compileJob compiles a single job
 func (c *Compiler) compileJob(ctx context.Context, name string, node *ast.JobNode, tree *ast.AST, sysLLM chatter.Chatter) (*Job, error) {
 	// Determine LLM for this job
-	llm := sysLLM
-	if node.RunsOn != "" {
-		var err error
-		llm, err = c.factory.LLM(node.RunsOn)
-		if err != nil {
-			return nil, err
-		}
-	}
+	llm := c.llm
+	// if node.RunsOn != "" {
+	// 	var err error
+	// 	llm, err = c.factory.LLM(node.RunsOn)
+	// 	if err != nil {
+	// 		return nil, err
+	// 	}
+	// }
 
 	// Compile all steps
 	steps := make([]Step, 0, len(node.Steps))

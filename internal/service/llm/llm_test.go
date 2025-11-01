@@ -16,12 +16,11 @@ import (
 	"github.com/kshard/chatter"
 )
 
-func TestFactory_CreateMock(t *testing.T) {
-	factory := llm.New(llm.Config{
-		Model: "mock",
-	})
+func TestBuilder_Mock(t *testing.T) {
+	chat, err := llm.New().
+		Profile("mock").
+		Build()
 
-	chat, err := factory.LLM("")
 	if err != nil {
 		t.Fatalf("failed to create mock LLM: %v", err)
 	}
@@ -42,23 +41,20 @@ func TestFactory_CreateMock(t *testing.T) {
 	}
 }
 
-func TestFactory_CreateWithDecorators(t *testing.T) {
-	factory := llm.New(llm.Config{
-		Model:    "mock",
-		Debug:    true,
-		Think:    true,
-		MaxEpoch: 5,
-		MaxUsage: chatter.Usage{
-			ReplyTokens: 1000,
-		},
-	})
+func TestBuilder_WithDecorators(t *testing.T) {
+	chat, err := llm.New().
+		Profile("mock").
+		Debug(true).
+		Think(true).
+		MaxEpoch(5).
+		MaxTokens(1000).
+		Build()
 
-	chat, err := factory.LLM("")
 	if err != nil {
 		t.Fatalf("failed to create LLM with decorators: %v", err)
 	}
 
-	// Verify it's decorated by checking it's not the base mock
+	// Verify it's decorated by checking it's not nil
 	if chat == nil {
 		t.Fatal("expected decorated LLM, got nil")
 	}
@@ -79,18 +75,52 @@ func TestFactory_CreateWithDecorators(t *testing.T) {
 	}
 }
 
-func TestFactory_ModelOverride(t *testing.T) {
-	factory := llm.New(llm.Config{
-		Model: "default-model",
-	})
+func TestBuilder_ChainOrder(t *testing.T) {
+	// Test that decorators are applied in the correct order
+	chat, err := llm.New().
+		Profile("mock").
+		Think(true). // First decorator
+		Debug(true). // Second decorator (should see thinking output)
+		Build()
 
-	// Override with "mock" should work
-	chat, err := factory.LLM("mock")
 	if err != nil {
-		t.Fatalf("failed to create with model override: %v", err)
+		t.Fatalf("failed to build: %v", err)
 	}
 
 	if chat == nil {
 		t.Fatal("expected LLM, got nil")
+	}
+}
+
+func TestBuilder_DisabledDecorators(t *testing.T) {
+	chat, err := llm.New().
+		Profile("mock").
+		Debug(false). // Should not apply
+		Think(false). // Should not apply
+		MaxEpoch(0).  // Should not apply
+		MaxTokens(0). // Should not apply
+		Build()
+
+	if err != nil {
+		t.Fatalf("failed to build: %v", err)
+	}
+
+	if chat == nil {
+		t.Fatal("expected LLM, got nil")
+	}
+}
+
+func TestBuilder_ErrorPropagation(t *testing.T) {
+	chat, err := llm.New().
+		Profile("invalid-format-no-slash").
+		Debug(true). // Should still chain even with error
+		Build()
+
+	if err == nil {
+		t.Fatal("expected error for invalid profile, got nil")
+	}
+
+	if chat != nil {
+		t.Fatal("expected nil LLM on error, got non-nil")
 	}
 }

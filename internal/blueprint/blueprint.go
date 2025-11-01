@@ -14,13 +14,8 @@ type Blueprint struct {
 	workflow *compiler.Workflow
 }
 
-// Factory provides dependencies for blueprint compilation
-type Factory interface {
-	LLM(name string) (chatter.Chatter, error)
-}
-
 // New loads and compiles a blueprint file
-func New(ctx context.Context, file string, factory Factory) (*Blueprint, error) {
+func New(file string, llm chatter.Chatter) (*Blueprint, error) {
 	// Phase 1: Parse YAML to AST
 	p := parser.New(".")
 	tree, err := p.Parse(file)
@@ -29,12 +24,12 @@ func New(ctx context.Context, file string, factory Factory) (*Blueprint, error) 
 	}
 
 	// Phase 2: Compile AST to executable workflow
-	comp, err := compiler.New(factory)
+	comp, err := compiler.New(llm)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create compiler: %w", err)
 	}
 
-	workflow, err := comp.Compile(ctx, tree)
+	workflow, err := comp.Compile(context.Background(), tree)
 	if err != nil {
 		return nil, fmt.Errorf("compile error: %w", err)
 	}
