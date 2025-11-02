@@ -9,4 +9,4 @@ schema:
     properties:
       spec: {type: string}
 ---
-Extract the technical specifications from the following text: {{.current}}.
+Extract the technical specifications from the following text: {{.input}}.

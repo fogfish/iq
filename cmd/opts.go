@@ -129,6 +129,7 @@ func (opts *optsInput) build(files []string) (iosystem.Source, error) {
 		Path(opts.dir).
 		Merge(opts.merge).
 		Stdin().
+		None().
 		Build()
 }
 

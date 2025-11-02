@@ -1,0 +1,21 @@
+name: expression
+jobs:
+  main:
+    steps:
+      - name: extract
+        uses: prompts/extract.md
+        output: text
+
+      - name: choice
+        switch:
+          - when: steps.text.category == "laptop"
+            route: laptop
+        default: unknown
+
+  laptop:
+    steps:
+      - uses: prompts/transform.md
+
+  unknown:
+    steps:
+      - uses: prompts/unknown.md

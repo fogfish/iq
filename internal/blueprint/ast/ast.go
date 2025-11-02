@@ -2,6 +2,24 @@ package ast
 
 import "github.com/google/jsonschema-go/jsonschema"
 
+// Well-known context keys for workflow execution
+const (
+	// ContextKeyDocument is the original workflow input (the source document/data being processed)
+	ContextKeyDocument = "document"
+
+	// ContextKeyInput is the agent's input (alias for current step value, used in agent templates)
+	ContextKeyInput = "input"
+
+	// ContextKeyCurrent is the most recent step output (changes with each step)
+	ContextKeyCurrent = "current"
+
+	// ContextKeySteps holds named outputs from previous steps
+	ContextKeySteps = "steps"
+
+	// ContextKeyState is a shared key-value store for workflow data
+	ContextKeyState = "state"
+)
+
 // AST represents the complete workflow abstract syntax tree
 type AST struct {
 	Blueprint *BlueprintNode

@@ -344,12 +344,19 @@ func (p *Parser) convertAgent(raw *agentYAML) *ast.AgentNode {
 		})
 	}
 
+	// Handle optional schema
+	var inputSchema, replySchema *jsonschema.Schema
+	if raw.Schema != nil {
+		inputSchema = p.convertSchema(raw.Schema.Input)
+		replySchema = p.convertSchema(raw.Schema.Reply)
+	}
+
 	return &ast.AgentNode{
 		Name:   raw.Name,
 		Format: raw.Format,
 		Schema: ast.SchemaNode{
-			Input: p.convertSchema(raw.Schema.Input),
-			Reply: p.convertSchema(raw.Schema.Reply),
+			Input: inputSchema,
+			Reply: replySchema,
 		},
 		Servers: servers,
 	}

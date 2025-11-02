@@ -91,6 +91,15 @@ func (b *Builder) Path(path string) *Builder {
 	return b
 }
 
+func (b *Builder) None() *Builder {
+	if b.err != nil || b.src != nil {
+		return b
+	}
+
+	b.src = source.NewNone()
+	return b
+}
+
 // Build creates the source based on configuration.
 func (b *Builder) Build() (iosystem.Source, error) {
 	if b.err != nil {

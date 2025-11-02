@@ -1,0 +1,24 @@
+name: routing
+jobs:
+  main:
+    steps:
+      - uses: prompts/router.md
+        switch:
+          - when: choice == "booker"
+            route: booker
+          - when: choice == "info"
+            route: info
+        default: unknown
+
+
+  booker:
+    steps:
+      - uses: prompts/booker.md
+
+  info:
+    steps:
+      - uses: prompts/info.md
+
+  unknown:
+    steps:
+      - uses: prompts/unknown.md

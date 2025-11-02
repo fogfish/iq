@@ -1,0 +1,11 @@
+name: forach
+jobs:
+  main:
+    steps:
+      - uses: prompts/rainbow.md
+        foreach:
+          job: explain
+
+  explain:
+    steps:
+      - uses: prompts/explain.md

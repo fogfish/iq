@@ -116,6 +116,10 @@ func (r *RouterStep) GetOutputName() string {
 }
 
 func (r *RouterStep) prompt(ctx context.Context, opt ...chatter.Opt) (any, error) {
+	if r.Agent == nil {
+		return nil, nil
+	}
+
 	// Extract workflow context
 	wfCtx := GetWorkflowContext(ctx)
 	if wfCtx == nil {
@@ -150,9 +154,13 @@ func (r *RouterStep) Prompt(ctx context.Context, opt ...chatter.Opt) error {
 	}
 
 	// Evaluate conditions in order
+	// Pass full workflow context to CEL expressions
 	for i, condition := range r.Conditions {
 		result, _, err := condition.Eval(map[string]any{
-			"choice": choice,
+			"choice":   choice,
+			"state":    wfCtx.State,
+			"steps":    wfCtx.Steps,
+			"document": wfCtx.Input,
 		})
 		if err != nil {
 			return fmt.Errorf("failed to evaluate route condition '%s': %w",
@@ -271,7 +279,11 @@ func (s *ForeachStep) Prompt(ctx context.Context, opt ...chatter.Opt) error {
 	// Execute job for each item
 	results := make([]any, 0, len(items))
 	for i, item := range items {
-		result, err := s.Job.Prompt(ctx, item, opt...)
+		// Create a fresh workflow context for this iteration
+		// This ensures the item becomes .input/.current for the sub-job
+		itemCtx := NewWorkflowContext(context.Background(), item)
+
+		result, err := s.Job.Prompt(itemCtx, item, opt...)
 		if err != nil {
 			return fmt.Errorf("foreach iteration %d failed: %w", i, err)
 		}

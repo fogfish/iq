@@ -1,0 +1,14 @@
+name: state
+jobs:
+  main:
+    steps:
+      - name: extract
+        uses: prompts/extract.md
+        output: text
+      
+      - name: transform
+        uses: prompts/transform.md
+        output: specs
+      
+      - name: summarize
+        uses: prompts/summarize.md

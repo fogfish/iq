@@ -23,8 +23,16 @@ type Factory interface {
 // New creates a new compiler
 func New(llm chatter.Chatter) (*Compiler, error) {
 	// Create CEL environment for route conditions
+	// Variables available in CEL expressions:
+	// - choice: output from the router agent
+	// - state: workflow state (map[string]any)
+	// - steps: named step outputs (map[string]any)
+	// - document: original workflow input
 	env, err := cel.NewEnv(
 		cel.Variable("choice", cel.DynType),
+		cel.Variable("state", cel.MapType(cel.StringType, cel.DynType)),
+		cel.Variable("steps", cel.MapType(cel.StringType, cel.DynType)),
+		cel.Variable("document", cel.DynType),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create CEL environment: %w", err)
@@ -234,9 +242,12 @@ func (c *Compiler) compileStep(ctx context.Context, index int, node ast.StepNode
 	agentNode := tree.Agents[node.GetUses()]
 
 	// Create and initialize agent
-	agt := &Agent{Node: agentNode}
-	if err := agt.compile(ctx, llm); err != nil {
-		return nil, fmt.Errorf("failed to initialize agent: %w", err)
+	var agt *Agent
+	if agentNode != nil {
+		agt = &Agent{Node: agentNode}
+		if err := agt.compile(ctx, llm); err != nil {
+			return nil, fmt.Errorf("failed to initialize agent: %w", err)
+		}
 	}
 
 	// Check if this is a router step

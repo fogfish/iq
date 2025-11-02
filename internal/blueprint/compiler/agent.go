@@ -87,9 +87,18 @@ func (agt *Agent) encode(in any) (chatter.Message, error) {
 	case map[string]any:
 		return agt.encodeStruct(v)
 	case string:
-		return agt.encodeStruct(map[string]any{"current": v})
+		// For simple string inputs, set both .input and .current
+		return agt.encodeStruct(map[string]any{
+			ast.ContextKeyInput:   v,
+			ast.ContextKeyCurrent: v,
+		})
 	case []byte:
-		return agt.encodeStruct(map[string]any{"current": string(v)})
+		// For byte inputs, set both .input and .current
+		s := string(v)
+		return agt.encodeStruct(map[string]any{
+			ast.ContextKeyInput:   s,
+			ast.ContextKeyCurrent: s,
+		})
 	case nil:
 		return agt.encodeStruct(map[string]any{})
 	default:
@@ -98,9 +107,21 @@ func (agt *Agent) encode(in any) (chatter.Message, error) {
 }
 
 func (agt *Agent) encodeStruct(in map[string]any) (chatter.Message, error) {
+	// Add .input as alias for .current (agent's perspective)
+	// This allows templates to use {{.input}} which semantically matches schema.input
+	if current, hasCurrent := in[ast.ContextKeyCurrent]; hasCurrent {
+		// Only set .input if not already present (don't overwrite standalone usage)
+		if _, hasInput := in[ast.ContextKeyInput]; !hasInput {
+			in[ast.ContextKeyInput] = current
+		}
+	}
+
+	// Validate agent's input against schema
 	if agt.Node.Schema.Input != nil {
-		if err := agt.validateSchema(in["current"], agt.Node.Schema.Input); err != nil {
-			return nil, fmt.Errorf("input validation failed for agent '%s': %w", agt.Node.Name, err)
+		if input, hasInput := in[ast.ContextKeyInput]; hasInput {
+			if err := agt.validateSchema(input, agt.Node.Schema.Input); err != nil {
+				return nil, fmt.Errorf("input validation failed for agent '%s': %w", agt.Node.Name, err)
+			}
 		}
 	}
 
@@ -119,6 +140,7 @@ func (agt *Agent) encodeStruct(in map[string]any) (chatter.Message, error) {
 	prompt.WithTask(sb.String())
 
 	if agt.Node.Format == "json" {
+		// Only harden with schema if reply schema is defined
 		jsonify.Strings.Harden(&prompt, agt.Node.Schema.Reply)
 	}
 
@@ -128,6 +150,7 @@ func (agt *Agent) encodeStruct(in map[string]any) (chatter.Message, error) {
 func (agt *Agent) decode(reply *chatter.Reply) (float64, any, error) {
 	if agt.Node.Format == "json" {
 		var obj any
+		// Decode with schema (will validate if schema is non-nil)
 		if err := jsonify.Strings.Decode(reply, agt.Node.Schema.Reply, &obj); err != nil {
 			return 0.0, nil, err
 		}

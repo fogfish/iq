@@ -14,4 +14,4 @@ schema:
       memory: {type: string}
       storage: {type: string}
 ---
-Transform the following specifications into a JSON object with 'cpu', 'memory', and 'storage' as keys: {{.current.spec}}
+Transform the following specifications into a JSON object with 'cpu', 'memory', and 'storage' as keys: {{.input.spec}}

@@ -1,6 +1,10 @@
 package compiler
 
-import "context"
+import (
+	"context"
+
+	"github.com/fogfish/iq/internal/blueprint/ast"
+)
 
 // contextKey is a private type for context keys to avoid collisions
 type contextKey int
@@ -75,9 +79,10 @@ func (c *WorkflowContext) GetStepOutput(name string) (any, bool) {
 // ToMap returns the full context as a map for template rendering
 func (c *WorkflowContext) ToMap() map[string]any {
 	return map[string]any{
-		"input":   c.Input,
-		"state":   c.State,
-		"steps":   c.Steps,
-		"current": c.Current,
+		ast.ContextKeyDocument: c.Input,   // Original workflow input
+		ast.ContextKeyCurrent:  c.Current, // Current step value
+		ast.ContextKeySteps:    c.Steps,   // Named step outputs
+		ast.ContextKeyState:    c.State,   // Shared workflow state
+		// Note: .input is added as alias in agent.encodeStruct()
 	}
 }
