@@ -54,9 +54,10 @@ var (
 
 func init() {
 	fmodel.apply(rootCmd)
-	fagent.apply(rootCmd)
-	finput.apply(rootCmd)
-	freply.apply(rootCmd)
+	// fmodel.apply(rootCmd)
+	// fagent.apply(rootCmd)
+	// finput.apply(rootCmd)
+	// freply.apply(rootCmd)
 
 	// rootCmd.PersistentFlags().StringVarP(&rootLLM.Profile, "config", "c", "iq", "config profile at ~/.netrc about LLM provider")
 	// rootCmd.PersistentFlags().StringVarP(&rootLLM.Model, "llm", "m", "", "overrides LLM model defined at ~/.netrc")

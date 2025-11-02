@@ -4,6 +4,7 @@ servers:
   - name: sayer
     command:
       - ./iq
+      - agent
       - serve
       - -a
       - examples/08_tools/greeter/run.yml
