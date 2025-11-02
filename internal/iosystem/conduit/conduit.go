@@ -7,11 +7,16 @@ import (
 	"time"
 
 	"github.com/fogfish/iq/internal/iosystem"
+	"github.com/google/jsonschema-go/jsonschema"
 )
 
 // Conduit coordinates the flow: Source → Processor(s) → Sink.
 // The pipeline is reusable across multiple source/sink pairs.
 type Conduit struct {
+	Name       string
+	About      string
+	Input      *jsonschema.Schema
+	Reply      *jsonschema.Schema
 	processors []iosystem.Processor
 	config     Config
 }

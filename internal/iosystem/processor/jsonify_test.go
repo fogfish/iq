@@ -30,7 +30,7 @@ func TestJSONFormatter_FormatsJSON(t *testing.T) {
 	ctx := context.Background()
 	jsonContent := `{"name":"test","value":42,"nested":{"key":"data"}}`
 	doc := iosystem.NewDocument("test.json", strings.NewReader(jsonContent))
-	doc.Metadata = map[string]string{"content-type": "application/json"}
+	doc.Type = iosystem.ContentJSON
 
 	results, err := proc.Process(ctx, doc)
 
@@ -63,7 +63,7 @@ func TestJSONFormatter_PassThroughNonJSON(t *testing.T) {
 	ctx := context.Background()
 	textContent := "This is plain text"
 	doc := iosystem.NewDocument("test.txt", strings.NewReader(textContent))
-	doc.Metadata = map[string]string{"content-type": "text/plain"}
+	doc.Type = iosystem.ContentText
 
 	results, err := proc.Process(ctx, doc)
 
@@ -86,7 +86,7 @@ func TestJSONFormatter_HandlesInvalidJSON(t *testing.T) {
 	ctx := context.Background()
 	invalidJSON := `{"name": invalid}`
 	doc := iosystem.NewDocument("test.json", strings.NewReader(invalidJSON))
-	doc.Metadata = map[string]string{"content-type": "application/json"}
+	doc.Type = iosystem.ContentJSON
 
 	results, err := proc.Process(ctx, doc)
 
@@ -134,10 +134,10 @@ func TestJSONFormatter_PreservesMetadata(t *testing.T) {
 	ctx := context.Background()
 	jsonContent := `{"name":"test"}`
 	doc := iosystem.NewDocument("test.json", strings.NewReader(jsonContent))
+	doc.Type = iosystem.ContentJSON
 	doc.Metadata = map[string]string{
-		"content-type": "application/json",
-		"source":       "agent",
-		"custom":       "value",
+		"source": "agent",
+		"custom": "value",
 	}
 
 	results, err := proc.Process(ctx, doc)
@@ -146,7 +146,7 @@ func TestJSONFormatter_PreservesMetadata(t *testing.T) {
 
 	// Check that metadata is preserved
 	it.Then(t).Should(
-		it.Equal(results[0].Metadata["content-type"], "application/json"),
+		it.Equal(results[0].Type, iosystem.ContentJSON),
 		it.Equal(results[0].Metadata["source"], "agent"),
 		it.Equal(results[0].Metadata["custom"], "value"),
 	)
@@ -162,7 +162,7 @@ func TestJSONFormatter_WithColor(t *testing.T) {
 	ctx := context.Background()
 	jsonContent := `{"name":"test"}`
 	doc := iosystem.NewDocument("test.json", strings.NewReader(jsonContent))
-	doc.Metadata = map[string]string{"content-type": "application/json"}
+	doc.Type = iosystem.ContentJSON
 
 	results, err := proc.Process(ctx, doc)
 
@@ -191,7 +191,7 @@ func TestJSONFormatter_CustomIndent(t *testing.T) {
 	ctx := context.Background()
 	jsonContent := `{"nested":{"key":"value"}}`
 	doc := iosystem.NewDocument("test.json", strings.NewReader(jsonContent))
-	doc.Metadata = map[string]string{"content-type": "application/json"}
+	doc.Type = iosystem.ContentJSON
 
 	results, err := proc.Process(ctx, doc)
 

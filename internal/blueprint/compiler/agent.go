@@ -31,11 +31,11 @@ type Server struct {
 }
 
 func (agt *Agent) compile(ctx context.Context, llm chatter.Chatter) error {
-	agt.servers = make([]Server, 0, len(agt.Node.Servers))
+	agt.servers = make([]Server, len(agt.Node.Servers))
 
 	registry := command.NewRegistry()
 	for i, srv := range agt.Node.Servers {
-		cmd := exec.Command(srv.Command)
+		cmd := exec.Command(srv.Command[0], srv.Command[1:]...)
 		rpc := &mcp.CommandTransport{Command: cmd}
 		cli := mcp.NewClient(&mcp.Implementation{Name: srv.Name}, nil)
 		api, err := cli.Connect(context.Background(), rpc, nil)
@@ -87,17 +87,14 @@ func (agt *Agent) encode(in any) (chatter.Message, error) {
 	case map[string]any:
 		return agt.encodeStruct(v)
 	case string:
-		// For simple string inputs, set both .input and .current
 		return agt.encodeStruct(map[string]any{
 			ast.ContextKeyInput:   v,
 			ast.ContextKeyCurrent: v,
 		})
 	case []byte:
-		// For byte inputs, set both .input and .current
-		s := string(v)
 		return agt.encodeStruct(map[string]any{
-			ast.ContextKeyInput:   s,
-			ast.ContextKeyCurrent: s,
+			ast.ContextKeyInput:   string(v),
+			ast.ContextKeyCurrent: string(v),
 		})
 	case nil:
 		return agt.encodeStruct(map[string]any{})

@@ -81,52 +81,69 @@ func (p *Agent) Process(ctx context.Context, doc *iosystem.Document) ([]*iosyste
 		return nil, fmt.Errorf("document is nil")
 	}
 
+	content, err := p.decode(doc)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read document: %w", err)
+	}
+
+	result, err := p.w.Prompt(ctx, content, p.config.Options...)
+	if err != nil {
+		return nil, fmt.Errorf("agent processing failed for '%s': %w", doc.Path, err)
+	}
+
+	reply, err := p.encode(result)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode agent response for '%s': %w", doc.Path, err)
+	}
+
+	reply.Path = doc.Path + p.config.Suffix
+	reply.Metadata = copyMetadata(doc.Metadata)
+
+	return []*iosystem.Document{reply}, nil
+}
+
+// prepare the document for processing by the blueprint.
+func (p *Agent) decode(doc *iosystem.Document) (any, error) {
 	// Read document content
 	content, err := io.ReadAll(doc.Reader)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read document: %w", err)
 	}
 
-	// Process through agent
-	result, err := p.w.Prompt(ctx, content, p.config.Options...)
-	if err != nil {
-		return nil, fmt.Errorf("agent processing failed for '%s': %w", doc.Path, err)
-	}
-
-	// Convert result to bytes
-	var reply []byte
-	var contentType string
-	switch v := result.(type) {
-	case string:
-		reply = []byte(v)
-		contentType = "text/plain"
-	case []byte:
-		reply = v
-		contentType = "application/octet-stream"
-	default:
-		reply, err = json.Marshal(v)
-		if err != nil {
-			return nil, fmt.Errorf("failed to marshal agent response for '%s': %w", doc.Path, err)
+	switch doc.Type {
+	case iosystem.ContentJSON:
+		var input map[string]any
+		if err := json.Unmarshal(content, &input); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal JSON document: %w", err)
 		}
-		contentType = "application/json"
+		return input, nil
+	default:
+		return content, nil
 	}
+}
 
-	// Create output document
-	path := doc.Path
-	if p.config.Suffix != "" {
-		path = doc.Path + p.config.Suffix
+func (p *Agent) encode(reply any) (*iosystem.Document, error) {
+	switch v := reply.(type) {
+	case string:
+		return &iosystem.Document{
+			Reader: bytes.NewReader([]byte(v)),
+			Type:   iosystem.ContentText,
+		}, nil
+	case []byte:
+		return &iosystem.Document{
+			Reader: bytes.NewReader(v),
+			Type:   iosystem.ContentStream,
+		}, nil
+	default:
+		data, err := json.Marshal(v)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal agent response: %w", err)
+		}
+		return &iosystem.Document{
+			Reader: bytes.NewReader(data),
+			Type:   iosystem.ContentJSON,
+		}, nil
 	}
-
-	metadata := copyMetadata(doc.Metadata)
-	metadata["content-type"] = contentType
-
-	out := &iosystem.Document{
-		Path:     path,
-		Reader:   bytes.NewReader(reply),
-		Metadata: metadata,
-	}
-
-	return []*iosystem.Document{out}, nil
 }
 
 // Close releases resources. For AgentProcessor, this is a no-op

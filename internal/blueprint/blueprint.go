@@ -6,6 +6,7 @@ import (
 
 	"github.com/fogfish/iq/internal/blueprint/compiler"
 	"github.com/fogfish/iq/internal/blueprint/parser"
+	"github.com/google/jsonschema-go/jsonschema"
 	"github.com/kshard/chatter"
 )
 
@@ -37,6 +38,12 @@ func New(file string, llm chatter.Chatter) (*Blueprint, error) {
 	return &Blueprint{
 		workflow: workflow,
 	}, nil
+}
+
+func (bp *Blueprint) Name() string  { return bp.workflow.Name }
+func (bp *Blueprint) About() string { return bp.workflow.About }
+func (bp *Blueprint) Schema() (*jsonschema.Schema, *jsonschema.Schema) {
+	return bp.workflow.Schema.Input, bp.workflow.Schema.Reply
 }
 
 // Run executes the entrypoint job (or "main" if no entrypoint specified)

@@ -74,6 +74,7 @@ func task(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
+	// TODO: spool mode !?
 	if len(finput.dir) > 0 && len(freply.dir) > 0 {
 		rfs, err := source.Mount(finput.dir)
 		if err != nil {

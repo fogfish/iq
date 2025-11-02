@@ -168,7 +168,9 @@ func (c *Compiler) compile(ctx context.Context, tree *ast.AST) (*Workflow, error
 
 	return &Workflow{
 		Name:       bp.Name,
+		About:      bp.About,
 		Entrypoint: bp.Entrypoint,
+		Schema:     bp.Schema,
 		Jobs:       jobs,
 	}, nil
 }

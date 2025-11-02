@@ -22,14 +22,16 @@ import (
 type Reader struct {
 	path     string
 	reader   io.Reader
+	content  string
 	consumed bool
 }
 
 // NewReader creates a Source that yields a single document from the given reader.
 func NewReader(path string, r io.Reader) *Reader {
 	return &Reader{
-		path:   path,
-		reader: r,
+		path:    path,
+		reader:  r,
+		content: iosystem.ContentStream,
 	}
 }
 
@@ -38,13 +40,25 @@ func NewStdin() *Reader {
 	return NewReader("stdin", os.Stdin)
 }
 
+// NewReaderJSON creates a Source that yields a single document from the given reader
+// with content type application/json. Use this when the reader contains structured JSON data.
+func NewReaderJSON(path string, r io.Reader) iosystem.Source {
+	return &Reader{
+		path:    path,
+		reader:  r,
+		content: iosystem.ContentJSON,
+	}
+}
+
 // Next returns the document on first call, then io.EOF.
 func (s *Reader) Next(ctx context.Context) (*iosystem.Document, error) {
 	if s.consumed {
 		return nil, io.EOF
 	}
 	s.consumed = true
-	return iosystem.NewDocument(s.path, s.reader), nil
+	doc := iosystem.NewDocument(s.path, s.reader)
+	doc.Type = s.content
+	return doc, nil
 }
 
 // Close does nothing since ReaderSource doesn't own the reader.

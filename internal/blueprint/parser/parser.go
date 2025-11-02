@@ -202,8 +202,10 @@ func (p *Parser) resolvePath(path string) string {
 
 type blueprintYAML struct {
 	Name       string             `yaml:"name,omitempty"`
+	About      string             `yaml:"about,omitempty"`
 	Entrypoint string             `yaml:"entrypoint,omitempty"`
 	RunsOn     string             `yaml:"runs-on,omitempty"`
+	Schema     *schemaYAML        `yaml:"schema,omitempty"`
 	Jobs       map[string]jobYAML `yaml:"jobs,omitempty"`
 }
 
@@ -250,9 +252,9 @@ type schemaYAML struct {
 }
 
 type serverYAML struct {
-	Type    string `yaml:"type,omitempty"`
-	Name    string `yaml:"name,omitempty"`
-	Command string `yaml:"command,omitempty"`
+	Type    string   `yaml:"type,omitempty"`
+	Name    string   `yaml:"name,omitempty"`
+	Command []string `yaml:"command,omitempty"`
 }
 
 // Conversion functions
@@ -263,11 +265,22 @@ func (p *Parser) convertBlueprint(raw *blueprintYAML) *ast.BlueprintNode {
 		jobs[name] = p.convertJob(name, &jobYAML)
 	}
 
+	var inputSchema, replySchema *jsonschema.Schema
+	if raw.Schema != nil {
+		inputSchema = p.convertSchema(raw.Schema.Input)
+		replySchema = p.convertSchema(raw.Schema.Reply)
+	}
+
 	return &ast.BlueprintNode{
 		Name:       raw.Name,
+		About:      raw.About,
 		Entrypoint: raw.Entrypoint,
 		RunsOn:     raw.RunsOn,
-		Jobs:       jobs,
+		Schema: ast.SchemaNode{
+			Input: inputSchema,
+			Reply: replySchema,
+		},
+		Jobs: jobs,
 	}
 }
 

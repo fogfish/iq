@@ -124,6 +124,10 @@ func (b *Builder) Workflow(file string, llm chatter.Chatter) *Builder {
 	b.runtime.AddProcessor(
 		processor.NewAgent(wrk, &processor.AgentConfig{}),
 	)
+	b.runtime.Name = wrk.Name()
+	b.runtime.About = wrk.About()
+	b.runtime.Input, b.runtime.Reply = wrk.Schema()
+
 	return b
 }
 

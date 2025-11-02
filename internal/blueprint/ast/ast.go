@@ -29,8 +29,10 @@ type AST struct {
 // BlueprintNode represents the root workflow definition
 type BlueprintNode struct {
 	Name       string
+	About      string // Optional: description of the blueprint
 	Entrypoint string // Optional: default job to run. If empty, uses job named "main"
 	RunsOn     string
+	Schema     SchemaNode // Input/Output schemas
 	Jobs       map[string]*JobNode
 }
 
@@ -125,7 +127,7 @@ type SchemaNode struct {
 type ServerNode struct {
 	Type    string
 	Name    string
-	Command string
+	Command []string
 }
 
 // Validate performs semantic validation on the AST

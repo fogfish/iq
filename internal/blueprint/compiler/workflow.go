@@ -13,7 +13,9 @@ import (
 // Workflow represents a compiled, executable workflow
 type Workflow struct {
 	Name       string
+	About      string
 	Entrypoint string // Optional: default job name, or "main" if empty
+	Schema     ast.SchemaNode
 	Jobs       map[string]*Job
 }
 

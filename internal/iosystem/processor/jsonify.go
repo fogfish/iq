@@ -67,8 +67,8 @@ func (p *Jsonify) Process(ctx context.Context, doc *iosystem.Document) ([]*iosys
 	}
 
 	// Check if document is JSON
-	contentType := doc.Metadata["content-type"]
-	if contentType != "application/json" {
+	contentType := doc.Type
+	if contentType != iosystem.ContentJSON {
 		return []*iosystem.Document{doc}, nil
 	}
 
@@ -76,6 +76,7 @@ func (p *Jsonify) Process(ctx context.Context, doc *iosystem.Document) ([]*iosys
 	content, err := io.ReadAll(doc.Reader)
 	if err != nil {
 		// On read error, pass through unchanged
+		doc.Reader = bytes.NewReader(content)
 		return []*iosystem.Document{doc}, nil
 	}
 
@@ -83,6 +84,7 @@ func (p *Jsonify) Process(ctx context.Context, doc *iosystem.Document) ([]*iosys
 	var obj any
 	if err := json.Unmarshal(content, &obj); err != nil {
 		// Invalid JSON, pass through unchanged
+		doc.Reader = bytes.NewReader(content)
 		return []*iosystem.Document{doc}, nil
 	}
 
@@ -105,6 +107,7 @@ func (p *Jsonify) Process(ctx context.Context, doc *iosystem.Document) ([]*iosys
 
 	// Create output document
 	out := &iosystem.Document{
+		Type:     doc.Type,
 		Path:     doc.Path,
 		Reader:   bytes.NewReader(formatted),
 		Metadata: copyMetadata(doc.Metadata),

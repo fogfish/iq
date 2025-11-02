@@ -1,0 +1,20 @@
+name: greeter
+about: say hi to users
+schema:
+  input:
+    type: object
+    properties:
+      name:
+        type: string
+    required: [name]
+  reply:
+    type: object
+    properties:
+      greeting:
+        type: string
+    required: [greeting]
+
+jobs:
+  main:
+    steps:
+      - uses: greeter.md
