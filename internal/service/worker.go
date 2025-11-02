@@ -43,7 +43,7 @@ func (w *Worker) encode(in *core.Prompt) (chatter.Message, error) {
 	}
 
 	if in.Format == core.FORMAT_JSON {
-		jsonify.Strings.Harden(&prompt)
+		jsonify.Strings.Harden(&prompt, nil)
 	}
 
 	return &prompt, nil

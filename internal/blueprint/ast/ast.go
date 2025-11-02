@@ -1,5 +1,7 @@
 package ast
 
+import "github.com/google/jsonschema-go/jsonschema"
+
 // AST represents the complete workflow abstract syntax tree
 type AST struct {
 	Blueprint *BlueprintNode
@@ -91,14 +93,14 @@ type RetryNode struct {
 type AgentNode struct {
 	Name    string
 	Format  string       // "json" or empty
-	Schema  *SchemaNode  // Input/Output schemas
+	Schema  SchemaNode   // Input/Output schemas
 	Servers []ServerNode // MCP servers
 	Prompt  string       // Template text
 }
 
 type SchemaNode struct {
-	Input map[string]any // JSON Schema for input validation
-	Reply map[string]any // JSON Schema for output validation
+	Input *jsonschema.Schema // JSON Schema for input validation
+	Reply *jsonschema.Schema // JSON Schema for output validation
 }
 
 // ServerNode represents an MCP server configuration

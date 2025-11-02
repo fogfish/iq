@@ -2,6 +2,7 @@ package parser
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -9,6 +10,7 @@ import (
 
 	"github.com/fogfish/iq/internal/blueprint/ast"
 	"github.com/goccy/go-yaml"
+	"github.com/google/jsonschema-go/jsonschema"
 )
 
 // Parser handles YAML to AST conversion
@@ -342,18 +344,31 @@ func (p *Parser) convertAgent(raw *agentYAML) *ast.AgentNode {
 		})
 	}
 
-	var schema *ast.SchemaNode
-	if raw.Schema != nil {
-		schema = &ast.SchemaNode{
-			Input: raw.Schema.Input,
-			Reply: raw.Schema.Reply,
-		}
-	}
-
 	return &ast.AgentNode{
-		Name:    raw.Name,
-		Format:  raw.Format,
-		Schema:  schema,
+		Name:   raw.Name,
+		Format: raw.Format,
+		Schema: ast.SchemaNode{
+			Input: p.convertSchema(raw.Schema.Input),
+			Reply: p.convertSchema(raw.Schema.Reply),
+		},
 		Servers: servers,
 	}
+}
+
+func (p *Parser) convertSchema(schema map[string]any) *jsonschema.Schema {
+	if schema == nil {
+		return nil
+	}
+
+	schemaBytes, err := json.Marshal(schema)
+	if err != nil {
+		return nil
+	}
+
+	var js jsonschema.Schema
+	if err := json.Unmarshal(schemaBytes, &js); err != nil {
+		return nil
+	}
+
+	return &js
 }

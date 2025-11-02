@@ -48,7 +48,7 @@ func (w *Prompter) encode(in *core.Prompt) (chatter.Message, error) {
 
 	w.isJsonify = false
 	if in.Format == core.FORMAT_JSON {
-		jsonify.Strings.Harden(&prompt)
+		jsonify.Strings.Harden(&prompt, nil)
 		w.isJsonify = true
 	}
 
@@ -58,7 +58,7 @@ func (w *Prompter) encode(in *core.Prompt) (chatter.Message, error) {
 func (w *Prompter) decode(reply *chatter.Reply) (float64, []byte, error) {
 	if w.isJsonify {
 		var seq []string
-		if err := jsonify.Strings.Decode(reply, &seq); err != nil {
+		if err := jsonify.Strings.Decode(reply, nil, &seq); err != nil {
 			return 0.0, nil, err
 		}
 

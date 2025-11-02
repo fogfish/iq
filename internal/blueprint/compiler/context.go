@@ -27,6 +27,11 @@ type WorkflowContext struct {
 
 // NewWorkflowContext creates a new workflow context embedded in Go context
 func NewWorkflowContext(ctx context.Context, input any) context.Context {
+	switch v := input.(type) {
+	case []byte:
+		input = string(v)
+	}
+
 	wfCtx := &WorkflowContext{
 		Input:   input,
 		State:   make(map[string]any),
