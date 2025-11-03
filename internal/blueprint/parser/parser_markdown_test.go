@@ -122,7 +122,11 @@ format: json
 servers:
   - type: stdio
     name: filesystem
-    command: npx -y @modelcontextprotocol/server-filesystem /tmp
+    command:
+      - npx
+      - -y
+      - \@modelcontextprotocol/server-filesystem
+      - /tmp
 ---
 List files in the directory: {{.path}}`
 

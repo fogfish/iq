@@ -76,7 +76,7 @@ func config(cmd *cobra.Command, args []string) error {
 
 	machine := n.Machine(fmodel.profile)
 	if machine != nil {
-		fPrintf(os.Stdout, "\n ✅ All good — you're set up and ready to go!\n")
+		fmt.Fprintf(os.Stdout, "\n ✅ All good — you're set up and ready to go!\n")
 		return nil
 	}
 
@@ -91,8 +91,8 @@ func config(cmd *cobra.Command, args []string) error {
 	}
 
 	if configBedrock {
-		if len(rootLLM.Model) == 0 {
-			rootLLM.Model = "us.anthropic.claude-3-7-sonnet-20250219-v1:0"
+		if len(fmodel.model) == 0 {
+			fmodel.model = "global.anthropic.claude-sonnet-4-5-20250929-v1:0"
 		}
 		if err := converse(f); err != nil {
 			return err
@@ -100,8 +100,8 @@ func config(cmd *cobra.Command, args []string) error {
 	}
 
 	if configOpenAI {
-		if len(rootLLM.Model) == 0 {
-			rootLLM.Model = "gpt-4o"
+		if len(fmodel.model) == 0 {
+			fmodel.model = "gpt-5"
 		}
 		secret := "<secret>"
 		if len(args) > 0 {
@@ -113,17 +113,17 @@ func config(cmd *cobra.Command, args []string) error {
 	}
 
 	if configLMStudio {
-		if len(rootLLM.Model) == 0 {
-			rootLLM.Model = "gemma-3-27b-it"
+		if len(fmodel.model) == 0 {
+			fmodel.model = "gemma-3-27b-it"
 		}
 		if err = lmstudio(f); err != nil {
 			return err
 		}
 	}
 
-	fPrintf(os.Stdout, "\n ✅ All good — you're set up and ready to go!\n")
-	fPrintf(os.Stdout, "    %s is default model, use -m, --llm flags to override it.\n", rootLLM.Model)
-	fPrintf(os.Stdout, "    You might need to adjust config at ~/.netrc later, based on your setup.\n")
+	fmt.Fprintf(os.Stdout, "\n ✅ All good — you're set up and ready to go!\n")
+	fmt.Fprintf(os.Stdout, "    %s is default model, use -m, --llm flags to override it.\n", fmodel.model)
+	fmt.Fprintf(os.Stdout, "    You might need to adjust config at ~/.netrc later, based on your setup.\n")
 	return nil
 }
 
@@ -136,7 +136,7 @@ machine %s
         model %s
         region us-west-2
 
-`, rootLLM.Profile, rootLLM.Model)
+`, fmodel.profile, fmodel.model)
 	return err
 }
 
@@ -150,7 +150,7 @@ machine %s
         host https://api.openai.com
         secret %s
 
-`, rootLLM.Profile, rootLLM.Model, secret)
+`, fmodel.profile, fmodel.model, secret)
 	return err
 }
 
@@ -164,6 +164,6 @@ machine %s
         host http://localhost:1234
         timeout 30
 
-`, rootLLM.Profile, rootLLM.Model)
+`, fmodel.profile, fmodel.model)
 	return err
 }

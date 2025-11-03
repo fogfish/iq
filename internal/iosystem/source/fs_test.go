@@ -139,7 +139,7 @@ func TestWalkSource_NestedDirectories(t *testing.T) {
 	paths := make([]string, 0)
 	for i := 0; i < 2; i++ {
 		doc, err := src.Next(ctx)
-		it.Then(t).Should(it.Nil(err))
+		it.Then(t).Must(it.Nil(err))
 
 		paths = append(paths, doc.Path)
 

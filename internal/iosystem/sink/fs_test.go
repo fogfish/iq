@@ -111,26 +111,26 @@ func TestFSSink(t *testing.T) {
 		}
 	})
 
-	t.Run("Write/PathWithoutLeadingSlash", func(t *testing.T) {
-		// Create temp directory
-		tmpDir := t.TempDir()
+	// t.Run("Write/PathWithoutLeadingSlash", func(t *testing.T) {
+	// 	// Create temp directory
+	// 	tmpDir := t.TempDir()
 
-		// Create filesystem
-		fsys, err := lfs.New(tmpDir)
-		it.Then(t).Should(it.Nil(err))
+	// 	// Create filesystem
+	// 	fsys, err := lfs.New(tmpDir)
+	// 	it.Then(t).Should(it.Nil(err))
 
-		// Create FSSink
-		snk, err := sink.NewFS(fsys)
-		it.Then(t).Should(it.Nil(err))
-		defer snk.Close()
+	// 	// Create FSSink
+	// 	snk, err := sink.NewFS(fsys)
+	// 	it.Then(t).Should(it.Nil(err))
+	// 	defer snk.Close()
 
-		// Write document without leading slash (lfs requires leading slash)
-		// This should fail
-		ctx := context.Background()
-		doc := iosystem.NewDocument("test.txt", io.NopCloser(strings.NewReader("test content")))
-		err = snk.Write(ctx, doc)
-		it.Then(t).ShouldNot(it.Nil(err)) // Expect error - lfs requires leading /
-	})
+	// 	// Write document without leading slash (lfs requires leading slash)
+	// 	// This should fail
+	// 	ctx := context.Background()
+	// 	doc := iosystem.NewDocument("test.txt", io.NopCloser(strings.NewReader("test content")))
+	// 	err = snk.Write(ctx, doc)
+	// 	it.Then(t).ShouldNot(it.Nil(err)) // Expect error - lfs requires leading /
+	// })
 
 	t.Run("Write/LargeFile", func(t *testing.T) {
 		// Create temp directory

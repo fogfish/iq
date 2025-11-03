@@ -53,6 +53,7 @@ jobs:
 
 	// Build conduit with blueprint
 	pipe, err := worker.New().
+		Runtime().
 		Workflow(bpFile, mockLLM).
 		Build()
 
@@ -83,12 +84,13 @@ jobs:
 
 	// Build with options
 	pipe, err := worker.New().
-		Workflow(bpFile, mockLLM).
 		Concurrency(4).
 		ErrorMode(conduit.SkipError).
 		Progress(func(doc *iosystem.Document, err error) {
 			// Progress callback
 		}).
+		Runtime().
+		Workflow(bpFile, mockLLM).
 		Build()
 
 	it.Then(t).Should(
@@ -118,10 +120,10 @@ jobs:
 
 	// Build conduit
 	pipe, err := worker.New().
+		Runtime().
 		Workflow(bpFile, mockLLM).
 		Build()
-
-	it.Then(t).Should(it.Nil(err))
+	it.Then(t).Must(it.Nil(err))
 
 	// Create source and sink
 	input := []byte("test input data")
