@@ -4,11 +4,12 @@ jobs:
     steps:
       - name: extract
         uses: prompts/extract.md
-        output: text
+        output: text                # Store as {{.steps.text}}
       
       - name: transform
         uses: prompts/transform.md
-        output: specs
+        output: specs               # Store as {{.steps.specs}}
       
       - name: summarize
         uses: prompts/summarize.md
+        output: summary             # Store as {{.steps.summary}}

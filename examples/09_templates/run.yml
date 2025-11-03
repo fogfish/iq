@@ -1,0 +1,8 @@
+name: template
+jobs:
+  main:
+    steps:
+      - uses: prompts/extract.md
+        output: data
+    
+      - uses: prompts/summarize.md

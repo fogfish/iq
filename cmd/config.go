@@ -74,7 +74,7 @@ func config(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	machine := n.Machine(rootLLM.Profile)
+	machine := n.Machine(fmodel.profile)
 	if machine != nil {
 		fPrintf(os.Stdout, "\n ✅ All good — you're set up and ready to go!\n")
 		return nil

@@ -1,8 +1,0 @@
-##
-## Include directive allows defining prompt template  
-##
-
-include: 03_withargs.yml
-
-input:
-  name: sun

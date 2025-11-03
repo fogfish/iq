@@ -1,7 +1,7 @@
 <p align="center">
   <img src="./doc/iq.svg" height="128" />
   <h3 align="center">iq</h3>
-  <p align="center"><strong>Intelligent Query is a lightweight command-line LLM-powered file processor.</strong></p>
+  <p align="center"><strong>AI workflows for the shell - no code required.</strong></p>
 
   <p align="center">
     <!-- Version -->
