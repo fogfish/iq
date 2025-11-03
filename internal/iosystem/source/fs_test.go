@@ -279,7 +279,7 @@ func TestWalkSource_OnlyFilesNotDirectories(t *testing.T) {
 
 	// Should only get one document (the file, not directories)
 	doc, err := src.Next(ctx)
-	it.Then(t).Should(it.Nil(err))
+	it.Then(t).Must(it.Nil(err))
 	it.Then(t).Should(it.Equal(doc.Path, "/dir1/dir3/file.txt"))
 
 	// Second call should return EOF

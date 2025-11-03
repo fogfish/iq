@@ -6,7 +6,7 @@ require (
 	github.com/TylerBrock/colorjson v0.0.0-20200706003622-8a50f05110d2
 	github.com/fogfish/it/v2 v2.2.4
 	github.com/fogfish/scanner v0.0.1
-	github.com/fogfish/stream v1.3.2
+	github.com/fogfish/stream v1.3.3
 	github.com/goccy/go-yaml v1.18.0
 	github.com/google/cel-go v0.26.1
 	github.com/google/jsonschema-go v0.3.0
@@ -20,8 +20,6 @@ require (
 )
 
 replace github.com/kshard/thinker => ../../kshard/thinker
-
-replace github.com/fogfish/stream => ../stream
 
 require (
 	cel.dev/expr v0.24.0 // indirect
@@ -47,7 +45,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/sso v1.30.0 // indirect
 	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.35.4 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sts v1.39.0 // indirect
-	github.com/aws/smithy-go v1.23.1 // indirect
+	github.com/aws/smithy-go v1.23.2 // indirect
 	github.com/fatih/color v1.18.0 // indirect
 	github.com/fogfish/curie/v2 v2.1.2 // indirect
 	github.com/fogfish/faults v0.3.2 // indirect
