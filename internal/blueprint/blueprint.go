@@ -1,3 +1,11 @@
+//
+// Copyright (C) 2025 Dmitry Kolesnikov
+//
+// This file may be modified and distributed under the terms
+// of the MIT license.  See the LICENSE file for details.
+// https://github.com/fogfish/iq
+//
+
 package blueprint
 
 import (
@@ -63,22 +71,4 @@ func (bp *Blueprint) Prompt(ctx context.Context, input any, opt ...chatter.Opt) 
 	}
 
 	return job.Prompt(ctx, input, opt...)
-}
-
-// Jobs returns all available job names
-func (bp *Blueprint) Jobs() []string {
-	names := make([]string, 0, len(bp.workflow.Jobs))
-	for name := range bp.workflow.Jobs {
-		names = append(names, name)
-	}
-	return names
-}
-
-// GetJob returns a compiled job that implements the AI interface
-func (bp *Blueprint) GetJob(name string) (*compiler.Job, error) {
-	job, exists := bp.workflow.Jobs[name]
-	if !exists {
-		return nil, fmt.Errorf("job '%s' not found", name)
-	}
-	return job, nil
 }

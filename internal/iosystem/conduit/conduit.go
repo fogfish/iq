@@ -1,3 +1,11 @@
+//
+// Copyright (C) 2025 Dmitry Kolesnikov
+//
+// This file may be modified and distributed under the terms
+// of the MIT license.  See the LICENSE file for details.
+// https://github.com/fogfish/iq
+//
+
 package conduit
 
 import (
@@ -112,22 +120,26 @@ func (p *Conduit) Run(ctx context.Context, source iosystem.Source, sink iosystem
 	}
 
 	stats := &Stats{Created: time.Now()}
-	defer func() {
-		stats.Stopped = time.Now()
-		if p.config.Metrics != nil {
-			p.config.Metrics(*stats)
-		}
-	}()
 
-	// Sequential processing for now
-	// Concurrency will be added in Phase 4
+	var err error
+	// TODO: Concurrency
 	if p.config.Concurrency <= 1 {
-		return stats, p.runSequential(ctx, source, sink, stats)
+		err = p.runSequential(ctx, source, sink, stats)
+	} else {
+		err = p.runConcurrent(ctx, source, sink, stats)
 	}
 
-	return stats, p.runConcurrent(ctx, source, sink, stats)
+	// Report metrics after processing but before returning
+	// This ensures summary appears before any final output
+	stats.Stopped = time.Now()
+	if p.config.Metrics != nil {
+		p.config.Metrics(*stats)
+	}
+
+	return stats, err
 }
 
+// RunAsCmd executes the pipeline as a MCP.
 func (p *Conduit) RunAsCmd(ctx context.Context, ctr *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	r := source.NewReaderJSON("", bytes.NewBuffer(ctr.Params.Arguments))
 

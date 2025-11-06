@@ -133,15 +133,39 @@ func (t *thinking) Prompt(ctx context.Context, prompt []chatter.Message, opts ..
 		return nil, err
 	}
 
-	// Print thinking content
+	// Print thinking content using progress reporter if available
 	for _, c := range reply.Content {
 		switch v := c.(type) {
 		case chatter.Text:
-			fmt.Fprintf(os.Stderr, "\n  💭 %s\n\n", v)
+			t.printThinking(ctx, string(v))
 		}
 	}
 
 	return reply, nil
+}
+
+// printThinking outputs thinking content through progress reporter if available,
+// falls back to direct stderr output if not (for backwards compatibility)
+func (t *thinking) printThinking(ctx context.Context, text string) {
+	// Try to use progress reporter from context
+	if reporter := getReporter(ctx); reporter != nil {
+		reporter.ThinkingContent(text)
+	}
+}
+
+// getReporter extracts the progress reporter from context
+// This is a local helper to avoid importing internal/progress (would create import cycle)
+// The progress package stores the reporter using a plain string key
+func getReporter(ctx context.Context) interface{ ThinkingContent(string) } {
+	// Use plain string key (matches progress package)
+	const reporterKey = "iq.progress.reporter"
+
+	if r := ctx.Value(reporterKey); r != nil {
+		if reporter, ok := r.(interface{ ThinkingContent(string) }); ok {
+			return reporter
+		}
+	}
+	return nil
 }
 
 //------------------------------------------------------------------------------

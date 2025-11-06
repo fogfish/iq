@@ -1,3 +1,11 @@
+//
+// Copyright (C) 2025 Dmitry Kolesnikov
+//
+// This file may be modified and distributed under the terms
+// of the MIT license.  See the LICENSE file for details.
+// https://github.com/fogfish/iq
+//
+
 package compiler
 
 import (
@@ -6,6 +14,7 @@ import (
 	"time"
 
 	"github.com/fogfish/iq/internal/blueprint/ast"
+	"github.com/fogfish/iq/internal/progress"
 	"github.com/google/cel-go/cel"
 	"github.com/kshard/chatter"
 )
@@ -31,25 +40,32 @@ type Step interface {
 	GetOutputName() string
 }
 
-func (j *Job) Prompt(ctx context.Context, input any, opt ...chatter.Opt) (any, error) {
-	// Check if we already have a workflow context (sub-job call from router)
+func (job *Job) Prompt(ctx context.Context, input any, opt ...chatter.Opt) (any, error) {
 	wfCtx := GetWorkflowContext(ctx)
 	if wfCtx == nil {
-		// Create new workflow context and embed in Go context
 		ctx = NewWorkflowContext(ctx, input)
 	}
 
-	// Execute all steps
-	for i, step := range j.Steps {
-		if err := step.Prompt(ctx, opt...); err != nil {
+	totalSteps := len(job.Steps)
+	for i, step := range job.Steps {
+		stepInfo := progress.StepInfo{
+			JobName:    job.Name,
+			StepName:   step.GetOutputName(),
+			StepNum:    i + 1,
+			TotalSteps: totalSteps,
+		}
+		stepCtx := progress.WithStepInfo(ctx, stepInfo)
+
+		if err := step.Prompt(stepCtx, opt...); err != nil {
 			return nil, fmt.Errorf("step %d failed: %w", i, err)
 		}
 	}
 
-	// Extract final output from context
 	wfCtx = GetWorkflowContext(ctx)
 	return wfCtx.Current, nil
 }
+
+//------------------------------------------------------------------------------
 
 // AgentStep is a simple agent execution step
 type AgentStep struct {
@@ -59,46 +75,76 @@ type AgentStep struct {
 }
 
 // GetOutputName returns the name to store output under
-func (s *AgentStep) GetOutputName() string {
-	return s.OutputName
+func (step *AgentStep) GetOutputName() string {
+	return step.OutputName
 }
 
 // Prompt executes the agent
-func (s *AgentStep) Prompt(ctx context.Context, opt ...chatter.Opt) error {
-	// Extract workflow context from Go context
+func (step *AgentStep) Prompt(ctx context.Context, opt ...chatter.Opt) error {
 	wfCtx := GetWorkflowContext(ctx)
 	if wfCtx == nil {
 		return fmt.Errorf("workflow context not found in context")
+	}
+
+	// Get progress reporter and step info
+	reporter := progress.FromContext(ctx)
+	stepInfo := progress.GetStepInfo(ctx)
+
+	startTime := time.Now()
+
+	if reporter != nil && stepInfo != nil {
+		reporter.StepStart(stepInfo.JobName, stepInfo.StepName, stepInfo.StepNum, stepInfo.TotalSteps)
 	}
 
 	var result any
 	var err error
 
 	// Retry logic
-	for i := range s.Retry.Attempts {
-		// Pass the full context map to agent templates
-		result, err = s.Agent.Prompt(ctx, wfCtx.ToMap(), opt...)
+	for i := range step.Retry.Attempts {
+		if i > 0 && reporter != nil && step.Retry.Attempts > 1 {
+			reporter.RetryAttempt(i+1, step.Retry.Attempts, time.Duration(step.Retry.Delay)*time.Second)
+		}
+
+		result, err = step.Agent.Prompt(ctx, wfCtx.ToMap(), opt...)
 		if err == nil {
+			if i > 0 && reporter != nil {
+				reporter.RetrySuccess(i + 1)
+			}
 			break
 		}
-		if i < s.Retry.Attempts-1 {
-			time.Sleep(time.Duration(s.Retry.Delay) * time.Second)
+		if i < step.Retry.Attempts-1 {
+			time.Sleep(time.Duration(step.Retry.Delay) * time.Second)
 		}
 	}
 
 	if err != nil {
+		if reporter != nil && stepInfo != nil {
+			reporter.StepError(stepInfo.JobName, stepInfo.StepName, stepInfo.StepNum, stepInfo.TotalSteps, err)
+		}
+		if step.Retry.Attempts > 1 && reporter != nil {
+			reporter.RetryExhausted(step.Retry.Attempts)
+		}
 		return fmt.Errorf("all attempts failed: %w", err)
 	}
 
+	// Report step complete
+	if reporter != nil && stepInfo != nil {
+		duration := time.Since(startTime)
+		// TODO: Track actual token usage from LLM response
+		reporter.StepComplete(stepInfo.JobName, stepInfo.StepName, stepInfo.StepNum, stepInfo.TotalSteps, duration, 0)
+	}
+
 	// Store output in context
-	if s.OutputName != "" {
-		wfCtx.SetStepOutput(s.OutputName, result)
+	if step.OutputName != "" {
+		wfCtx.SetStepOutput(step.OutputName, result)
 	} else {
 		wfCtx.Current = result
 	}
 
 	return nil
 }
+
+//------------------------------------------------------------------------------
 
 // RouterStep is a conditional routing step
 type RouterStep struct {
@@ -113,51 +159,52 @@ type RouterStep struct {
 }
 
 // GetOutputName returns the name to store output under
-func (r *RouterStep) GetOutputName() string {
-	return r.OutputName
+func (step *RouterStep) GetOutputName() string {
+	return step.OutputName
 }
 
-func (r *RouterStep) prompt(ctx context.Context, opt ...chatter.Opt) (any, error) {
-	if r.Agent == nil {
+func (step *RouterStep) prompt(ctx context.Context, opt ...chatter.Opt) (any, error) {
+	if step.Agent == nil {
 		return nil, nil
 	}
 
-	// Extract workflow context
 	wfCtx := GetWorkflowContext(ctx)
 	if wfCtx == nil {
 		return nil, fmt.Errorf("workflow context not found in context")
 	}
 
-	for i := range r.Retry.Attempts {
-		// Pass the full context map to agent templates
-		reply, err := r.Agent.Prompt(ctx, wfCtx.ToMap(), opt...)
+	for i := range step.Retry.Attempts {
+		reply, err := step.Agent.Prompt(ctx, wfCtx.ToMap(), opt...)
 		if err == nil {
 			return reply, nil
 		}
-		if i < r.Retry.Attempts-1 {
-			time.Sleep(time.Duration(r.Retry.Delay) * time.Second)
+		if i < step.Retry.Attempts-1 {
+			time.Sleep(time.Duration(step.Retry.Delay) * time.Second)
 		}
 	}
 	return nil, fmt.Errorf("all attempts failed")
 }
 
 // Prompt executes the router: runs agent, evaluates conditions, routes to appropriate job
-func (r *RouterStep) Prompt(ctx context.Context, opt ...chatter.Opt) error {
-	// Extract workflow context
+func (step *RouterStep) Prompt(ctx context.Context, opt ...chatter.Opt) error {
 	wfCtx := GetWorkflowContext(ctx)
 	if wfCtx == nil {
 		return fmt.Errorf("workflow context not found in context")
 	}
 
-	// Execute agent to get choice
-	choice, err := r.prompt(ctx, opt...)
+	reporter := progress.FromContext(ctx)
+	if reporter != nil {
+		reporter.RouterEvaluating()
+	}
+
+	choice, err := step.prompt(ctx, opt...)
 	if err != nil {
 		return fmt.Errorf("router agent failed: %w", err)
 	}
 
 	// Evaluate conditions in order
 	// Pass full workflow context to CEL expressions
-	for i, condition := range r.Conditions {
+	for i, condition := range step.Conditions {
 		result, _, err := condition.Eval(map[string]any{
 			"choice":   choice,
 			"state":    wfCtx.State,
@@ -166,29 +213,30 @@ func (r *RouterStep) Prompt(ctx context.Context, opt ...chatter.Opt) error {
 		})
 		if err != nil {
 			return fmt.Errorf("failed to evaluate route condition '%s': %w",
-				r.RouteNodes[i].When, err)
+				step.RouteNodes[i].When, err)
 		}
 
 		// Check if condition matches
 		if matches, ok := result.Value().(bool); ok && matches {
-			routeName := r.RouteNodes[i].Route
-			job := r.Routes[routeName]
+			routeName := step.RouteNodes[i].Route
+			job := step.Routes[routeName]
 			if job == nil {
 				return fmt.Errorf("route '%s' not resolved", routeName)
 			}
 
-			// Save current value before job execution
+			if reporter != nil {
+				reporter.RouterMatched(routeName, job.Name)
+			}
+
 			savedCurrent := wfCtx.Current
 
-			// Execute the routed job (it will modify wfCtx.Current)
 			jobResult, err := job.Prompt(ctx, savedCurrent, opt...)
 			if err != nil {
 				return err
 			}
 
-			// Store output in context
-			if r.OutputName != "" {
-				wfCtx.SetStepOutput(r.OutputName, jobResult)
+			if step.OutputName != "" {
+				wfCtx.SetStepOutput(step.OutputName, jobResult)
 			} else {
 				wfCtx.Current = jobResult
 			}
@@ -198,18 +246,20 @@ func (r *RouterStep) Prompt(ctx context.Context, opt ...chatter.Opt) error {
 	}
 
 	// No route matched, use default
-	if r.Default != nil {
-		// Save current value before job execution
+	if step.Default != nil {
+		if reporter != nil {
+			reporter.RouterDefault(step.Default.Name)
+		}
+
 		savedCurrent := wfCtx.Current
 
-		jobResult, err := r.Default.Prompt(ctx, savedCurrent, opt...)
+		jobResult, err := step.Default.Prompt(ctx, savedCurrent, opt...)
 		if err != nil {
 			return err
 		}
 
-		// Store output in context
-		if r.OutputName != "" {
-			wfCtx.SetStepOutput(r.OutputName, jobResult)
+		if step.OutputName != "" {
+			wfCtx.SetStepOutput(step.OutputName, jobResult)
 		} else {
 			wfCtx.Current = jobResult
 		}
@@ -217,8 +267,15 @@ func (r *RouterStep) Prompt(ctx context.Context, opt ...chatter.Opt) error {
 		return nil
 	}
 
+	// No route matched at all
+	if reporter != nil {
+		reporter.RouterNoMatch()
+	}
+
 	return fmt.Errorf("no matching route for choice: %v", choice)
 }
+
+//------------------------------------------------------------------------------
 
 // ForeachStep executes a job for each item in an array
 type ForeachStep struct {
@@ -230,32 +287,33 @@ type ForeachStep struct {
 }
 
 // GetOutputName returns the name to store output under
-func (s *ForeachStep) GetOutputName() string {
-	return s.OutputName
+func (step *ForeachStep) GetOutputName() string {
+	return step.OutputName
 }
 
 // Prompt executes the foreach step
-func (s *ForeachStep) Prompt(ctx context.Context, opt ...chatter.Opt) error {
-	// Extract workflow context
+func (step *ForeachStep) Prompt(ctx context.Context, opt ...chatter.Opt) error {
 	wfCtx := GetWorkflowContext(ctx)
 	if wfCtx == nil {
 		return fmt.Errorf("workflow context not found in context")
 	}
 
+	reporter := progress.FromContext(ctx)
+	startTime := time.Now()
+
 	// Get or generate the array
 	var items []any
-	if s.UsesAgent != nil {
-		// Generate array using the agent
+	if step.UsesAgent != nil {
 		var result any
 		var err error
 
-		for i := range s.Retry.Attempts {
-			result, err = s.UsesAgent.Prompt(ctx, wfCtx.ToMap(), opt...)
+		for i := range step.Retry.Attempts {
+			result, err = step.UsesAgent.Prompt(ctx, wfCtx.ToMap(), opt...)
 			if err == nil {
 				break
 			}
-			if i < s.Retry.Attempts-1 {
-				time.Sleep(time.Duration(s.Retry.Delay) * time.Second)
+			if i < step.Retry.Attempts-1 {
+				time.Sleep(time.Duration(step.Retry.Delay) * time.Second)
 			}
 		}
 
@@ -263,14 +321,12 @@ func (s *ForeachStep) Prompt(ctx context.Context, opt ...chatter.Opt) error {
 			return fmt.Errorf("failed to generate array: %w", err)
 		}
 
-		// Convert result to array
 		if arr, ok := result.([]any); ok {
 			items = arr
 		} else {
 			return fmt.Errorf("agent result is not an array: %T", result)
 		}
 	} else {
-		// Use current value from context
 		if arr, ok := wfCtx.Current.([]any); ok {
 			items = arr
 		} else {
@@ -278,23 +334,41 @@ func (s *ForeachStep) Prompt(ctx context.Context, opt ...chatter.Opt) error {
 		}
 	}
 
+	if reporter != nil {
+		reporter.ForeachStart(len(items))
+	}
+
 	// Execute job for each item
 	results := make([]any, 0, len(items))
+	successCount := 0
 	for i, item := range items {
 		// Create a fresh workflow context for this iteration
 		// This ensures the item becomes .input/.current for the sub-job
 		itemCtx := NewWorkflowContext(context.Background(), item)
 
-		result, err := s.Job.Prompt(itemCtx, item, opt...)
+		result, err := step.Job.Prompt(itemCtx, item, opt...)
 		if err != nil {
+			if reporter != nil {
+				reporter.ForeachItem(i+1, len(items), fmt.Sprintf("❌ item-%d → failed: %v", i+1, err))
+			}
 			return fmt.Errorf("foreach iteration %d failed: %w", i, err)
 		}
+
+		if reporter != nil {
+			reporter.ForeachItem(i+1, len(items), fmt.Sprintf("✅ item-%d → completed", i+1))
+		}
+		successCount++
 		results = append(results, result)
 	}
 
+	// Report foreach complete
+	if reporter != nil {
+		reporter.ForeachComplete(successCount, len(items), time.Since(startTime))
+	}
+
 	// Store results in context
-	if s.OutputName != "" {
-		wfCtx.SetStepOutput(s.OutputName, results)
+	if step.OutputName != "" {
+		wfCtx.SetStepOutput(step.OutputName, results)
 	} else {
 		wfCtx.Current = results
 	}

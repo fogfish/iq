@@ -423,15 +423,14 @@ Enable tool access via Model Context Protocol servers:
 ```markdown
 ---
 servers:
+  - name: filesystem
+    command: ["npx", "-y", "@modelcontextprotocol/server-filesystem", "./"]
+
   - name: weather
-    command:
-      - python
-      - weather_server.py
+    command: ["python", "weather_server.py"]
+
   - name: calculator
-    command:
-      - ./calc-service
-      - --port
-      - "8080"
+    command: ["./calc-service", "--port", "8080"]
 ---
 Get weather for San Francisco and calculate temperature in Celsius.
 ```
@@ -469,6 +468,42 @@ See examples about possible patterns:
 3. **Use templates wisely**: Reference only the context you need
 4. **Request structured output**: Use `format: json` with schema for parsing
 5. **Test incrementally**: Build workflows step by step, testing each addition
+
+> [!TIP]
+> [TELeR framework](https://aclanthology.org/2023.findings-emnlp.946.pdf) — a practical taxonomy that breaks prompts into clear components: Task, Environment, Learner, and Response. This approach helps you craft reusable prompts by clearly defining goals, constraints, tone, and expected outputs. Use it to improve prompt quality, automate workflows, and ensure consistent LLM behavior across files and tasks.
+> 
+
+Use `iq draft` command to create an empty structured prompt YAML file:
+
+```yaml
+prompt: |
+  [Describe the task and goals clearly and concisely].
+  
+  Guidelines:
+    (1) [High-level principles or approach to follow.]
+    (2) ...
+
+  Strictly adhere to the following requirements when generating a response.
+  Do not deviate, ignore, or modify any aspect of them:
+    1. [Concrete requirement]
+    2. [Another specific rule]
+    ...
+
+  Example Input:
+  [Show an example of what the input might look like.]
+
+  Expected Output:
+  [Demonstrate the ideal format or structure of the response.]
+
+  Additional Context:
+    - [Relevant detail #1]
+    - [Constraint or domain knowledge #2]
+    - ...
+
+  Input:
+    [Insert the actual input here]
+```
+
 
 ### Maintenance
 

@@ -75,6 +75,7 @@ func (b *Builder) Merge(enable bool) *Builder {
 	return b
 }
 
+// Path sets the input to read from files from dir path.
 func (b *Builder) Path(path string) *Builder {
 	if b.err != nil || b.src != nil || len(path) == 0 {
 		return b
@@ -123,6 +124,7 @@ func HasStdinBytes() bool {
 	return (fi.Mode() & os.ModeCharDevice) == 0
 }
 
+// Mounts local or S3 filesystem based on path prefix.
 func Mount(path string) (spool.FileSystem, error) {
 	if len(path) == 0 {
 		return nil, fmt.Errorf("undefined mount point")

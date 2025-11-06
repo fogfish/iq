@@ -1,3 +1,11 @@
+//
+// Copyright (C) 2025 Dmitry Kolesnikov
+//
+// This file may be modified and distributed under the terms
+// of the MIT license.  See the LICENSE file for details.
+// https://github.com/fogfish/iq
+//
+
 package compiler
 
 import (
@@ -17,12 +25,15 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
+// Agent represents a compiled agent bound with a thinker state machine.
 type Agent struct {
 	Node     *ast.AgentNode
 	manifold *agent.Manifold[any, any]
+	prompt   *template.Template
 	servers  []Server
 }
 
+// active MCP server session
 type Server struct {
 	uid string
 	cmd *mcp.CommandTransport
@@ -30,8 +41,12 @@ type Server struct {
 	api *mcp.ClientSession
 }
 
+// create an instance of the agent from its AST node
 func (agt *Agent) compile(ctx context.Context, llm chatter.Chatter) error {
 	agt.servers = make([]Server, len(agt.Node.Servers))
+
+	//
+	// MCP
 
 	registry := command.NewRegistry()
 	for i, srv := range agt.Node.Servers {
@@ -48,6 +63,18 @@ func (agt *Agent) compile(ctx context.Context, llm chatter.Chatter) error {
 		}
 	}
 
+	//
+	// Prompt
+
+	prompt, err := template.New("").Parse(agt.Node.Prompt)
+	if err != nil {
+		return err
+	}
+	agt.prompt = prompt
+
+	//
+	// Agent State Machine
+
 	agt.manifold = agent.NewManifold(llm,
 		codec.FromEncoder(agt.encode),
 		codec.FromDecoder(agt.decode),
@@ -57,6 +84,7 @@ func (agt *Agent) compile(ctx context.Context, llm chatter.Chatter) error {
 	return nil
 }
 
+// Prompt executes the agent with given input and returns the output
 func (agt *Agent) Prompt(ctx context.Context, input any, opt ...chatter.Opt) (any, error) {
 	reply, err := agt.manifold.Prompt(ctx, input, opt...)
 	if err != nil {
@@ -122,13 +150,8 @@ func (agt *Agent) encodeStruct(in map[string]any) (chatter.Message, error) {
 		}
 	}
 
-	txt, err := template.New("").Parse(agt.Node.Prompt)
-	if err != nil {
-		return nil, err
-	}
-
 	var sb strings.Builder
-	err = txt.Execute(&sb, in)
+	err := agt.prompt.Execute(&sb, in)
 	if err != nil {
 		return nil, err
 	}

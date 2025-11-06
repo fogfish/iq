@@ -9,16 +9,18 @@
 package worker
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/fogfish/iq/internal/blueprint"
+	"github.com/fogfish/iq/internal/iosystem"
 	"github.com/fogfish/iq/internal/iosystem/conduit"
 	"github.com/fogfish/iq/internal/iosystem/processor"
+	"github.com/fogfish/iq/internal/progress"
 	"github.com/kshard/chatter"
 )
 
 // Builder creates a configured conduit with processors using builder pattern.
-// Each method immediately creates/configures the conduit.
 //
 // Example:
 //
@@ -28,9 +30,10 @@ import (
 //	    Concurrency(4).
 //	    Build()
 type Builder struct {
-	conduit conduit.Config
-	runtime *conduit.Conduit
-	err     error
+	conduit  conduit.Config
+	runtime  *conduit.Conduit
+	reporter *progress.Reporter
+	err      error
 }
 
 // New creates a new conduit builder with default configuration.
@@ -88,6 +91,33 @@ func (b *Builder) Metrics(fn conduit.MetricsFunc) *Builder {
 	return b
 }
 
+// Reporter sets the progress reporter and wires up callbacks
+func (b *Builder) Reporter(r *progress.Reporter) *Builder {
+	if b.err != nil || r == nil {
+		return b
+	}
+
+	b.reporter = r
+
+	// Wire up progress callback
+	b.conduit.Progress = func(doc *iosystem.Document, err error) {
+		if err != nil {
+			r.DocumentError(doc.Path, err)
+		} else {
+			// We'll report completion at the end of processing
+		}
+	}
+
+	// Wire up metrics callback for final summary
+	b.conduit.Metrics = func(stats conduit.Stats) {
+		if stats.DocsProcessed > 0 || stats.DocsSkipped > 0 || len(stats.Errors) > 0 {
+			r.Summary()
+		}
+	}
+
+	return b
+}
+
 func (b *Builder) Runtime() *Builder {
 	if b.err != nil {
 		return b
@@ -98,7 +128,7 @@ func (b *Builder) Runtime() *Builder {
 }
 
 func (b *Builder) Splitter(conf processor.ChunkConfig) *Builder {
-	if b.err != nil || b.runtime == nil || conf.Strategy == processor.StrategyNone {
+	if b.err != nil || b.runtime == nil || conf.Strategy == processor.ChunkerNone {
 		return b
 	}
 
@@ -146,8 +176,8 @@ func (b *Builder) Jsonify(enable bool) *Builder {
 }
 
 // Build creates the configured conduit with blueprint processor.
-// Returns the conduit ready to run with source and sink.
-func (b *Builder) Build() (*conduit.Conduit, error) {
+// Returns a wrapped conduit that includes progress reporter in context.
+func (b *Builder) Build() (*ConduitWithReporter, error) {
 	if b.err != nil {
 		return nil, b.err
 	}
@@ -156,5 +186,68 @@ func (b *Builder) Build() (*conduit.Conduit, error) {
 		return nil, fmt.Errorf("undefined workflow")
 	}
 
-	return b.runtime, nil
+	return &ConduitWithReporter{
+		Conduit:  b.runtime,
+		reporter: b.reporter,
+	}, nil
+}
+
+// ConduitWithReporter wraps a conduit and injects progress reporter into context
+type ConduitWithReporter struct {
+	*conduit.Conduit
+	reporter *progress.Reporter
+}
+
+// Run executes the pipeline with progress reporter in context
+func (c *ConduitWithReporter) Run(ctx context.Context, source iosystem.Source, sink iosystem.Sink) (*conduit.Stats, error) {
+	// Add reporter to context if available
+	if c.reporter != nil {
+		ctx = progress.WithReporter(ctx, c.reporter)
+
+		// Wrap sink to buffer output until after summary
+		sink = newBufferingSink(sink)
+	}
+
+	stats, err := c.Conduit.Run(ctx, source, sink)
+
+	// If we have a buffering sink, flush it after summary
+	if bufSink, ok := sink.(*bufferingSink); ok {
+		bufSink.Flush()
+	}
+
+	return stats, err
+}
+
+// bufferingSink buffers all writes and flushes them on demand
+type bufferingSink struct {
+	target iosystem.Sink
+	buffer []*iosystem.Document
+}
+
+func newBufferingSink(target iosystem.Sink) *bufferingSink {
+	return &bufferingSink{
+		target: target,
+		buffer: make([]*iosystem.Document, 0),
+	}
+}
+
+func (s *bufferingSink) Write(ctx context.Context, doc *iosystem.Document) error {
+	// Buffer the document instead of writing immediately
+	s.buffer = append(s.buffer, doc)
+	return nil
+}
+
+func (s *bufferingSink) Flush() error {
+	// Write all buffered documents to the target sink
+	for _, doc := range s.buffer {
+		if err := s.target.Write(context.Background(), doc); err != nil {
+			return err
+		}
+	}
+	s.buffer = nil
+	return nil
+}
+
+func (s *bufferingSink) Close() error {
+	return s.target.Close()
 }

@@ -1,3 +1,11 @@
+//
+// Copyright (C) 2025 Dmitry Kolesnikov
+//
+// This file may be modified and distributed under the terms
+// of the MIT license.  See the LICENSE file for details.
+// https://github.com/fogfish/iq
+//
+
 package parser
 
 import (
@@ -39,7 +47,7 @@ func (p *Parser) Parse(file string) (*ast.AST, error) {
 
 // parseYAML parses a blueprint YAML file and all referenced agents
 func (p *Parser) parseYAML(file string) (*ast.AST, error) {
-	blueprint, err := p.ParseBlueprint(file)
+	yaml, blueprint, err := p.ParseBlueprint(file)
 	if err != nil {
 		return nil, err
 	}
@@ -70,6 +78,31 @@ func (p *Parser) parseYAML(file string) (*ast.AST, error) {
 		agents[agentFile] = agent
 	}
 
+	// Parse all inline agents
+	for jobID, job := range yaml.Jobs {
+		for stepID, step := range job.Steps {
+			if step.Prompt != "" {
+				syntheticPath := fmt.Sprintf("__inline_%s_%d__", jobID, stepID)
+				syntheticNode := &ast.AgentNode{
+					Name:   syntheticPath,
+					Schema: ast.SchemaNode{},
+					Prompt: step.Prompt,
+				}
+				agents[syntheticPath] = syntheticNode
+
+				step := blueprint.Jobs[jobID].Steps[stepID]
+				switch s := step.(type) {
+				case *ast.AgentStepNode:
+					s.Uses = syntheticPath
+				case *ast.RouterStepNode:
+					s.Uses = syntheticPath
+				case *ast.ForeachStepNode:
+					s.Uses = syntheticPath
+				}
+			}
+		}
+	}
+
 	return &ast.AST{
 		Blueprint: blueprint,
 		Agents:    agents,
@@ -78,27 +111,21 @@ func (p *Parser) parseYAML(file string) (*ast.AST, error) {
 
 // parseMarkdown parses a standalone Markdown file as a single-step workflow
 func (p *Parser) parseMarkdown(file string) (*ast.AST, error) {
-	// Parse the markdown file as an agent
 	agent, err := p.ParseAgent(file)
 	if err != nil {
 		return nil, err
 	}
 
-	// Create synthetic blueprint with single job
-	blueprint := &ast.BlueprintNode{
+	synthetic := &ast.BlueprintNode{
 		Name:       filepath.Base(file),
 		Entrypoint: "main",
-		RunsOn:     "", // Will use default LLM
 		Jobs: map[string]*ast.JobNode{
 			"main": {
-				Name:   "main",
-				RunsOn: "",
+				Name: "main",
 				Steps: []ast.StepNode{
 					&ast.AgentStepNode{
-						Name:   "prompt",
-						Uses:   file,
-						Output: "",
-						Retry:  nil,
+						Name: "prompt",
+						Uses: file,
 					},
 				},
 			},
@@ -107,7 +134,7 @@ func (p *Parser) parseMarkdown(file string) (*ast.AST, error) {
 
 	// Return AST with inline agent
 	return &ast.AST{
-		Blueprint: blueprint,
+		Blueprint: synthetic,
 		Agents: map[string]*ast.AgentNode{
 			file: agent,
 		},
@@ -115,22 +142,22 @@ func (p *Parser) parseMarkdown(file string) (*ast.AST, error) {
 }
 
 // ParseBlueprint parses a blueprint YAML file
-func (p *Parser) ParseBlueprint(file string) (*ast.BlueprintNode, error) {
+func (p *Parser) ParseBlueprint(file string) (*blueprintYAML, *ast.BlueprintNode, error) {
 	fd, err := os.Open(file)
 	if err != nil {
-		return nil, fmt.Errorf("failed to open blueprint: %w", err)
+		return nil, nil, fmt.Errorf("failed to open blueprint: %w", err)
 	}
 	defer fd.Close()
 
 	var raw blueprintYAML
 	if err := yaml.NewDecoder(fd).Decode(&raw); err != nil {
-		return nil, fmt.Errorf("failed to parse blueprint YAML: %w", err)
+		return nil, nil, fmt.Errorf("failed to parse blueprint YAML: %w", err)
 	}
 
 	// Update baseDir based on blueprint file location
 	p.baseDir = filepath.Dir(file)
 
-	return p.convertBlueprint(&raw), nil
+	return &raw, p.convertBlueprint(&raw), nil
 }
 
 // ParseAgent parses an agent definition file
@@ -222,6 +249,7 @@ type stepYAML struct {
 	Default string       `yaml:"default,omitempty"`
 	Foreach *foreachYAML `yaml:"foreach,omitempty"`
 	Retry   *retryYAML   `yaml:"retry,omitempty"`
+	Prompt  string       `yaml:"prompt,omitempty"`
 }
 
 type foreachYAML struct {

@@ -1,3 +1,11 @@
+//
+// Copyright (C) 2025 Dmitry Kolesnikov
+//
+// This file may be modified and distributed under the terms
+// of the MIT license.  See the LICENSE file for details.
+// https://github.com/fogfish/iq
+//
+
 package compiler
 
 import (
@@ -13,11 +21,6 @@ import (
 type Compiler struct {
 	llm    chatter.Chatter
 	celEnv *cel.Env
-}
-
-// Factory provides dependencies for compilation
-type Factory interface {
-	LLM(name string) (chatter.Chatter, error)
 }
 
 // New creates a new compiler

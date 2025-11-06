@@ -1,3 +1,11 @@
+//
+// Copyright (C) 2025 Dmitry Kolesnikov
+//
+// This file may be modified and distributed under the terms
+// of the MIT license.  See the LICENSE file for details.
+// https://github.com/fogfish/iq
+//
+
 package processor_test
 
 import (
@@ -29,7 +37,7 @@ func TestIdentityProcessor(t *testing.T) {
 
 func TestChunkerProcessor_None(t *testing.T) {
 	proc := processor.NewChunker(processor.ChunkConfig{
-		Strategy: processor.StrategyNone,
+		Strategy: processor.ChunkerNone,
 	})
 	defer proc.Close()
 
@@ -49,7 +57,7 @@ func TestChunkerProcessor_None(t *testing.T) {
 
 func TestChunkerProcessor_Sentence(t *testing.T) {
 	proc := processor.NewChunker(processor.ChunkConfig{
-		Strategy: processor.StrategySentence,
+		Strategy: processor.ChunkerSentence,
 	})
 	defer proc.Close()
 
@@ -75,7 +83,7 @@ func TestChunkerProcessor_Sentence(t *testing.T) {
 
 func TestChunkerProcessor_Paragraph(t *testing.T) {
 	proc := processor.NewChunker(processor.ChunkConfig{
-		Strategy: processor.StrategyParagraph,
+		Strategy: processor.ChunkerParagraph,
 	})
 	defer proc.Close()
 
@@ -93,7 +101,7 @@ func TestChunkerProcessor_Paragraph(t *testing.T) {
 
 func TestChunkerProcessor_Chunk(t *testing.T) {
 	proc := processor.NewChunker(processor.ChunkConfig{
-		Strategy:  processor.StrategyChunk,
+		Strategy:  processor.ChunkerChunk,
 		ChunkSize: 50,
 	})
 	defer proc.Close()
@@ -112,7 +120,7 @@ func TestChunkerProcessor_Chunk(t *testing.T) {
 
 func TestChunkerProcessor_EmptyContent(t *testing.T) {
 	proc := processor.NewChunker(processor.ChunkConfig{
-		Strategy: processor.StrategySentence,
+		Strategy: processor.ChunkerSentence,
 	})
 	defer proc.Close()
 
@@ -129,7 +137,7 @@ func TestChunkerProcessor_EmptyContent(t *testing.T) {
 
 func TestChunkerProcessor_PreservesMetadata(t *testing.T) {
 	proc := processor.NewChunker(processor.ChunkConfig{
-		Strategy: processor.StrategySentence,
+		Strategy: processor.ChunkerSentence,
 	})
 	defer proc.Close()
 

@@ -5,6 +5,7 @@ go 1.24.0
 require (
 	github.com/TylerBrock/colorjson v0.0.0-20200706003622-8a50f05110d2
 	github.com/fogfish/it/v2 v2.2.4
+	github.com/fogfish/opts v0.0.5
 	github.com/fogfish/scanner v0.0.1
 	github.com/fogfish/stream v1.3.3
 	github.com/goccy/go-yaml v1.18.0
@@ -15,8 +16,9 @@ require (
 	github.com/kshard/chatter/provider/autoconfig v0.10.0
 	github.com/kshard/thinker v0.2.0
 	github.com/modelcontextprotocol/go-sdk v1.0.0
+	github.com/nickwells/twrap.mod v1.5.10
 	github.com/spf13/cobra v1.9.1
-	github.com/spf13/viper v1.20.1
+	golang.org/x/term v0.34.0
 )
 
 replace github.com/kshard/thinker => ../../kshard/thinker
@@ -55,33 +57,26 @@ require (
 	github.com/fogfish/gurl/v2 v2.10.0 // indirect
 	github.com/fogfish/logger/v3 v3.2.0 // indirect
 	github.com/fogfish/logger/x/xlog v0.0.1 // indirect
-	github.com/fogfish/opts v0.0.5 // indirect
-	github.com/fsnotify/fsnotify v1.9.0 // indirect
-	github.com/go-viper/mapstructure/v2 v2.4.0 // indirect
 	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/hokaccha/go-prettyjson v0.0.0-20211117102719-0474bc63780f // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
+	github.com/kr/text v0.2.0 // indirect
 	github.com/kshard/chatter/provider/bedrock v0.10.0 // indirect
 	github.com/kshard/chatter/provider/openai v0.10.0 // indirect
 	github.com/kshard/float8 v0.0.3 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
-	github.com/pelletier/go-toml/v2 v2.2.4 // indirect
-	github.com/sagikazarmark/locafero v0.10.0 // indirect
-	github.com/sourcegraph/conc v0.3.1-0.20240121214520-5f936abd7ae8 // indirect
-	github.com/spf13/afero v1.14.0 // indirect
-	github.com/spf13/cast v1.9.2 // indirect
+	github.com/nickwells/mathutil.mod/v2 v2.5.5 // indirect
 	github.com/spf13/pflag v1.0.7 // indirect
 	github.com/stoewer/go-strcase v1.2.0 // indirect
-	github.com/subosito/gotenv v1.6.0 // indirect
+	github.com/stretchr/testify v1.10.0 // indirect
 	github.com/yosida95/uritemplate/v3 v3.0.2 // indirect
-	golang.org/x/exp v0.0.0-20230515195305-f3d0a9c9a5cc // indirect
+	golang.org/x/exp v0.0.0-20250620022241-b7579e27df2b // indirect
 	golang.org/x/net v0.43.0 // indirect
 	golang.org/x/sys v0.37.0 // indirect
-	golang.org/x/text v0.28.0 // indirect
 	golang.org/x/time v0.12.0 // indirect
+	golang.org/x/tools v0.35.0 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20240826202546-f6391c0de4c7 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20240826202546-f6391c0de4c7 // indirect
 	google.golang.org/protobuf v1.34.2 // indirect
-	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

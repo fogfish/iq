@@ -1,3 +1,11 @@
+//
+// Copyright (C) 2025 Dmitry Kolesnikov
+//
+// This file may be modified and distributed under the terms
+// of the MIT license.  See the LICENSE file for details.
+// https://github.com/fogfish/iq
+//
+
 package compiler
 
 import (
@@ -6,12 +14,9 @@ import (
 	"github.com/fogfish/iq/internal/blueprint/ast"
 )
 
-// contextKey is a private type for context keys to avoid collisions
-type contextKey int
-
 const (
 	// workflowContextKey is the key for workflow context in context.Context
-	workflowContextKey contextKey = iota
+	workflowContextKey = "iq.workflow"
 )
 
 // WorkflowContext holds the execution state for a workflow
@@ -42,6 +47,8 @@ func NewWorkflowContext(ctx context.Context, input any) context.Context {
 		Steps:   make(map[string]any),
 		Current: input,
 	}
+
+	//lint:ignore SA1029 due to cross-package context key access
 	return context.WithValue(ctx, workflowContextKey, wfCtx)
 }
 

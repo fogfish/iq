@@ -45,8 +45,8 @@ Profiles:
   You can manage multiple configurations by setting different profile names.
   The credentials are read from ~/.netrc under the specified profile.
 
-	iq ask -c aws
-	iq ask --config gpt4o
+	iq ask -p aws
+	iq ask --profile gpt4o
 
 See more info https://github.com/fogfish/iq
 	`,
@@ -55,7 +55,7 @@ See more info https://github.com/fogfish/iq
   iq config --bedrock                 configure Amazon Bedrock (Converse API) usage
   iq config --lmstudio                connect to a local LM Studio instance
 
-  iq config --bedrock --config aws --llm us.meta.llama3-3-70b-instruct-v1:0
+  iq config --bedrock --profile aws --llm-id us.meta.llama3-3-70b-instruct-v1:0
   `,
 	SilenceUsage:  true,
 	SilenceErrors: true,
@@ -122,7 +122,7 @@ func config(cmd *cobra.Command, args []string) error {
 	}
 
 	fmt.Fprintf(os.Stdout, "\n ✅ All good — you're set up and ready to go!\n")
-	fmt.Fprintf(os.Stdout, "    %s is default model, use -m, --llm flags to override it.\n", fmodel.model)
+	fmt.Fprintf(os.Stdout, "    %s is default model, use -m, --llm-id flags to override it.\n", fmodel.model)
 	fmt.Fprintf(os.Stdout, "    You might need to adjust config at ~/.netrc later, based on your setup.\n")
 	return nil
 }

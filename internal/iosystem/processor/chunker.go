@@ -1,3 +1,11 @@
+//
+// Copyright (C) 2025 Dmitry Kolesnikov
+//
+// This file may be modified and distributed under the terms
+// of the MIT license.  See the LICENSE file for details.
+// https://github.com/fogfish/iq
+//
+
 package processor
 
 import (
@@ -12,10 +20,10 @@ import (
 
 // Chunking strategies
 const (
-	StrategyNone      = "none"
-	StrategySentence  = "sentence"
-	StrategyParagraph = "paragraph"
-	StrategyChunk     = "chunk"
+	ChunkerNone      = "none"
+	ChunkerSentence  = "sentence"
+	ChunkerParagraph = "paragraph"
+	ChunkerChunk     = "chunk"
 )
 
 // Chunker splits documents into chunks based on a strategy.
@@ -37,7 +45,7 @@ type ChunkConfig struct {
 // Returns multiple documents from a single input, one per chunk.
 func NewChunker(config ChunkConfig) iosystem.Processor {
 	if config.Strategy == "" {
-		config.Strategy = StrategyNone
+		config.Strategy = ChunkerNone
 	}
 	if config.ChunkSize == 0 {
 		config.ChunkSize = 1024
@@ -94,21 +102,21 @@ func (p *Chunker) Process(ctx context.Context, doc *iosystem.Document) ([]*iosys
 // createScanner creates the appropriate scanner based on strategy.
 func (p *Chunker) createScanner(r io.Reader) scanner.Scanner {
 	switch p.strategy {
-	case StrategySentence:
+	case ChunkerSentence:
 		chars := p.delimiterChars
 		if chars == "" {
 			chars = scanner.EndOfSentence
 		}
 		return scanner.NewSentencer(chars, r)
 
-	case StrategyParagraph:
+	case ChunkerParagraph:
 		chars := p.delimiterChars
 		if chars == "" {
 			chars = "\n\n"
 		}
 		return scanner.NewSlicer(chars, r)
 
-	case StrategyChunk:
+	case ChunkerChunk:
 		chars := p.delimiterChars
 		if chars == "" {
 			chars = scanner.EndOfSentence

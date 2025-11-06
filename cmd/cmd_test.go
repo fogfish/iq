@@ -1,3 +1,11 @@
+//
+// Copyright (C) 2025 Dmitry Kolesnikov
+//
+// This file may be modified and distributed under the terms
+// of the MIT license.  See the LICENSE file for details.
+// https://github.com/fogfish/iq
+//
+
 package cmd
 
 import (
@@ -11,9 +19,9 @@ import (
 )
 
 func TestAgentWithPrompt(t *testing.T) {
-	// iq agent -a testdata/prompt.md
+	// iq agent -f testdata/prompt.md
 	fmodel.profile = "mock"
-	fagent.agent = "testdata/prompt.md"
+	fagent.file = "testdata/prompt.md"
 
 	out, err := sut(agentCmd, nil)
 
@@ -24,9 +32,9 @@ func TestAgentWithPrompt(t *testing.T) {
 }
 
 func TestAgentWithWorkflow(t *testing.T) {
-	// iq agent -a testdata/workflow.yml
+	// iq agent -f testdata/workflow.yml
 	fmodel.profile = "mock"
-	fagent.agent = "testdata/workflow.yml"
+	fagent.file = "testdata/workflow.yml"
 
 	out, err := sut(agentCmd, nil)
 
@@ -37,9 +45,9 @@ func TestAgentWithWorkflow(t *testing.T) {
 }
 
 func TestAgentWithFile(t *testing.T) {
-	// iq agent -a testdata/prompt.md FILE1
+	// iq agent -f testdata/prompt.md FILE1
 	fmodel.profile = "mock"
-	fagent.agent = "testdata/workflow.yml"
+	fagent.file = "testdata/workflow.yml"
 
 	out, err := sut(agentCmd, []string{"testdata/doc.txt"})
 
@@ -51,9 +59,9 @@ func TestAgentWithFile(t *testing.T) {
 }
 
 func TestAgentWithFiles(t *testing.T) {
-	// iq agent -a testdata/prompt.md FILE1 FILE2
+	// iq agent -f testdata/prompt.md FILE1 FILE2
 	fmodel.profile = "mock"
-	fagent.agent = "testdata/workflow.yml"
+	fagent.file = "testdata/workflow.yml"
 
 	out, err := sut(agentCmd, []string{"testdata/doc.txt", "testdata/doc.txt"})
 
@@ -64,9 +72,9 @@ func TestAgentWithFiles(t *testing.T) {
 }
 
 func TestAgentWithFileMerge(t *testing.T) {
-	// iq agent -a testdata/prompt.md --merge FILE1 FILE2
+	// iq agent -f testdata/prompt.md --merge FILE1 FILE2
 	fmodel.profile = "mock"
-	fagent.agent = "testdata/workflow.yml"
+	fagent.file = "testdata/workflow.yml"
 	finput.merge = true
 
 	out, err := sut(agentCmd, []string{"testdata/doc.txt", "testdata/doc.txt"})

@@ -27,8 +27,8 @@ func TestBuilder_NoBlueprint(t *testing.T) {
 	// Try to build without blueprint
 	_, err := worker.New().Build()
 
-	it.Then(t).Should(
-		it.True(err != nil),
+	it.Then(t).ShouldNot(
+		it.Nil(err),
 	)
 }
 
@@ -59,7 +59,8 @@ jobs:
 
 	it.Then(t).Should(
 		it.Nil(err),
-		it.True(pipe != nil),
+	).ShouldNot(
+		it.Nil(pipe),
 	)
 }
 
@@ -95,7 +96,8 @@ jobs:
 
 	it.Then(t).Should(
 		it.Nil(err),
-		it.True(pipe != nil),
+	).ShouldNot(
+		it.Nil(pipe),
 	)
 }
 

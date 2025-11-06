@@ -1,3 +1,11 @@
+//
+// Copyright (C) 2025 Dmitry Kolesnikov
+//
+// This file may be modified and distributed under the terms
+// of the MIT license.  See the LICENSE file for details.
+// https://github.com/fogfish/iq
+//
+
 package conduit_test
 
 import (
@@ -54,7 +62,7 @@ func TestPipeline_WithChunking(t *testing.T) {
 	snk := newMockSink()
 	chunker := processor.NewChunker(
 		processor.ChunkConfig{
-			Strategy: processor.StrategySentence,
+			Strategy: processor.ChunkerSentence,
 		},
 	)
 
@@ -83,7 +91,7 @@ func TestPipeline_MultipleProcessors(t *testing.T) {
 
 	chunker := processor.NewChunker(
 		processor.ChunkConfig{
-			Strategy: processor.StrategySentence,
+			Strategy: processor.ChunkerSentence,
 		},
 	)
 	identity := processor.NewIdentity()
