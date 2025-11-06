@@ -26,6 +26,7 @@ type StepInfo struct {
 
 // WithReporter embeds a progress reporter in the context
 func WithReporter(ctx context.Context, reporter *Reporter) context.Context {
+	//lint:ignore SA1029 due to cross-package context key access
 	return context.WithValue(ctx, reporterKey, reporter)
 }
 
@@ -39,6 +40,7 @@ func FromContext(ctx context.Context) *Reporter {
 
 // WithStepInfo embeds step information in the context
 func WithStepInfo(ctx context.Context, info StepInfo) context.Context {
+	//lint:ignore SA1029 due to cross-package context key access
 	return context.WithValue(ctx, stepInfoKey, info)
 }
 
