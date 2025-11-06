@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./doc/iq-v2.png" height="128" />
+  <img src="./doc/iq-v2.png" height="256" />
   <p align="center"><strong>AI workflows for the shell — no code required</strong></p>
 </p>
 

@@ -14,14 +14,12 @@ require (
 	github.com/jdxcode/netrc v1.0.0
 	github.com/kshard/chatter v0.10.0
 	github.com/kshard/chatter/provider/autoconfig v0.10.0
-	github.com/kshard/thinker v0.2.0
+	github.com/kshard/thinker v0.3.0
 	github.com/modelcontextprotocol/go-sdk v1.0.0
 	github.com/nickwells/twrap.mod v1.5.10
 	github.com/spf13/cobra v1.9.1
 	golang.org/x/term v0.34.0
 )
-
-replace github.com/kshard/thinker => ../../kshard/thinker
 
 require (
 	cel.dev/expr v0.24.0 // indirect
