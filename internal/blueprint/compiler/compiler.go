@@ -25,14 +25,18 @@ type Compiler struct {
 
 // New creates a new compiler
 func New(llm chatter.Chatter) (*Compiler, error) {
-	// Create CEL environment for route conditions
+	// Create CEL environment for route conditions and selector expressions
 	// Variables available in CEL expressions:
-	// - choice: output from the router agent
+	// - choice: output from the router agent (router context)
+	// - input: workflow input (selector context)
+	// - current: current value being processed (selector context)
 	// - state: workflow state (map[string]any)
 	// - steps: named step outputs (map[string]any)
-	// - document: original workflow input
+	// - document: original workflow input (router context)
 	env, err := cel.NewEnv(
 		cel.Variable("choice", cel.DynType),
+		cel.Variable("input", cel.DynType),
+		cel.Variable("current", cel.DynType),
 		cel.Variable("state", cel.MapType(cel.StringType, cel.DynType)),
 		cel.Variable("steps", cel.MapType(cel.StringType, cel.DynType)),
 		cel.Variable("document", cel.DynType),
@@ -238,8 +242,19 @@ func (c *Compiler) compileStep(ctx context.Context, index int, node ast.StepNode
 			}
 		}
 
+		// Compile CEL selector if provided
+		var selectorProgram cel.Program
+		if foreachNode.Selector != "" {
+			prog, err := c.compileCEL(foreachNode.Selector)
+			if err != nil {
+				return nil, fmt.Errorf("failed to compile selector '%s': %w", foreachNode.Selector, err)
+			}
+			selectorProgram = prog
+		}
+
 		return &ForeachStep{
 			UsesAgent:  usesAgent,
+			Selector:   selectorProgram,
 			JobName:    foreachNode.Job,
 			OutputName: foreachNode.GetOutput(),
 			Retry:      retryNode,

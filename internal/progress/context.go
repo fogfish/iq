@@ -12,8 +12,9 @@ import "context"
 
 // Context keys - using plain strings to allow cross-package access
 const (
-	reporterKey = "iq.progress.reporter"
-	stepInfoKey = "iq.progress.stepinfo"
+	reporterKey    = "iq.progress.reporter"
+	stepInfoKey    = "iq.progress.stepinfo"
+	foreachModeKey = "iq.progress.foreachmode"
 )
 
 // StepInfo carries information about the current step execution
@@ -50,4 +51,18 @@ func GetStepInfo(ctx context.Context) *StepInfo {
 		return &info
 	}
 	return nil
+}
+
+// WithForeachMode marks the context as being inside a foreach loop
+func WithForeachMode(ctx context.Context) context.Context {
+	//lint:ignore SA1029 due to cross-package context key access
+	return context.WithValue(ctx, foreachModeKey, true)
+}
+
+// IsInForeachMode checks if we're currently inside a foreach loop
+func IsInForeachMode(ctx context.Context) bool {
+	if inForeach, ok := ctx.Value(foreachModeKey).(bool); ok {
+		return inForeach
+	}
+	return false
 }

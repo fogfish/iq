@@ -358,6 +358,20 @@ If `uses` is omitted, the current value must be an array:
     job: process-item
 ```
 
+Use `selector` to extract arrays from JSON objects:
+
+```yaml
+- name: process-users
+  foreach:
+    selector: "current.users"           # Extract from current context
+    job: process-user
+
+- name: process-items
+  foreach:
+    selector: "steps.data.items"     # Extract from step results
+    job: process-item
+```
+
 ### Agent Format
 
 

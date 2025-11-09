@@ -279,9 +279,10 @@ func (step *RouterStep) Prompt(ctx context.Context, opt ...chatter.Opt) error {
 
 // ForeachStep executes a job for each item in an array
 type ForeachStep struct {
-	UsesAgent  *Agent // Optional: agent to generate array
-	Job        *Job   // Job to execute for each item (resolved)
-	JobName    string // Job name for resolution
+	UsesAgent  *Agent      // Optional: agent to generate array
+	Selector   cel.Program // Optional: CEL program to extract array
+	Job        *Job        // Job to execute for each item (resolved)
+	JobName    string      // Job name for resolution
 	OutputName string
 	Retry      *Retry
 }
@@ -327,24 +328,53 @@ func (step *ForeachStep) Prompt(ctx context.Context, opt ...chatter.Opt) error {
 			return fmt.Errorf("agent result is not an array: %T", result)
 		}
 	} else {
-		if arr, ok := wfCtx.Current.([]any); ok {
+		var sourceData any = wfCtx.Current
+
+		// Apply selector if provided
+		if step.Selector != nil {
+			celVars := map[string]any{
+				"input":    wfCtx.Input,
+				"current":  wfCtx.Current,
+				"state":    wfCtx.State,
+				"steps":    wfCtx.Steps,
+				"document": wfCtx.Input,
+			}
+
+			result, _, err := step.Selector.Eval(celVars)
+			if err != nil {
+				return fmt.Errorf("selector evaluation failed: %w", err)
+			}
+
+			sourceData = result.Value()
+		}
+
+		// Ensure result is an array
+		if arr, ok := sourceData.([]any); ok {
 			items = arr
 		} else {
-			return fmt.Errorf("current value is not an array: %T", wfCtx.Current)
+			return fmt.Errorf("selector result is not an array: %T", sourceData)
 		}
 	}
 
 	if reporter != nil {
 		reporter.ForeachStart(len(items))
+		// Enable foreach mode to suppress individual step reporting
+		reporter.SetForeachMode(true)
 	}
 
 	// Execute job for each item
 	results := make([]any, 0, len(items))
 	successCount := 0
 	for i, item := range items {
-		// Create a fresh workflow context for this iteration
-		// This ensures the item becomes .input/.current for the sub-job
-		itemCtx := NewWorkflowContext(context.Background(), item)
+		// Create a new workflow context that inherits parent context but uses item as current
+		// This preserves state, steps, and original input while making item the current value
+		//lint:ignore SA1029 due to cross-package context key access
+		itemCtx := context.WithValue(ctx, workflowContextKey, &WorkflowContext{
+			Input:   wfCtx.Input, // Preserve original workflow input
+			State:   wfCtx.State, // Preserve shared workflow state
+			Steps:   wfCtx.Steps, // Preserve named step outputs
+			Current: item,        // Set current item for this iteration
+		})
 
 		result, err := step.Job.Prompt(itemCtx, item, opt...)
 		if err != nil {
@@ -359,6 +389,11 @@ func (step *ForeachStep) Prompt(ctx context.Context, opt ...chatter.Opt) error {
 		}
 		successCount++
 		results = append(results, result)
+	}
+
+	// Disable foreach mode after processing all items
+	if reporter != nil {
+		reporter.SetForeachMode(false)
 	}
 
 	// Report foreach complete

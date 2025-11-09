@@ -74,14 +74,15 @@ const (
 
 // Reporter handles all progress output to stderr with educational messages
 type Reporter struct {
-	w           io.Writer
-	mu          sync.Mutex
-	quiet       bool
-	lastLine    string
-	hasThinking bool // Set to true when thinking content is shown
-	startTime   time.Time
-	stats       Stats
-	tokenSource TokenSource // Source for final token usage reporting
+	w               io.Writer
+	mu              sync.Mutex
+	quiet           bool
+	lastLine        string
+	hasThinking     bool // Set to true when thinking content is shown
+	isInForeachMode bool // Set to true when inside a foreach loop
+	startTime       time.Time
+	stats           Stats
+	tokenSource     TokenSource // Source for final token usage reporting
 }
 
 // Stats tracks processing metrics
@@ -117,6 +118,13 @@ func (r *Reporter) SetTokenSource(source TokenSource) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.tokenSource = source
+}
+
+// SetForeachMode sets whether we're inside a foreach loop
+func (r *Reporter) SetForeachMode(inForeach bool) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.isInForeachMode = inForeach
 }
 
 // Workflow lifecycle events
@@ -195,6 +203,14 @@ func (r *Reporter) StepProgress(message string) {
 
 // StepComplete indicates step completion
 func (r *Reporter) StepComplete(jobName, stepName string, stepNum, totalSteps int, duration time.Duration, tokens int) {
+	r.stats.TokensInput += tokens
+
+	// Don't show step completion messages when inside a foreach loop
+	// The foreach will handle its own reporting
+	if r.isInForeachMode {
+		return
+	}
+
 	if tokens > 0 {
 		if stepName != "" {
 			r.println(fmt.Sprintf("   %s Step %d/%d: %s.%s completed in %.1fs (%d tokens)",
@@ -212,7 +228,6 @@ func (r *Reporter) StepComplete(jobName, stepName string, stepNum, totalSteps in
 				IconStepComplete, stepNum, totalSteps, jobName, duration.Seconds()))
 		}
 	}
-	r.stats.TokensInput += tokens
 }
 
 // StepError reports a step error

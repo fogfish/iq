@@ -103,12 +103,13 @@ type RouteNode struct {
 
 // ForeachStepNode represents an array iteration step
 type ForeachStepNode struct {
-	Name   string
-	RunsOn string
-	Uses   string // Optional: Path to agent file to generate array
-	Job    string // Job to execute for each array item
-	Output string // Optional name to store results array in context
-	Retry  *RetryNode
+	Name     string
+	RunsOn   string
+	Uses     string // Optional: Path to agent file to generate array
+	Selector string // Optional: CEL expression to extract array from input
+	Job      string // Job to execute for each array item
+	Output   string // Optional name to store results array in context
+	Retry    *RetryNode
 }
 
 func (n *ForeachStepNode) stepNode()            {}

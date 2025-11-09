@@ -1,0 +1,24 @@
+name: selector
+about: Demonstrate foreach selector to extract arrays from nested JSON objects
+jobs:
+  main:
+    steps:
+      - foreach:
+          selector: document.users
+          job: process-user
+        output: users
+      
+      - foreach:
+          selector: document.metadata.items
+          job: process-item
+        output: items
+
+      - uses: prompts/report.md
+
+  process-user:
+    steps:
+      - uses: prompts/analyze-user.md
+
+  process-item:
+    steps:
+      - uses: prompts/analyze-item.md

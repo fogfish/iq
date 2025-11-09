@@ -283,7 +283,8 @@ type stepYAML struct {
 }
 
 type foreachYAML struct {
-	Job string `yaml:"job,omitempty"`
+	Selector string `yaml:"selector,omitempty"`
+	Job      string `yaml:"job,omitempty"`
 }
 
 type routeYAML struct {
@@ -369,12 +370,13 @@ func (p *Parser) convertStep(raw *stepYAML) ast.StepNode {
 	// Check if this is a foreach step
 	if raw.Foreach != nil {
 		return &ast.ForeachStepNode{
-			Name:   raw.Name,
-			RunsOn: raw.RunsOn,
-			Uses:   raw.Uses,
-			Job:    raw.Foreach.Job,
-			Output: raw.Output,
-			Retry:  retry,
+			Name:     raw.Name,
+			RunsOn:   raw.RunsOn,
+			Uses:     raw.Uses,
+			Selector: raw.Foreach.Selector,
+			Job:      raw.Foreach.Job,
+			Output:   raw.Output,
+			Retry:    retry,
 		}
 	}
 

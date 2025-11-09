@@ -1,0 +1,45 @@
+{
+  "users": [
+    {
+      "id": 1,
+      "name": "Alice Johnson",
+      "email": "alice@example.com",
+      "active": true
+    },
+    {
+      "id": 2,
+      "name": "Bob Smith",
+      "email": "bob@example.com",
+      "active": false
+    },
+    {
+      "id": 3,
+      "name": "Carol Williams",
+      "email": "carol@example.com",
+      "active": true
+    },
+    {
+      "id": 4,
+      "name": "David Brown",
+      "email": "david@example.com",
+      "active": false
+    }
+  ],
+  "metadata": {
+    "total": 4,
+    "items": [
+      {
+        "category": "security",
+        "priority": 5
+      },
+      {
+        "category": "maintenance",
+        "priority": 2
+      },
+      {
+        "category": "feature",
+        "priority": 4
+      }
+    ]
+  }
+}
