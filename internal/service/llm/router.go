@@ -12,6 +12,7 @@ import (
 	"context"
 
 	"github.com/kshard/chatter"
+	"github.com/kshard/chatter/aio"
 	"github.com/kshard/chatter/provider/autoconfig"
 )
 
@@ -72,7 +73,7 @@ func (router *Router) Prompt(ctx context.Context, prompt []chatter.Message, opts
 
 	for _, opt := range opts {
 		switch v := opt.(type) {
-		case Route:
+		case aio.Route:
 			if l, has := router.profiles[string(v)]; has {
 				llm = l
 			} else {
