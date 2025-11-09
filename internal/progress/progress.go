@@ -20,6 +20,24 @@ import (
 	"golang.org/x/term"
 )
 
+// TokenUsage represents token usage statistics
+type TokenUsage struct {
+	InputTokens int
+	ReplyTokens int
+}
+
+// ProfileTokenUsage represents token usage for a specific profile
+type ProfileTokenUsage struct {
+	Name  string
+	Usage TokenUsage
+}
+
+// TokenSource interface for accessing token usage from LLM routers
+type TokenSource interface {
+	Usage() TokenUsage
+	ProfileUsage() []ProfileTokenUsage
+}
+
 // Icons used for progress reporting - centralized for easy customization
 const (
 	IconWorkflowLoad     = "📋" // Loading workflow file
@@ -63,6 +81,7 @@ type Reporter struct {
 	hasThinking bool // Set to true when thinking content is shown
 	startTime   time.Time
 	stats       Stats
+	tokenSource TokenSource // Source for final token usage reporting
 }
 
 // Stats tracks processing metrics
@@ -91,6 +110,13 @@ func NewWithWriter(w io.Writer, quiet bool) *Reporter {
 		quiet:     quiet,
 		startTime: time.Now(),
 	}
+}
+
+// SetTokenSource sets the token source for final usage reporting
+func (r *Reporter) SetTokenSource(source TokenSource) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.tokenSource = source
 }
 
 // Workflow lifecycle events
@@ -403,7 +429,35 @@ func (r *Reporter) Summary() {
 		r.println(fmt.Sprintf("   %s Errors: %d documents", IconWarning, r.stats.DocsErrors))
 	}
 
-	if r.stats.TokensInput > 0 || r.stats.TokensOutput > 0 {
+	// Use token source for authoritative usage if available, otherwise fall back to step-level stats
+	r.mu.Lock()
+	tokenSource := r.tokenSource
+	r.mu.Unlock()
+
+	if tokenSource != nil {
+		// Use Router's authoritative token data with per-profile breakdown
+		usage := tokenSource.Usage()
+		profiles := tokenSource.ProfileUsage()
+
+		if usage.InputTokens > 0 || usage.ReplyTokens > 0 {
+			total := usage.InputTokens + usage.ReplyTokens
+			r.println(fmt.Sprintf("   📈 Tokens: %s total",
+				formatNumber(total)))
+
+			// Show per-profile breakdown
+			for _, profile := range profiles {
+				if profile.Usage.InputTokens > 0 || profile.Usage.ReplyTokens > 0 {
+					profileTotal := profile.Usage.InputTokens + profile.Usage.ReplyTokens
+					r.println(fmt.Sprintf("      └─ %s: %s (input: %s | output: %s)",
+						profile.Name,
+						formatNumber(profileTotal),
+						formatNumber(profile.Usage.InputTokens),
+						formatNumber(profile.Usage.ReplyTokens)))
+				}
+			}
+		}
+	} else if r.stats.TokensInput > 0 || r.stats.TokensOutput > 0 {
+		// Fall back to step-level token tracking (legacy)
 		total := r.stats.TokensInput + r.stats.TokensOutput
 		r.println(fmt.Sprintf("   📈 Tokens: %s (input: %s | output: %s)",
 			formatNumber(total),

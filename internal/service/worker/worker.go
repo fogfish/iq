@@ -151,6 +151,11 @@ func (b *Builder) Workflow(file string, llm chatter.Chatter) *Builder {
 		return b
 	}
 
+	// Report workflow compiled with actual counts
+	if b.reporter != nil {
+		b.reporter.WorkflowCompiled(wrk.Name(), wrk.JobCount(), wrk.StepCount())
+	}
+
 	b.runtime.AddProcessor(
 		processor.NewAgent(wrk, &processor.AgentConfig{}),
 	)

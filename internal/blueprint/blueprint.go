@@ -54,6 +54,20 @@ func (bp *Blueprint) Schema() (*jsonschema.Schema, *jsonschema.Schema) {
 	return bp.workflow.Schema.Input, bp.workflow.Schema.Reply
 }
 
+// JobCount returns the number of jobs in the workflow
+func (bp *Blueprint) JobCount() int {
+	return len(bp.workflow.Jobs)
+}
+
+// StepCount returns the total number of steps across all jobs
+func (bp *Blueprint) StepCount() int {
+	count := 0
+	for _, job := range bp.workflow.Jobs {
+		count += len(job.Steps)
+	}
+	return count
+}
+
 // Run executes the entrypoint job (or "main" if no entrypoint specified)
 func (bp *Blueprint) Prompt(ctx context.Context, input any, opt ...chatter.Opt) (any, error) {
 	// Determine which job to run

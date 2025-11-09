@@ -65,7 +65,8 @@ func draft(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	llm, err := fmodel.build()
+	reporter := fglobal.reporter()
+	llm, err := fmodel.build(reporter)
 	if err != nil {
 		return err
 	}

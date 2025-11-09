@@ -63,6 +63,7 @@ type optsLLM struct {
 	maxEpoch int
 	maxUsage chatter.Usage
 	think    bool
+	cache    string
 }
 
 func (opts *optsLLM) apply(cmd *cobra.Command) {
@@ -85,14 +86,19 @@ func (opts *optsLLM) apply(cmd *cobra.Command) {
 
 	f.BoolVar(&opts.think, "llm-think", false,
 		"Show intermediate reasoning steps")
+
+	f.StringVar(&opts.cache, "llm-cache", "",
+		"Path to the LLM response cache database (enables caching)")
 }
 
-func (opts *optsLLM) build() (chatter.Chatter, error) {
+func (opts *optsLLM) build(reporter *progress.Reporter) (chatter.Chatter, error) {
 	return llm.New().
 		Profile(opts.profile, opts.model).
+		Quota(opts.maxEpoch, opts.maxUsage).
 		Debug(fglobal.debug).
 		Think(opts.think).
-		Quota(opts.maxEpoch, opts.maxUsage).
+		Cache(opts.cache).
+		Reporter(reporter).
 		Build()
 }
 

@@ -14,6 +14,8 @@ import (
 	"os"
 	"strings"
 
+	"github.com/akrylysov/pogreb"
+	"github.com/fogfish/iq/internal/progress"
 	"github.com/kshard/chatter"
 	"github.com/kshard/chatter/aio"
 )
@@ -34,8 +36,11 @@ import (
 //	    MaxEpoch(10).
 //	    Build()
 type Builder struct {
-	llm chatter.Chatter
-	err error
+	cache    *pogreb.DB
+	llm      chatter.Chatter
+	router   *Router
+	reporter interface{ SetTokenSource(progress.TokenSource) }
+	err      error
 }
 
 // New creates a new LLM builder with mock LLM as default.
@@ -57,8 +62,20 @@ func (b *Builder) Profile(profile, model string) *Builder {
 		return b
 	}
 
-	b.llm, b.err = NewRouter(profile, model)
+	b.router, b.err = NewRouter(profile, model)
+	b.llm = b.router
 
+	return b
+}
+
+// Quota the maximum number of epochs and tokens.
+// Returns builder for chaining.
+func (b *Builder) Quota(epoch int, usage chatter.Usage) *Builder {
+	if b.err != nil {
+		return b
+	}
+
+	b.llm = aio.NewQuota(epoch, usage, b.llm)
 	return b
 }
 
@@ -84,14 +101,56 @@ func (b *Builder) Debug(enable bool) *Builder {
 	return b
 }
 
-// Quota the maximum number of epochs and tokens.
-// Returns builder for chaining.
-func (b *Builder) Quota(epoch int, usage chatter.Usage) *Builder {
+func (b *Builder) Cache(path string) *Builder {
+	if b.err != nil || b.llm == nil || len(path) == 0 {
+		return b
+	}
+
+	b.cache, b.err = pogreb.Open(path, nil)
 	if b.err != nil {
 		return b
 	}
 
-	b.llm = aio.NewQuota(epoch, usage, b.llm)
+	b.llm = aio.NewCache(b.cache, b.llm)
+	return b
+}
+
+// routerAdapter adapts Router to TokenSource interface expected by progress.Reporter
+type routerAdapter struct {
+	router *Router
+}
+
+func (ra *routerAdapter) Usage() progress.TokenUsage {
+	usage := ra.router.Usage()
+	return progress.TokenUsage{
+		InputTokens: usage.InputTokens,
+		ReplyTokens: usage.ReplyTokens,
+	}
+}
+
+func (ra *routerAdapter) ProfileUsage() []progress.ProfileTokenUsage {
+	profiles := ra.router.ProfileUsage()
+	result := make([]progress.ProfileTokenUsage, len(profiles))
+	for i, profile := range profiles {
+		result[i] = progress.ProfileTokenUsage{
+			Name: profile.Name,
+			Usage: progress.TokenUsage{
+				InputTokens: profile.Usage.InputTokens,
+				ReplyTokens: profile.Usage.ReplyTokens,
+			},
+		}
+	}
+	return result
+}
+
+// Reporter sets the progress reporter and wires it to the Router for token reporting.
+// Returns builder for chaining.
+func (b *Builder) Reporter(reporter interface{ SetTokenSource(progress.TokenSource) }) *Builder {
+	if b.err != nil {
+		return b
+	}
+
+	b.reporter = reporter
 	return b
 }
 
@@ -104,6 +163,12 @@ func (b *Builder) Build() (chatter.Chatter, error) {
 
 	if b.llm == nil {
 		return nil, fmt.Errorf("llm: no LLM configured")
+	}
+
+	// Wire Router to Reporter for token usage reporting
+	if b.reporter != nil && b.router != nil {
+		adapter := &routerAdapter{router: b.router}
+		b.reporter.SetTokenSource(adapter)
 	}
 
 	return b.llm, nil

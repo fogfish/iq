@@ -11,6 +11,7 @@ package conduit
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"time"
@@ -19,7 +20,6 @@ import (
 	"github.com/fogfish/iq/internal/iosystem/sink"
 	"github.com/fogfish/iq/internal/iosystem/source"
 	"github.com/google/jsonschema-go/jsonschema"
-	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
 // Conduit coordinates the flow: Source → Processor(s) → Sink.
@@ -139,9 +139,9 @@ func (p *Conduit) Run(ctx context.Context, source iosystem.Source, sink iosystem
 	return stats, err
 }
 
-// RunAsCmd executes the pipeline as a MCP.
-func (p *Conduit) RunAsCmd(ctx context.Context, ctr *mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	r := source.NewReaderJSON("", bytes.NewBuffer(ctr.Params.Arguments))
+// Cmd executes the pipeline in the context of MCP.
+func (p *Conduit) Cmd(ctx context.Context, json json.RawMessage) (*bytes.Buffer, error) {
+	r := source.NewReaderJSON("", bytes.NewBuffer(json))
 
 	var out bytes.Buffer
 	w := sink.NewWriter(&out)
@@ -151,12 +151,7 @@ func (p *Conduit) RunAsCmd(ctx context.Context, ctr *mcp.CallToolRequest) (*mcp.
 		return nil, err
 	}
 
-	return &mcp.CallToolResult{
-		Content: []mcp.Content{
-			&mcp.TextContent{Text: out.String()},
-		},
-		StructuredContent: out.Bytes(),
-	}, nil
+	return &out, nil
 }
 
 // runSequential processes documents one at a time.

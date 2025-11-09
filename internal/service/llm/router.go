@@ -20,6 +20,12 @@ type Route string
 
 func (Route) ChatterOpt() {}
 
+// ProfileUsage represents token usage for a specific LLM profile
+type ProfileUsage struct {
+	Name  string
+	Usage chatter.Usage
+}
+
 // Dynamic routing strategy throught pool of LLMs.
 // The LLMs pool consists of default "route" and multiple named models.
 type Router struct {
@@ -48,6 +54,18 @@ func NewRouter(profile, model string) (*Router, error) {
 }
 
 func (router *Router) Usage() chatter.Usage { return router.usage }
+
+// ProfileUsage returns token usage breakdown by LLM profile
+func (router *Router) ProfileUsage() []ProfileUsage {
+	breakdown := make([]ProfileUsage, 0, len(router.profiles))
+	for name, llm := range router.profiles {
+		breakdown = append(breakdown, ProfileUsage{
+			Name:  name,
+			Usage: llm.Usage(),
+		})
+	}
+	return breakdown
+}
 
 func (router *Router) Prompt(ctx context.Context, prompt []chatter.Message, opts ...chatter.Opt) (reply *chatter.Reply, err error) {
 	llm := router.profiles["base"]

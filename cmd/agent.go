@@ -66,7 +66,7 @@ func agent(cmd *cobra.Command, args []string) error {
 		reporter.WorkflowLoading(fagent.file)
 	}
 
-	llm, err := fmodel.build()
+	llm, err := fmodel.build(reporter)
 	if err != nil {
 		return err
 	}
@@ -75,12 +75,6 @@ func agent(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		reporter.WorkflowError(err)
 		return err
-	}
-
-	// Report workflow compiled
-	// Count jobs and steps (we'll approximate for now)
-	if srv.Name != "" {
-		reporter.WorkflowCompiled(srv.Name, 1, 1) // TODO: get actual counts
 	}
 
 	src, err := finput.build(args)
@@ -149,7 +143,7 @@ func agentBatch(cmd *cobra.Command, args []string) error {
 		reporter.WorkflowLoading(fagent.file)
 	}
 
-	llm, err := fmodel.build()
+	llm, err := fmodel.build(reporter)
 	if err != nil {
 		return err
 	}
@@ -158,11 +152,6 @@ func agentBatch(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		reporter.WorkflowError(err)
 		return err
-	}
-
-	// Report workflow compiled
-	if srv.Name != "" {
-		reporter.WorkflowCompiled(srv.Name, 1, 1) // TODO: get actual counts
 	}
 
 	q, err := fspool.build()
@@ -196,7 +185,7 @@ Start iq as an MCP server exposing the defined workflow as a tool to other agent
 func agentServe(cmd *cobra.Command, args []string) error {
 	reporter := fglobal.reporter()
 
-	llm, err := fmodel.build()
+	llm, err := fmodel.build(reporter)
 	if err != nil {
 		return err
 	}

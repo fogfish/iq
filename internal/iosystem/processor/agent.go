@@ -16,6 +16,7 @@ import (
 	"io"
 
 	"github.com/fogfish/iq/internal/iosystem"
+	"github.com/goccy/go-yaml"
 	"github.com/kshard/chatter"
 )
 
@@ -115,6 +116,12 @@ func (p *Agent) decode(doc *iosystem.Document) (any, error) {
 		var input map[string]any
 		if err := json.Unmarshal(content, &input); err != nil {
 			return nil, fmt.Errorf("failed to unmarshal JSON document: %w", err)
+		}
+		return input, nil
+	case iosystem.ContentYAML:
+		var input map[string]any
+		if err := yaml.Unmarshal(content, &input); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal YAML document: %w", err)
 		}
 		return input, nil
 	default:

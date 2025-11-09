@@ -16,6 +16,7 @@ import (
 const (
 	ContentStream = "application/octet-stream"
 	ContentJSON   = "application/json"
+	ContentYAML   = "application/x-yaml"
 	ContentText   = "text/plain"
 )
 

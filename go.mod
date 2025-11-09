@@ -4,6 +4,7 @@ go 1.24.0
 
 require (
 	github.com/TylerBrock/colorjson v0.0.0-20200706003622-8a50f05110d2
+	github.com/akrylysov/pogreb v0.10.2
 	github.com/fogfish/it/v2 v2.2.4
 	github.com/fogfish/opts v0.0.5
 	github.com/fogfish/scanner v0.0.1

@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"path/filepath"
 	"sync"
 
 	"github.com/fogfish/iq/internal/iosystem"
@@ -126,7 +127,17 @@ func (w *FS) Next(ctx context.Context) (*iosystem.Document, error) {
 			return nil, fmt.Errorf("failed to open file %s: %w", path, err)
 		}
 
-		return iosystem.NewDocument(path, &autoCloser{ReadCloser: file}), nil
+		doc := iosystem.NewDocument(path, &autoCloser{ReadCloser: file})
+		switch filepath.Ext(path) {
+		case ".json":
+			doc.Type = iosystem.ContentJSON
+		case ".yaml", ".yml":
+			doc.Type = iosystem.ContentYAML
+		default:
+			doc.Type = iosystem.ContentText
+		}
+
+		return doc, nil
 
 	case <-ctx.Done():
 		return nil, ctx.Err()
