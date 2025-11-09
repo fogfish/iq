@@ -68,11 +68,11 @@ type optsLLM struct {
 func (opts *optsLLM) apply(cmd *cobra.Command) {
 	f := cmd.PersistentFlags()
 
-	f.StringVarP(&opts.profile, "profile", "p", "iq",
-		"Name of the LLM provider profile (from ~/.netrc)")
+	f.StringVarP(&opts.profile, "profile", "p", "base",
+		"Name of the LLM provider profile (from ~/.iqrc)")
 
 	f.StringVarP(&opts.model, "llm-id", "m", "",
-		"LLM model to use (overrides model set in ~/.netrc)")
+		"LLM model to use (overrides model set in ~/.iqrc)")
 
 	f.IntVar(&opts.maxEpoch, "llm-max-epoch", 0,
 		"Maximum number of refinement attempts before giving up")

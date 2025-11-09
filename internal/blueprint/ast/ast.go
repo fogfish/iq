@@ -55,6 +55,7 @@ type JobNode struct {
 type StepNode interface {
 	stepNode()
 	GetName() string
+	GetRunsOn() string
 	GetUses() string
 	GetRetry() *RetryNode
 	GetOutput() string
@@ -63,6 +64,7 @@ type StepNode interface {
 // AgentStepNode represents a simple agent execution step
 type AgentStepNode struct {
 	Name   string
+	RunsOn string
 	Uses   string // Path to agent file
 	Output string // Optional name to store output in context
 	Retry  *RetryNode
@@ -73,10 +75,12 @@ func (n *AgentStepNode) GetName() string      { return n.Name }
 func (n *AgentStepNode) GetUses() string      { return n.Uses }
 func (n *AgentStepNode) GetRetry() *RetryNode { return n.Retry }
 func (n *AgentStepNode) GetOutput() string    { return n.Output }
+func (n *AgentStepNode) GetRunsOn() string    { return n.RunsOn }
 
 // RouterStepNode represents a conditional routing step
 type RouterStepNode struct {
 	Name    string
+	RunsOn  string
 	Uses    string      // Path to agent file
 	Output  string      // Optional name to store output in context
 	Routes  []RouteNode // Ordered routes (first match wins)
@@ -89,6 +93,7 @@ func (n *RouterStepNode) GetName() string      { return n.Name }
 func (n *RouterStepNode) GetUses() string      { return n.Uses }
 func (n *RouterStepNode) GetRetry() *RetryNode { return n.Retry }
 func (n *RouterStepNode) GetOutput() string    { return n.Output }
+func (n *RouterStepNode) GetRunsOn() string    { return n.RunsOn }
 
 // RouteNode represents a single conditional route
 type RouteNode struct {
@@ -99,6 +104,7 @@ type RouteNode struct {
 // ForeachStepNode represents an array iteration step
 type ForeachStepNode struct {
 	Name   string
+	RunsOn string
 	Uses   string // Optional: Path to agent file to generate array
 	Job    string // Job to execute for each array item
 	Output string // Optional name to store results array in context
@@ -110,6 +116,7 @@ func (n *ForeachStepNode) GetName() string      { return n.Name }
 func (n *ForeachStepNode) GetUses() string      { return n.Uses }
 func (n *ForeachStepNode) GetRetry() *RetryNode { return n.Retry }
 func (n *ForeachStepNode) GetOutput() string    { return n.Output }
+func (n *ForeachStepNode) GetRunsOn() string    { return n.RunsOn }
 
 type RetryNode struct {
 	Attempts int    // Number of retry attempts
@@ -120,6 +127,7 @@ type RetryNode struct {
 // AgentNode represents an agent definition
 type AgentNode struct {
 	Name    string
+	RunsOn  string
 	Format  string       // "json" or empty
 	Schema  SchemaNode   // Input/Output schemas
 	Servers []ServerNode // MCP servers
@@ -136,6 +144,7 @@ type ServerNode struct {
 	Type    string
 	Name    string
 	Command []string
+	Url     string
 }
 
 // Validate performs semantic validation on the AST

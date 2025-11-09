@@ -13,7 +13,7 @@ require (
 	github.com/google/jsonschema-go v0.3.0
 	github.com/jdxcode/netrc v1.0.0
 	github.com/kshard/chatter v0.10.0
-	github.com/kshard/chatter/provider/autoconfig v0.10.0
+	github.com/kshard/chatter/provider/autoconfig v0.11.0
 	github.com/kshard/thinker v0.3.0
 	github.com/modelcontextprotocol/go-sdk v1.0.0
 	github.com/nickwells/twrap.mod v1.5.10

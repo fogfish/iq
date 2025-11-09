@@ -39,11 +39,11 @@ var configCmd = &cobra.Command{
 	Long: `
 Configure 'iq' to connect with your preferred LLM providers.
 
-Once configured, 'iq' will remember your settings at ~/.netrc
+Once configured, 'iq' will remember your settings at ~/.iqrc
 
 Profiles:
   You can manage multiple configurations by setting different profile names.
-  The credentials are read from ~/.netrc under the specified profile.
+  The credentials are read from ~/.iqrc under the specified profile.
 
 	iq ask -p aws
 	iq ask --profile gpt4o
@@ -68,7 +68,15 @@ func config(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	file := filepath.Join(usr.HomeDir, ".netrc")
+	file := filepath.Join(usr.HomeDir, ".iqrc")
+	if _, err := os.Stat(file); os.IsNotExist(err) {
+		f, err := os.Create(file)
+		if err != nil {
+			return err
+		}
+		f.Close()
+	}
+
 	n, err := netrc.Parse(file)
 	if err != nil {
 		return err
@@ -123,7 +131,7 @@ func config(cmd *cobra.Command, args []string) error {
 
 	fmt.Fprintf(os.Stdout, "\n ✅ All good — you're set up and ready to go!\n")
 	fmt.Fprintf(os.Stdout, "    %s is default model, use -m, --llm-id flags to override it.\n", fmodel.model)
-	fmt.Fprintf(os.Stdout, "    You might need to adjust config at ~/.netrc later, based on your setup.\n")
+	fmt.Fprintf(os.Stdout, "    You might need to adjust config at ~/.iqrc later, based on your setup.\n")
 	return nil
 }
 

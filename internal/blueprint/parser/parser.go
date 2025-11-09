@@ -52,6 +52,34 @@ func (p *Parser) parseYAML(file string) (*ast.AST, error) {
 		return nil, err
 	}
 
+	// cascade-down runs-on settings
+	for _, job := range blueprint.Jobs {
+		if blueprint.RunsOn == "" {
+			blueprint.RunsOn = "base"
+		}
+
+		if job.RunsOn == "" {
+			job.RunsOn = blueprint.RunsOn
+		}
+
+		for _, step := range job.Steps {
+			switch s := step.(type) {
+			case *ast.AgentStepNode:
+				if s.RunsOn == "" {
+					s.RunsOn = job.RunsOn
+				}
+			case *ast.RouterStepNode:
+				if s.RunsOn == "" {
+					s.RunsOn = job.RunsOn
+				}
+			case *ast.ForeachStepNode:
+				if s.RunsOn == "" {
+					s.RunsOn = job.RunsOn
+				}
+			}
+		}
+	}
+
 	// Collect all agent file references
 	agentFiles := make(map[string]bool)
 	for _, job := range blueprint.Jobs {
@@ -85,6 +113,7 @@ func (p *Parser) parseYAML(file string) (*ast.AST, error) {
 				syntheticPath := fmt.Sprintf("__inline_%s_%d__", jobID, stepID)
 				syntheticNode := &ast.AgentNode{
 					Name:   syntheticPath,
+					RunsOn: step.RunsOn,
 					Schema: ast.SchemaNode{},
 					Prompt: step.Prompt,
 				}
@@ -243,6 +272,7 @@ type jobYAML struct {
 
 type stepYAML struct {
 	Name    string       `yaml:"name,omitempty"`
+	RunsOn  string       `yaml:"runs-on,omitempty"`
 	Uses    string       `yaml:"uses,omitempty"`
 	Output  string       `yaml:"output,omitempty"`
 	Switch  []routeYAML  `yaml:"switch,omitempty"`
@@ -283,6 +313,7 @@ type serverYAML struct {
 	Type    string   `yaml:"type,omitempty"`
 	Name    string   `yaml:"name,omitempty"`
 	Command []string `yaml:"command,omitempty"`
+	Url     string   `yaml:"url,omitempty"`
 }
 
 // Conversion functions
@@ -339,6 +370,7 @@ func (p *Parser) convertStep(raw *stepYAML) ast.StepNode {
 	if raw.Foreach != nil {
 		return &ast.ForeachStepNode{
 			Name:   raw.Name,
+			RunsOn: raw.RunsOn,
 			Uses:   raw.Uses,
 			Job:    raw.Foreach.Job,
 			Output: raw.Output,
@@ -358,6 +390,7 @@ func (p *Parser) convertStep(raw *stepYAML) ast.StepNode {
 
 		return &ast.RouterStepNode{
 			Name:    raw.Name,
+			RunsOn:  raw.RunsOn,
 			Uses:    raw.Uses,
 			Output:  raw.Output,
 			Routes:  routes,
@@ -369,6 +402,7 @@ func (p *Parser) convertStep(raw *stepYAML) ast.StepNode {
 	// Simple agent step
 	return &ast.AgentStepNode{
 		Name:   raw.Name,
+		RunsOn: raw.RunsOn,
 		Uses:   raw.Uses,
 		Output: raw.Output,
 		Retry:  retry,
@@ -382,6 +416,7 @@ func (p *Parser) convertAgent(raw *agentYAML) *ast.AgentNode {
 			Type:    srv.Type,
 			Name:    srv.Name,
 			Command: srv.Command,
+			Url:     srv.Url,
 		})
 	}
 

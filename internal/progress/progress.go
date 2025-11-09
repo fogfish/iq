@@ -31,9 +31,9 @@ const (
 	IconDocumentError    = "❌"  // Document processing error
 	IconDocumentSkipped  = "⏭️" // Document skipped
 
-	IconStepProcessing = "⚙️" // Step is processing (mutable line)
-	IconStepComplete   = "✅"  // Step completed successfully
-	IconStepError      = "❌"  // Step failed with error
+	IconStepProcessing = "⚙️ " // Step is processing (mutable line)
+	IconStepComplete   = "✅"   // Step completed successfully
+	IconStepError      = "❌"   // Step failed with error
 
 	IconRouterEvaluating = "🧭" // Router evaluating conditions
 	IconRouterMatched    = "↳" // Router matched a route (text, not emoji)

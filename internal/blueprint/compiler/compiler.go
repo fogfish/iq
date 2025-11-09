@@ -212,7 +212,9 @@ func (c *Compiler) compileStep(ctx context.Context, index int, node ast.StepNode
 	retryNode := &Retry{Attempts: 1}
 	retryNAst := node.GetRetry()
 	if retryNAst != nil {
-		agtRetry := &Agent{Node: tree.Agents[retryNAst.Yield]}
+		agtNode := tree.Agents[retryNAst.Yield]
+		agtNode.RunsOn = node.GetRunsOn()
+		agtRetry := &Agent{Node: agtNode}
 		if err := agtRetry.compile(ctx, llm); err != nil {
 			return nil, fmt.Errorf("failed to create retry agent: %w", err)
 		}
@@ -229,6 +231,7 @@ func (c *Compiler) compileStep(ctx context.Context, index int, node ast.StepNode
 		var usesAgent *Agent
 		if foreachNode.Uses != "" {
 			agentNode := tree.Agents[foreachNode.Uses]
+			agentNode.RunsOn = node.GetRunsOn()
 			usesAgent = &Agent{Node: agentNode}
 			if err := usesAgent.compile(ctx, llm); err != nil {
 				return nil, fmt.Errorf("failed to initialize uses agent: %w", err)
@@ -249,6 +252,7 @@ func (c *Compiler) compileStep(ctx context.Context, index int, node ast.StepNode
 	// Create and initialize agent
 	var agt *Agent
 	if agentNode != nil {
+		agentNode.RunsOn = node.GetRunsOn()
 		agt = &Agent{Node: agentNode}
 		if err := agt.compile(ctx, llm); err != nil {
 			return nil, fmt.Errorf("failed to initialize agent: %w", err)

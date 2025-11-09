@@ -18,6 +18,7 @@ import (
 	"github.com/fogfish/iq/internal/blueprint/ast"
 	"github.com/google/jsonschema-go/jsonschema"
 	"github.com/kshard/chatter"
+	"github.com/kshard/chatter/aio"
 	"github.com/kshard/thinker/agent"
 	"github.com/kshard/thinker/codec"
 	"github.com/kshard/thinker/command"
@@ -36,7 +37,7 @@ type Agent struct {
 // active MCP server session
 type Server struct {
 	uid string
-	cmd *mcp.CommandTransport
+	cmd mcp.Transport
 	cli *mcp.Client
 	api *mcp.ClientSession
 }
@@ -50,16 +51,33 @@ func (agt *Agent) compile(ctx context.Context, llm chatter.Chatter) error {
 
 	registry := command.NewRegistry()
 	for i, srv := range agt.Node.Servers {
-		cmd := exec.Command(srv.Command[0], srv.Command[1:]...)
-		rpc := &mcp.CommandTransport{Command: cmd}
-		cli := mcp.NewClient(&mcp.Implementation{Name: srv.Name}, nil)
-		api, err := cli.Connect(context.Background(), rpc, nil)
-		if err != nil {
-			return err
-		}
-		agt.servers[i] = Server{uid: srv.Name, cmd: rpc, cli: cli, api: api}
-		if err := registry.Attach(srv.Name, api); err != nil {
-			return err
+		// TODO: mcp connector (from lib, cloudmcp)
+		switch {
+		case len(srv.Command) > 0:
+			cmd := exec.Command(srv.Command[0], srv.Command[1:]...)
+			rpc := &mcp.CommandTransport{Command: cmd}
+			cli := mcp.NewClient(&mcp.Implementation{Name: srv.Name}, nil)
+			api, err := cli.Connect(context.Background(), rpc, nil)
+			if err != nil {
+				return err
+			}
+			agt.servers[i] = Server{uid: srv.Name, cmd: rpc, cli: cli, api: api}
+			if err := registry.Attach(srv.Name, api); err != nil {
+				return err
+			}
+		case len(srv.Url) > 0:
+			rpc := &mcp.StreamableClientTransport{Endpoint: srv.Url}
+			cli := mcp.NewClient(&mcp.Implementation{Name: srv.Name}, nil)
+			api, err := cli.Connect(context.Background(), rpc, nil)
+			if err != nil {
+				return err
+			}
+			agt.servers[i] = Server{uid: srv.Name, cmd: rpc, cli: cli, api: api}
+			if err := registry.Attach(srv.Name, api); err != nil {
+				return err
+			}
+		default:
+			return fmt.Errorf("server '%s' type '%s' is not supported", srv.Name, srv.Type)
 		}
 	}
 
@@ -86,6 +104,7 @@ func (agt *Agent) compile(ctx context.Context, llm chatter.Chatter) error {
 
 // Prompt executes the agent with given input and returns the output
 func (agt *Agent) Prompt(ctx context.Context, input any, opt ...chatter.Opt) (any, error) {
+	opt = append(opt, aio.Route(agt.Node.RunsOn))
 	reply, err := agt.manifold.Prompt(ctx, input, opt...)
 	if err != nil {
 		return nil, err

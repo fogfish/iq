@@ -80,7 +80,7 @@ go install github.com/fogfish/iq@latest
 
 ## Configuration
 
-The utility requires access to LLMs for execution. LLM access config and credentials are stored in `~/.netrc` under `iq` profile. 
+The utility requires access to LLMs for execution. LLM access config and credentials are stored in `~/.iqrc`. 
 
 <details>
 <summary>AWS Bedrock (Recommended)</summary>

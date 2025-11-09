@@ -16,8 +16,11 @@ import (
 
 	"github.com/kshard/chatter"
 	"github.com/kshard/chatter/aio"
-	"github.com/kshard/chatter/provider/autoconfig"
 )
+
+// TODO: lazy load profile from netrc when building
+
+//------------------------------------------------------------------------------
 
 // Builder creates LLM instances with configured capabilities using builder pattern.
 // Each method immediately creates/decorates the instance.
@@ -40,7 +43,7 @@ func New() *Builder {
 	return &Builder{}
 }
 
-// Creates LLM from profile defined at ~/.netrc
+// Creates LLM from profile defined at ~/.iqrc
 //
 // machine iq
 //
@@ -54,19 +57,7 @@ func (b *Builder) Profile(profile, model string) *Builder {
 		return b
 	}
 
-	// Mock mode
-	if profile == "mock" || model == "mock" {
-		b.llm = &Mock{}
-		return b
-	}
-
-	// Create LLM from autoconfig
-	switch {
-	case len(model) > 0:
-		b.llm, b.err = autoconfig.FromNetRC(profile, model)
-	default:
-		b.llm, b.err = autoconfig.FromNetRC(profile)
-	}
+	b.llm, b.err = NewRouter(profile, model)
 
 	return b
 }
