@@ -24,6 +24,7 @@ const (
 	ChunkerSentence  = "sentence"
 	ChunkerParagraph = "paragraph"
 	ChunkerChunk     = "chunk"
+	ChunkerTag       = "tag"
 )
 
 // Chunker splits documents into chunks based on a strategy.
@@ -32,6 +33,8 @@ type Chunker struct {
 	strategy       string
 	chunkSize      int
 	delimiterChars string
+	lobuffer       int
+	hibuffer       int
 }
 
 // ChunkConfig configures the chunker processor.
@@ -39,6 +42,7 @@ type ChunkConfig struct {
 	Strategy       string // "none", "sentence", "paragraph", "chunk"
 	ChunkSize      int    // Size for chunk strategy (default: 1024)
 	DelimiterChars string // Delimiter characters (defaults vary by strategy)
+	Buffer         int
 }
 
 // NewChunker creates a processor that splits documents into chunks.
@@ -50,11 +54,16 @@ func NewChunker(config ChunkConfig) iosystem.Processor {
 	if config.ChunkSize == 0 {
 		config.ChunkSize = 1024
 	}
+	if config.Buffer == 0 {
+		config.Buffer = 1024 * 1024
+	}
 
 	return &Chunker{
 		strategy:       config.Strategy,
 		chunkSize:      config.ChunkSize,
 		delimiterChars: config.DelimiterChars,
+		lobuffer:       64 * 1024,
+		hibuffer:       config.Buffer,
 	}
 }
 
@@ -107,14 +116,18 @@ func (p *Chunker) createScanner(r io.Reader) scanner.Scanner {
 		if chars == "" {
 			chars = scanner.EndOfSentence
 		}
-		return scanner.NewSentencer(chars, r)
+		s := scanner.NewSentencer(chars, r)
+		s.Buffer(make([]byte, 0, p.lobuffer), p.hibuffer)
+		return s
 
 	case ChunkerParagraph:
 		chars := p.delimiterChars
 		if chars == "" {
 			chars = "\n\n"
 		}
-		return scanner.NewSlicer(chars, r)
+		s := scanner.NewSlicer(chars, r)
+		s.Buffer(make([]byte, 0, p.lobuffer), p.hibuffer)
+		return s
 
 	case ChunkerChunk:
 		chars := p.delimiterChars
@@ -125,7 +138,18 @@ func (p *Chunker) createScanner(r io.Reader) scanner.Scanner {
 		if size == 0 {
 			size = 1024
 		}
-		return scanner.NewChunker(size, scanner.NewSentencer(chars, r))
+		s := scanner.NewSentencer(chars, r)
+		s.Buffer(make([]byte, 0, p.lobuffer), p.hibuffer)
+		return scanner.NewChunker(size, s)
+
+	case ChunkerTag:
+		chars := p.delimiterChars
+		if chars == "" {
+			chars = "details"
+		}
+		s := scanner.NewTagger(fmt.Sprintf("<%s>", chars), fmt.Sprintf("</%s>", chars), r)
+		s.Buffer(make([]byte, 0, p.lobuffer), p.hibuffer)
+		return s
 
 	default: // StrategyNone
 		return scanner.NewIdentity(r)

@@ -1,0 +1,11 @@
+name: command
+
+jobs:
+  main:
+    steps:
+      - run: curl -sL {{.current}}
+        retry:
+          attempts: 3
+          delay: 2
+            
+      - uses: prompts/summarize.md

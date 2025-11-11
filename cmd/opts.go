@@ -122,7 +122,7 @@ func (opts *optsAgent) apply(cmd *cobra.Command) {
 		"Path to agent definition yaml file or simple markdown file")
 
 	f.StringVar(&opts.splitter, "splitter", "none",
-		"Split input file into sentence, paragraph or chunk")
+		"Split input file into sentence, paragraph, chunk or tag")
 
 	f.IntVar(&opts.splitterChunk, "splitter-chunk", 1024,
 		"Chunk size for splitter")

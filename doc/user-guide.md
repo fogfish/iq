@@ -23,6 +23,7 @@ Build intelligent, multi-step agentic workflows with declarative YAML blueprints
     - [Job Definition](#job-definition)
     - [Step Types](#step-types)
       - [Prompting Step](#prompting-step)
+      - [Command Step](#command-step)
       - [Routing Step](#routing-step)
       - [Iterating Step](#iterating-step)
     - [Agent Format](#agent-format)
@@ -286,6 +287,60 @@ Execute an LLM agent:
 ```
 
 
+#### Command Step
+
+Execute shell commands directly in your workflow:
+
+```yaml
+- name: fetch-page       # Optional: step name
+  run: curl -sL $(echo '{{.current}}' | tr -d '\n')  # Shell command with template variables
+  output: html           # Optional: store result with this name
+  retry:                 # Optional: retry configuration
+    attempts: 3
+    delay: 2
+  runs-on: bash          # Optional: shell to use (default: sh)
+```
+
+**Template Variables in Commands:**
+- `{{.current}}` - Output from previous step (or input for first step)
+- `{{.document}}` - Original workflow input
+- `{{.steps.name}}` - Named outputs from previous steps
+- `{{.state.key}}` - Workflow state values
+
+**Examples:**
+
+```yaml
+# Simple command
+- name: list-files
+  run: ls -la
+
+# With template variable
+- name: fetch
+  run: curl -sL '{{.current}}'
+  output: content
+
+# Multi-line command
+- name: process
+  run: |
+    echo '{{.current}}' | \
+    grep -oP 'href="\K[^"]+' | \
+    head -10
+  output: links
+
+# Using previous step output
+- name: transform
+  run: echo '{{.steps.data}}' | jq '.results[]'
+```
+
+**Notes:**
+- Commands execute in `sh` by default (configure with `runs-on: bash`)
+- Stdout is captured as the step output
+- Non-zero exit codes trigger retries or failures
+- Stderr is included in error messages
+- Wrap template variables in quotes to handle special characters
+- Input may include newlines - trim with `tr -d '\n'` if needed
+
+
 #### Routing Step
 
 Conditional routing based on LLM output:
@@ -463,6 +518,7 @@ See examples about possible patterns:
 * [Global state](../examples/03_state/run.yml)
 * [JSON Schema validaton](../examples/02_json_schema/run.yml)
 * [MCP tools and server](../examples/08_tools/run.yml)
+* [Shell Commands](../examples/11_command/run.yml)
 
 
 ## Best Practices

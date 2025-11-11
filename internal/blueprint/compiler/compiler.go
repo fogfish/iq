@@ -215,19 +215,41 @@ func (c *Compiler) compileStep(ctx context.Context, index int, node ast.StepNode
 	// Prepare retry config if present
 	retryNode := &Retry{Attempts: 1}
 	retryNAst := node.GetRetry()
-	if retryNAst != nil {
+	if retryNAst != nil && retryNAst.Yield != "" {
 		agtNode := tree.Agents[retryNAst.Yield]
-		agtNode.RunsOn = node.GetRunsOn()
-		agtRetry := &Agent{Node: agtNode}
-		if err := agtRetry.compile(ctx, llm); err != nil {
-			return nil, fmt.Errorf("failed to create retry agent: %w", err)
+		if agtNode != nil {
+			agtNode.RunsOn = node.GetRunsOn()
+			agtRetry := &Agent{Node: agtNode}
+			if err := agtRetry.compile(ctx, llm); err != nil {
+				return nil, fmt.Errorf("failed to create retry agent: %w", err)
+			}
+
+			retryNode = &Retry{
+				Attempts: retryNAst.Attempts,
+				Delay:    retryNAst.Delay,
+				Yield:    agtRetry,
+			}
+		} else {
+			retryNode = &Retry{
+				Attempts: retryNAst.Attempts,
+				Delay:    retryNAst.Delay,
+			}
+		}
+	}
+
+	// Check if this is a run step (shell command)
+	if runNode, ok := node.(*ast.RunStepNode); ok {
+		shell := runNode.RunsOn
+		if shell == "" {
+			shell = "sh"
 		}
 
-		retryNode = &Retry{
-			Attempts: retryNAst.Attempts,
-			Delay:    retryNAst.Delay,
-			Yield:    agtRetry,
-		}
+		return &RunStep{
+			Command:    runNode.Run,
+			Shell:      shell,
+			OutputName: runNode.GetOutput(),
+			Retry:      retryNode,
+		}, nil
 	}
 
 	// Check if this is a foreach step

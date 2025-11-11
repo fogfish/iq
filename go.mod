@@ -7,7 +7,7 @@ require (
 	github.com/akrylysov/pogreb v0.10.2
 	github.com/fogfish/it/v2 v2.2.4
 	github.com/fogfish/opts v0.0.5
-	github.com/fogfish/scanner v0.0.1
+	github.com/fogfish/scanner v0.0.3
 	github.com/fogfish/stream v1.3.3
 	github.com/goccy/go-yaml v1.18.0
 	github.com/google/cel-go v0.26.1
@@ -47,11 +47,13 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.35.4 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sts v1.39.0 // indirect
 	github.com/aws/smithy-go v1.23.2 // indirect
+	github.com/chewxy/math32 v1.11.1 // indirect
 	github.com/fatih/color v1.18.0 // indirect
 	github.com/fogfish/curie/v2 v2.1.2 // indirect
 	github.com/fogfish/faults v0.3.2 // indirect
 	github.com/fogfish/golem/hseq v1.3.0 // indirect
 	github.com/fogfish/golem/optics v0.14.0 // indirect
+	github.com/fogfish/golem/trait v0.3.0 // indirect
 	github.com/fogfish/guid/v2 v2.1.0 // indirect
 	github.com/fogfish/gurl/v2 v2.10.0 // indirect
 	github.com/fogfish/logger/v3 v3.2.0 // indirect

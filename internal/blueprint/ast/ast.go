@@ -119,6 +119,22 @@ func (n *ForeachStepNode) GetRetry() *RetryNode { return n.Retry }
 func (n *ForeachStepNode) GetOutput() string    { return n.Output }
 func (n *ForeachStepNode) GetRunsOn() string    { return n.RunsOn }
 
+// RunStepNode represents a shell command execution step
+type RunStepNode struct {
+	Name   string
+	RunsOn string // Shell to use (bash, zsh, sh); defaults to "sh"
+	Run    string // Shell command with template variables
+	Output string // Optional name to store output in context
+	Retry  *RetryNode
+}
+
+func (n *RunStepNode) stepNode()            {}
+func (n *RunStepNode) GetName() string      { return n.Name }
+func (n *RunStepNode) GetUses() string      { return "" }
+func (n *RunStepNode) GetRetry() *RetryNode { return n.Retry }
+func (n *RunStepNode) GetOutput() string    { return n.Output }
+func (n *RunStepNode) GetRunsOn() string    { return n.RunsOn }
+
 type RetryNode struct {
 	Attempts int    // Number of retry attempts
 	Delay    int    // Delay between attempts in seconds

@@ -9,8 +9,11 @@
 package compiler
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"os/exec"
+	"text/template"
 	"time"
 
 	"github.com/fogfish/iq/internal/blueprint/ast"
@@ -415,4 +418,113 @@ type Retry struct {
 	Attempts int
 	Delay    int
 	Yield    *Agent
+}
+
+//------------------------------------------------------------------------------
+
+// RunStep executes a shell command
+type RunStep struct {
+	Command    string // Compiled template for the command
+	Shell      string // Shell to use (sh, bash, zsh, etc.)
+	OutputName string
+	Retry      *Retry
+}
+
+// GetOutputName returns the name to store output under
+func (step *RunStep) GetOutputName() string {
+	return step.OutputName
+}
+
+// Prompt executes the shell command
+func (step *RunStep) Prompt(ctx context.Context, opt ...chatter.Opt) error {
+	wfCtx := GetWorkflowContext(ctx)
+	if wfCtx == nil {
+		return fmt.Errorf("workflow context not found in context")
+	}
+
+	reporter := progress.FromContext(ctx)
+	stepInfo := progress.GetStepInfo(ctx)
+
+	startTime := time.Now()
+
+	if reporter != nil && stepInfo != nil {
+		reporter.StepStart(stepInfo.JobName, stepInfo.StepName, stepInfo.StepNum, stepInfo.TotalSteps)
+	}
+
+	var result string
+	var err error
+
+	// Retry logic
+	for i := range step.Retry.Attempts {
+		if i > 0 && reporter != nil && step.Retry.Attempts > 1 {
+			reporter.RetryAttempt(i+1, step.Retry.Attempts, time.Duration(step.Retry.Delay)*time.Second)
+		}
+
+		result, err = step.executeCommand(ctx, wfCtx)
+		if err == nil {
+			if i > 0 && reporter != nil {
+				reporter.RetrySuccess(i + 1)
+			}
+			break
+		}
+		if i < step.Retry.Attempts-1 {
+			time.Sleep(time.Duration(step.Retry.Delay) * time.Second)
+		}
+	}
+
+	if err != nil {
+		if reporter != nil && stepInfo != nil {
+			reporter.StepError(stepInfo.JobName, stepInfo.StepName, stepInfo.StepNum, stepInfo.TotalSteps, err)
+		}
+		if step.Retry.Attempts > 1 && reporter != nil {
+			reporter.RetryExhausted(step.Retry.Attempts)
+		}
+		return fmt.Errorf("all attempts failed: %w", err)
+	}
+
+	// Report step complete
+	if reporter != nil && stepInfo != nil {
+		duration := time.Since(startTime)
+		reporter.StepComplete(stepInfo.JobName, stepInfo.StepName, stepInfo.StepNum, stepInfo.TotalSteps, duration, 0)
+	}
+
+	// Store output in context
+	if step.OutputName != "" {
+		wfCtx.SetStepOutput(step.OutputName, result)
+	} else {
+		wfCtx.Current = result
+	}
+
+	return nil
+}
+
+func (step *RunStep) executeCommand(ctx context.Context, wfCtx *WorkflowContext) (string, error) {
+	// Render command template with workflow context
+	tmpl, err := template.New("run").Parse(step.Command)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse command template: %w", err)
+	}
+
+	var cmdBuf bytes.Buffer
+	if err := tmpl.Execute(&cmdBuf, wfCtx.ToMap()); err != nil {
+		return "", fmt.Errorf("failed to render command template: %w", err)
+	}
+	rendered := cmdBuf.String()
+
+	// Execute command using exec package
+	var stdout, stderr bytes.Buffer
+	cmd := exec.CommandContext(ctx, step.Shell, "-c", rendered)
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	if err := cmd.Run(); err != nil {
+		// Include stderr in error message
+		stderrStr := stderr.String()
+		if stderrStr != "" {
+			return "", fmt.Errorf("command failed: %w\nCommand: %s\nStderr: %s", err, rendered, stderrStr)
+		}
+		return "", fmt.Errorf("command failed: %w\nCommand: %s", err, rendered)
+	}
+
+	return stdout.String(), nil
 }

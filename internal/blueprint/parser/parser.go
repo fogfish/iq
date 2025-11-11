@@ -76,6 +76,10 @@ func (p *Parser) parseYAML(file string) (*ast.AST, error) {
 				if s.RunsOn == "" {
 					s.RunsOn = job.RunsOn
 				}
+			case *ast.RunStepNode:
+				if s.RunsOn == "" {
+					s.RunsOn = "sh" // Default shell for run steps
+				}
 			}
 		}
 	}
@@ -274,6 +278,7 @@ type stepYAML struct {
 	Name    string       `yaml:"name,omitempty"`
 	RunsOn  string       `yaml:"runs-on,omitempty"`
 	Uses    string       `yaml:"uses,omitempty"`
+	Run     string       `yaml:"run,omitempty"`
 	Output  string       `yaml:"output,omitempty"`
 	Switch  []routeYAML  `yaml:"switch,omitempty"`
 	Default string       `yaml:"default,omitempty"`
@@ -364,6 +369,17 @@ func (p *Parser) convertStep(raw *stepYAML) ast.StepNode {
 			Attempts: raw.Retry.Attempts,
 			Delay:    raw.Retry.Delay,
 			Yield:    raw.Retry.Yield,
+		}
+	}
+
+	// Check if this is a run step (shell command)
+	if raw.Run != "" {
+		return &ast.RunStepNode{
+			Name:   raw.Name,
+			RunsOn: raw.RunsOn,
+			Run:    raw.Run,
+			Output: raw.Output,
+			Retry:  retry,
 		}
 	}
 
