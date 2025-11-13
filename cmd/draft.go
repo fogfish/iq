@@ -19,6 +19,7 @@ import (
 
 func init() {
 	rootCmd.AddCommand(draftCmd)
+	draftCmd.AddCommand(draftYamlCmd)
 }
 
 var draftCmd = &cobra.Command{
@@ -34,8 +35,14 @@ automate workflows, and ensure consistent LLM behavior across files and tasks.
 See more info https://github.com/fogfish/iq
 	`,
 	Example: `
+	# Generate prompt template
 	iq draft
+
+	# Generate prompt with LLM, using stdin as input for sketching the task
 	echo "What are the colors of rainbow?" | iq draft
+
+	# Generate workflow for agent execution
+	iq draft agent
 	`,
 	SilenceUsage:  true,
 	SilenceErrors: true,
@@ -58,7 +65,8 @@ func draft(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	llm, err := rootLLM.Create("", rootDebug, false)
+	reporter := fglobal.reporter()
+	llm, err := fmodel.build(reporter)
 	if err != nil {
 		return err
 	}
@@ -78,8 +86,8 @@ func draft(cmd *cobra.Command, args []string) error {
 		`Purpose-driven (have a clear goal)`,
 		`Engaging and motivating`,
 		`Scalable for variations of the task`,
-		`The output should be YAML, text under prompt key`,
-		`Please include the prompt only, without any explanation or commentary.
+		`The output should be Markdown text with YAML front matter as defined in example below.`,
+		`Include the prompt only, without any explanation or commentary.
 			The task should be moderately challenging and involve reasoning,
 			creativity, or structured output.`,
 	)
@@ -87,7 +95,7 @@ func draft(cmd *cobra.Command, args []string) error {
 	prompt.With(
 		chatter.Example{
 			Input: "What are the colors of rainbow?",
-			Reply: "prompt: |\nDefine the sequence of colors in a rainbow...",
+			Reply: "---\nformat: text\n---\nDefine the sequence of colors in a rainbow...",
 		},
 	)
 
@@ -101,33 +109,108 @@ func draft(cmd *cobra.Command, args []string) error {
 }
 
 func teler() string {
-	return `
-prompt: |
-  [Describe the task and goals clearly and concisely].
+	return `---
+format: text
+schema:
+  input:
+    type: object
+    required: [attr]
+    properties:
+      attr: {type: string}
+  reply:
+    type: object
+    required: [attr]
+    properties:
+      attr: {type: string}
+---
+[Describe the task and goals clearly and concisely].
 
-  Guidelines:
-    (1) [High-level principles or approach to follow.]
-    (2) ...
+Guidelines:
+	(1) [High-level principles or approach to follow.]
+	(2) ...
 
-  Strictly adhere to the following requirements when generating a response.
-  Do not deviate, ignore, or modify any aspect of them:
-    1. [Concrete requirement]
-    2. [Another specific rule]
-    ...
+Strictly adhere to the following requirements when generating a response.
+Do not deviate, ignore, or modify any aspect of them:
+	1. [Concrete requirement]
+	2. [Another specific rule]
+	...
 
-  Example Input:
-  [Show an example of what the input might look like.]
+Example Input:
+[Show an example of what the input might look like.]
 
-  Expected Output:
-  [Demonstrate the ideal format or structure of the response.]
+Expected Output:
+[Demonstrate the ideal format or structure of the response.]
 
-  Additional Context:
-    - [Relevant detail #1]
-    - [Constraint or domain knowledge #2]
-    - ...
+Additional Context:
+	- [Relevant detail #1]
+	- [Constraint or domain knowledge #2]
+	- ...
 
-  Input:
-    [Insert the actual input here]
+Input:
+	[Insert the actual input here]
+
+`
+}
+
+var draftYamlCmd = &cobra.Command{
+	Use:   "agent",
+	Short: "generate agent template",
+	Long: `
+xxx
+
+See more info https://github.com/fogfish/iq
+	`,
+	Example: `
+	# Generate workflow for agent execution
+	iq draft agent
+	`,
+	SilenceUsage:  true,
+	SilenceErrors: true,
+	RunE:          draftYaml,
+}
+
+func draftYaml(cmd *cobra.Command, args []string) error {
+	os.Stdout.Write([]byte(yaml()))
+	return nil
+}
+
+func yaml() string {
+	return `name: draft
+jobs:
+  main:
+    steps:
+      - uses: prompts/prompt.md
+
+      - name: foobar
+        uses: prompts/prompt.md
+        output: foobar
+
+      - name: foobar
+        uses: prompts/prompt.md
+        retry:
+          attempts: 3
+          delay: 2
+          yield: prompts/fallback.md
+        output: foobar
+
+      - uses: prompts/prompt.md
+        switch:
+          - when: choice == "choice" && steps.foobar.category == "foo"
+            route: func
+        default: unknown
+
+      - uses: prompts/prompt.md
+        foreach:
+          job: func
+
+
+  func:
+    steps:
+      - uses: prompts/prompt.md
+
+  unknown:
+    steps:
+      - uses: prompts/prompt.md
 
 `
 }

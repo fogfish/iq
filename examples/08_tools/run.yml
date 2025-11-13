@@ -1,0 +1,5 @@
+name: tools
+jobs:
+  main:
+    steps:
+      - uses: prompts/consumer.md

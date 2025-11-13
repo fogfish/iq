@@ -1,8 +1,0 @@
-##
-## Include files content into prompt
-##
-
-format: json
-
-prompt: |
-  What are the colors of the thing depicted in the attached document?

@@ -1,0 +1,7 @@
+name: schema
+jobs:
+  main:
+    steps:
+      - uses: prompts/extract.md
+      - uses: prompts/transform.md
+      - uses: prompts/explain.md

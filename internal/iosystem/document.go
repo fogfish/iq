@@ -1,0 +1,78 @@
+//
+// Copyright (C) 2025 Dmitry Kolesnikov
+//
+// This file may be modified and distributed under the terms
+// of the MIT license.  See the LICENSE file for details.
+// https://github.com/fogfish/iq
+//
+
+package iosystem
+
+import (
+	"io"
+	"path/filepath"
+	"strings"
+)
+
+// Content type constants
+const (
+	ContentStream = "application/octet-stream"
+	ContentJSON   = "application/json"
+	ContentYAML   = "application/x-yaml"
+	ContentText   = "text/plain"
+)
+
+// Document represents a single input document with metadata.
+// Documents flow through the pipeline from Source → Processor → Sink.
+type Document struct {
+	// Path is the logical identifier for this document (e.g., "stdin", "file.txt", "dir/file.txt")
+	Path string
+
+	// Type specifies the content type of the document
+	// (e.g., "application/octet-stream", "application/json")
+	Type string
+
+	// Reader provides streaming access to document content
+	Reader io.Reader
+
+	// Metadata contains additional information about the document
+	// (e.g., content-type, size, timestamp, custom attributes)
+	Metadata map[string]string
+}
+
+// NewDocument creates a new document with the given path and reader.
+// The content type defaults to application/octet-stream.
+func NewDocument(path string, reader io.Reader) *Document {
+	return &Document{
+		Path:     path,
+		Type:     ContentStream,
+		Reader:   reader,
+		Metadata: make(map[string]string),
+	}
+}
+
+// WithMetadata adds metadata to the document and returns it for chaining.
+func (d *Document) WithMetadata(key, value string) *Document {
+	if d.Metadata == nil {
+		d.Metadata = make(map[string]string)
+	}
+	d.Metadata[key] = value
+	return d
+}
+
+func (d *Document) FilePath() string {
+	ext := filepath.Ext(d.Path)
+	base := strings.TrimSuffix(d.Path, ext)
+	switch d.Type {
+	case ContentJSON:
+		return base + ".json"
+	case ContentYAML:
+		return base + ".yaml"
+	case "image/png":
+		return base + ".png"
+	case "image/jpeg":
+		return base + ".jpg"
+	default:
+		return d.Path
+	}
+}

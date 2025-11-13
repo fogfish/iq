@@ -1,0 +1,5 @@
+name: test
+jobs:
+  main:
+    steps:
+      - uses: prompt.md

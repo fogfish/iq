@@ -1,0 +1,18 @@
+name: retry-demo
+
+jobs:
+  main:
+    steps:
+      # Step that may fail, will retry up to 3 times with 2 second delay
+      # If all retries fail, executes fallback.md instead
+      - name: fetch-data
+        uses: prompts/unreliable.md
+        retry:
+          attempts: 3
+          delay: 2
+          yield: prompts/fallback.md
+        output: data
+      
+      # Process the result (either from successful retry or fallback)
+      - name: summarize
+        uses: prompts/summarize.md

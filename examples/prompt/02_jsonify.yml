@@ -1,8 +1,0 @@
-##
-## Set the format to return json array of strings
-##
-
-format: json
-
-prompt: |
-  What are the colors of rainbow?

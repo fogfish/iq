@@ -18,137 +18,77 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func TestTell(t *testing.T) {
-	// iq tell -s -m ... -p ...
-	rootSilent = true
-	rootLLM.Model = "mock"
-	rootPrompt = "./testdata/prompt.yml"
+func TestAgentWithPrompt(t *testing.T) {
+	// iq agent -f testdata/prompt.md
+	fmodel.profile = "mock"
+	fagent.file = "testdata/prompt.md"
 
-	out, err := sut(tellCmd, nil)
+	out, err := sut(agentCmd, nil)
 
 	it.Then(t).Should(
 		it.Nil(err),
-		it.String(out).Contain("What are the colors of rainbow?"),
+		it.String(out).Contain("Hello World!"),
 	)
 }
 
-func TestTellWithFiles(t *testing.T) {
-	// iq tell -s -m ... -p ... FILE1 FILE2
-	rootSilent = true
-	rootLLM.Model = "mock"
-	rootPrompt = "./testdata/prompt.yml"
+func TestAgentWithWorkflow(t *testing.T) {
+	// iq agent -f testdata/workflow.yml
+	fmodel.profile = "mock"
+	fagent.file = "testdata/workflow.yml"
 
-	out, err := sut(tellCmd, []string{"../examples/prompt/doc/sun.txt", "../examples/prompt/doc/sky.txt"})
+	out, err := sut(agentCmd, nil)
+
 	it.Then(t).Should(
 		it.Nil(err),
-		it.String(out).Contain("What are the colors of rainbow?"),
-		it.String(out).Contain("sun"),
-		it.String(out).Contain("sky"),
+		it.String(out).Contain("Hello World!"),
 	)
 }
 
-func TestTellWithMergedFiles(t *testing.T) {
-	// iq tell -s -m ... -p ... --merge FILE1 FILE2
-	rootSilent = true
-	rootLLM.Model = "mock"
-	rootPrompt = "./testdata/prompt.yml"
-	tellMergeFiles = true
+func TestAgentWithFile(t *testing.T) {
+	// iq agent -f testdata/prompt.md FILE1
+	fmodel.profile = "mock"
+	fagent.file = "testdata/workflow.yml"
 
-	out, err := sut(tellCmd, []string{"../examples/prompt/doc/sun.txt", "../examples/prompt/doc/sky.txt"})
+	out, err := sut(agentCmd, []string{"testdata/doc.txt"})
+
 	it.Then(t).Should(
 		it.Nil(err),
-		it.String(out).Contain("What are the colors of rainbow?"),
-		it.String(out).Contain("sun"),
-		it.String(out).Contain("sky"),
+		it.String(out).Contain("Hello World!"),
+		it.String(out).Contain("Content."),
 	)
 }
 
-func TestTellWithArgs(t *testing.T) {
-	// iq tell -s -m ... -p ...
-	rootSilent = true
-	rootLLM.Model = "mock"
-	rootPrompt = "./testdata/args.yml"
+func TestAgentWithFiles(t *testing.T) {
+	// iq agent -f testdata/prompt.md FILE1 FILE2
+	fmodel.profile = "mock"
+	fagent.file = "testdata/workflow.yml"
 
-	out, err := sut(tellCmd, nil)
+	out, err := sut(agentCmd, []string{"testdata/doc.txt", "testdata/doc.txt"})
+
 	it.Then(t).Should(
 		it.Nil(err),
-		it.String(out).Contain("What are the colors of rainbow?"),
+		it.String(out).Contain("Hello World! Content.Hello World! Content."),
 	)
 }
 
-func TestTellWithArgsOverride(t *testing.T) {
-	// iq tell -s -m ... -p ... --input "key1=value1,key2=value2"
-	rootSilent = true
-	rootLLM.Model = "mock"
-	rootPrompt = "./testdata/args.yml"
-	rootInput = "key1=value1,key2,key3=,name=sun"
+func TestAgentWithFileMerge(t *testing.T) {
+	// iq agent -f testdata/prompt.md --merge FILE1 FILE2
+	fmodel.profile = "mock"
+	fagent.file = "testdata/workflow.yml"
+	finput.merge = true
 
-	out, err := sut(tellCmd, nil)
-	it.Then(t).Should(
-		it.Nil(err),
-		it.String(out).Contain("What are the colors of sun?"),
-	)
-}
-
-func TestExec(t *testing.T) {
-	// iq exec -s -m ... -p ...
-	rootSilent = true
-	rootLLM.Model = "mock"
-	rootPrompt = "./testdata/task.yml"
-
-	out, err := sut(execCmd, nil)
+	out, err := sut(agentCmd, []string{"testdata/doc.txt", "testdata/doc.txt"})
 
 	it.Then(t).Should(
 		it.Nil(err),
-		it.String(out).Contain("Use available tools to complete the workflow"),
-	)
-}
-
-func TestExecWithFiles(t *testing.T) {
-	// iq exec -s -m ... -p ... FILE1 FILE2
-	rootSilent = true
-	rootLLM.Model = "mock"
-	rootPrompt = "./testdata/task.yml"
-
-	out, err := sut(execCmd, []string{"../examples/prompt/doc/sun.txt", "../examples/prompt/doc/sky.txt"})
-	it.Then(t).Should(
-		it.Nil(err),
-		it.String(out).Contain("Use available tools to complete the workflow"),
-	)
-}
-
-func TestAsk(t *testing.T) {
-	// iq ask -s -m ... -p ... -d ... -o ...
-	rootSilent = true
-	rootLLM.Model = "mock"
-	rootPrompt = "./testdata/prompt.yml"
-	askDir = "../examples/prompt/doc"
-	askOut = "/tmp"
-
-	_, err := sut(askCmd, nil)
-	it.Then(t).Should(
-		it.Nil(err),
-	)
-}
-
-func TestRun(t *testing.T) {
-	// iq run -s -m ... -p ... -d ... -o ...
-	rootSilent = true
-	rootLLM.Model = "mock"
-	rootPrompt = "./testdata/task.yml"
-	runDir = "../examples/prompt/doc"
-	runOut = "/tmp"
-
-	_, err := sut(runCmd, nil)
-	it.Then(t).Should(
-		it.Nil(err),
+		it.String(out).Contain("Hello World!"),
+		it.String(out).Contain("Content. Content."),
 	)
 }
 
 func TestDraft(t *testing.T) {
 	// iq draft
-	rootSilent = true
-	rootLLM.Model = "mock"
+	fmodel.profile = "mock"
 
 	out, err := sut(draftCmd, nil)
 	it.Then(t).Should(
@@ -156,6 +96,19 @@ func TestDraft(t *testing.T) {
 		it.String(out).Contain("[Describe the task and goals clearly and concisely]."),
 	)
 }
+
+func TestDraftYaml(t *testing.T) {
+	// iq draft agent
+	fmodel.profile = "mock"
+
+	out, err := sut(draftYamlCmd, nil)
+	it.Then(t).Should(
+		it.Nil(err),
+		it.String(out).Contain("uses: prompts/prompt.md"),
+	)
+}
+
+//------------------------------------------------------------------------------
 
 // helper utility to sut cobra.Command
 func sut(cmd *cobra.Command, args []string) (string, error) {
