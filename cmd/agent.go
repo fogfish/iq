@@ -29,6 +29,7 @@ func init() {
 
 	agentCmd.AddCommand(agentServeCmd)
 	fservmcp.apply(agentServeCmd)
+
 }
 
 var agentCmd = &cobra.Command{

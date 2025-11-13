@@ -145,6 +145,13 @@ func (b *Builder) Workflow(file string, llm chatter.Chatter) *Builder {
 		return b
 	}
 
+	if len(file) == 0 {
+		b.runtime.AddProcessor(
+			processor.NewPrompter(llm),
+		)
+		return b
+	}
+
 	wrk, err := blueprint.New(file, llm)
 	if err != nil {
 		b.err = fmt.Errorf("failed to create blueprint from %s: %w", file, err)

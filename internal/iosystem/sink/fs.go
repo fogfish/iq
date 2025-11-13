@@ -40,7 +40,7 @@ func (s *FS) Write(ctx context.Context, doc *iosystem.Document) error {
 	}
 
 	// Create the file using document's path
-	file, err := s.fsys.Create(doc.Path, nil)
+	file, err := s.fsys.Create(doc.FilePath(), nil)
 	if err != nil {
 		return fmt.Errorf("failed to create file %s: %w", doc.Path, err)
 	}

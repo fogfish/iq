@@ -74,6 +74,18 @@ func (b *Builder) Strict(enable bool) *Builder {
 	return b
 }
 
+func (b *Builder) FileExt(ext string) *Builder {
+	if b.err != nil {
+		return b
+	}
+
+	if len(ext) > 0 {
+		b.opts = append(b.opts, spool.WithFileExt(ext))
+	}
+
+	return b
+}
+
 func (b *Builder) Build() (*spool.Spool, error) {
 	if b.err != nil {
 		return nil, b.err

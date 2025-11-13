@@ -10,6 +10,8 @@ package iosystem
 
 import (
 	"io"
+	"path/filepath"
+	"strings"
 )
 
 // Content type constants
@@ -56,4 +58,21 @@ func (d *Document) WithMetadata(key, value string) *Document {
 	}
 	d.Metadata[key] = value
 	return d
+}
+
+func (d *Document) FilePath() string {
+	ext := filepath.Ext(d.Path)
+	base := strings.TrimSuffix(d.Path, ext)
+	switch d.Type {
+	case ContentJSON:
+		return base + ".json"
+	case ContentYAML:
+		return base + ".yaml"
+	case "image/png":
+		return base + ".png"
+	case "image/jpeg":
+		return base + ".jpg"
+	default:
+		return d.Path
+	}
 }

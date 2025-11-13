@@ -216,16 +216,20 @@ var fspool optsSpool
 type optsSpool struct {
 	mutable bool
 	strict  bool
+	ext     string
 }
 
 func (opts *optsSpool) apply(cmd *cobra.Command) {
 	f := cmd.Flags()
 
-	f.BoolVar(&opts.mutable, "mutable", false,
+	f.BoolVar(&opts.mutable, "spool-mutable", false,
 		"Remove input files after successful processing (fail-safe mode)")
 
-	f.BoolVar(&opts.strict, "strict", false,
+	f.BoolVar(&opts.strict, "spool-strict", false,
 		"Fail fast on the first error during processing")
+
+	f.StringVar(&opts.ext, "spool-ext", "",
+		"Create files with new extension when writing to output spool")
 }
 
 func (opts *optsSpool) build() (*spool.Spool, error) {
@@ -234,6 +238,7 @@ func (opts *optsSpool) build() (*spool.Spool, error) {
 		Writer(freply.dir).
 		Mutable(opts.mutable).
 		Strict(opts.strict).
+		FileExt(opts.ext).
 		Build()
 }
 
