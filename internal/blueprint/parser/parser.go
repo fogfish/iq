@@ -157,8 +157,9 @@ func (p *Parser) parseMarkdown(file string) (*ast.AST, error) {
 				Name: "main",
 				Steps: []ast.StepNode{
 					&ast.AgentStepNode{
-						Name: "prompt",
-						Uses: file,
+						Name:   "prompt",
+						Uses:   file,
+						RunsOn: "base",
 					},
 				},
 			},
