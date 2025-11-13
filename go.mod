@@ -1,6 +1,6 @@
 module github.com/fogfish/iq
 
-go 1.25.4
+go 1.24.0
 
 require (
 	github.com/TylerBrock/colorjson v0.0.0-20200706003622-8a50f05110d2
@@ -14,7 +14,7 @@ require (
 	github.com/google/jsonschema-go v0.3.0
 	github.com/jdxcode/netrc v1.0.0
 	github.com/kshard/chatter v0.11.1
-	github.com/kshard/chatter/provider/autoconfig v0.12.0
+	github.com/kshard/chatter/provider/autoconfig v0.12.1
 	github.com/kshard/thinker v0.3.0
 	github.com/modelcontextprotocol/go-sdk v1.0.0
 	github.com/nickwells/twrap.mod v1.5.10
@@ -70,7 +70,7 @@ require (
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/kr/text v0.2.0 // indirect
 	github.com/kshard/chatter/provider/bedrock v0.10.0 // indirect
-	github.com/kshard/chatter/provider/google v0.1.0 // indirect
+	github.com/kshard/chatter/provider/google v0.1.1 // indirect
 	github.com/kshard/chatter/provider/openai v0.10.0 // indirect
 	github.com/kshard/float8 v0.0.3 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
