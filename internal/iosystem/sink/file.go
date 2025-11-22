@@ -43,6 +43,15 @@ func NewFile(fsys stream.CreateFS[struct{}], path string) (iosystem.Sink, error)
 // Write appends the document content to the file.
 // The file is created on the first write and kept open until Close().
 func (f *File) Write(ctx context.Context, doc *iosystem.Document) error {
+	switch doc.Type {
+	case iosystem.ContentPNG, iosystem.ContentJPG:
+		return f.writeImage(ctx, doc)
+	default:
+		return f.writeText(ctx, doc)
+	}
+}
+
+func (f *File) writeText(ctx context.Context, doc *iosystem.Document) error {
 	// Open file on first write
 	if f.file == nil {
 		file, err := f.fsys.Create(f.path, nil)
@@ -61,6 +70,23 @@ func (f *File) Write(ctx context.Context, doc *iosystem.Document) error {
 	// Add newline separator between documents
 	_, err = f.file.Write([]byte("\n"))
 	return err
+}
+
+func (f *File) writeImage(ctx context.Context, doc *iosystem.Document) error {
+	doc.Path = f.path
+	fd, err := f.fsys.Create(doc.FilePath(), nil)
+	if err != nil {
+		return fmt.Errorf("failed to create file %s: %w", doc.FilePath(), err)
+	}
+	defer fd.Close()
+
+	// Write document content
+	_, err = io.Copy(fd, doc.Reader)
+	if err != nil {
+		return fmt.Errorf("failed to write to file %s: %w", doc.FilePath(), err)
+	}
+
+	return nil
 }
 
 // Close closes the file and releases resources.

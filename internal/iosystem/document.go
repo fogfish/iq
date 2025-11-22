@@ -19,6 +19,8 @@ const (
 	ContentStream = "application/octet-stream"
 	ContentJSON   = "application/json"
 	ContentYAML   = "application/x-yaml"
+	ContentPNG    = "image/png"
+	ContentJPG    = "image/jpeg"
 	ContentText   = "text/plain"
 )
 
@@ -68,9 +70,9 @@ func (d *Document) FilePath() string {
 		return base + ".json"
 	case ContentYAML:
 		return base + ".yaml"
-	case "image/png":
+	case ContentPNG:
 		return base + ".png"
-	case "image/jpeg":
+	case ContentJPG:
 		return base + ".jpg"
 	default:
 		return d.Path
