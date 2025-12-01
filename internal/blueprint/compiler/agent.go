@@ -15,6 +15,7 @@ import (
 	"os/exec"
 	"strings"
 
+	"github.com/fogfish/iq/internal/auth"
 	"github.com/fogfish/iq/internal/blueprint/ast"
 	"github.com/google/jsonschema-go/jsonschema"
 	"github.com/kshard/chatter"
@@ -66,7 +67,11 @@ func (agt *Agent) compile(ctx context.Context, llm chatter.Chatter) error {
 				return err
 			}
 		case len(srv.Url) > 0:
-			rpc := &mcp.StreamableClientTransport{Endpoint: srv.Url}
+			//&mcp.StreamableClientTransport{Endpoint: srv.Url}
+			rpc, err := auth.NewTransport(auth.Config{Endpoint: srv.Url})
+			if err != nil {
+				return err
+			}
 			cli := mcp.NewClient(&mcp.Implementation{Name: srv.Name}, nil)
 			api, err := cli.Connect(context.Background(), rpc, nil)
 			if err != nil {

@@ -28,7 +28,8 @@ Build intelligent, multi-step agentic workflows with declarative YAML blueprints
       - [Iterating Step](#iterating-step)
     - [Agent Format](#agent-format)
       - [JSON Schema Validation](#json-schema-validation)
-      - [MCP Server Integration](#mcp-server-integration)
+      - [Remote MCP Servers Integration](#remote-mcp-servers-integration)
+      - [Remote MCP Servers Authentication](#remote-mcp-servers-authentication)
   - [Workflow Patterns](#workflow-patterns)
   - [Best Practices](#best-practices)
     - [Workflow Design](#workflow-design)
@@ -485,7 +486,7 @@ Search for: {{.input.query}}
 Limit: {{.input.max_results}}
 ```
 
-#### MCP Server Integration
+#### Remote MCP Servers Integration
 
 Enable tool access via Model Context Protocol servers:
 
@@ -506,6 +507,28 @@ Get weather for San Francisco and calculate temperature in Celsius.
 
 The LLM can discover and invoke tools provided by these servers.
 
+#### Remote MCP Servers Authentication 
+
+For MCP servers that require authentication (such as OAuth2-protected endpoints), configure Bearer token credentials in your `~/.iqrc` file using netrc format:
+
+```bash
+machine api.example.com
+  secret your-bearer-token-here
+```
+
+Then reference the authenticated server by URL:
+
+```markdown
+---
+servers:
+  - name: github
+    url: https://api.githubcopilot.com/mcp/
+---
+Use the authenticated API to fetch data for: {{.input}}
+```
+
+The system automatically adds `Authorization: Bearer <token>` headers to requests to the specified host. Use the `secret` field for the Bearer token value.
+
 
 ## Workflow Patterns
 
@@ -517,7 +540,7 @@ See examples about possible patterns:
 * [Error Recovery](../examples/07_retry/run.yml)
 * [Global state](../examples/03_state/run.yml)
 * [JSON Schema validaton](../examples/02_json_schema/run.yml)
-* [MCP tools and server](../examples/08_tools/run.yml)
+* [MCP tools and server](../examples/08_mcp/run.yml)
 * [Shell Commands](../examples/11_command/run.yml)
 
 
