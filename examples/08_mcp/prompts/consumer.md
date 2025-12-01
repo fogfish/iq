@@ -3,10 +3,10 @@ format: text
 servers:
   - name: sayer
     command:
-      - ./iq
+      - iq
       - agent
       - serve
-      - -a
-      - examples/08_tools/greeter/run.yml
+      - -f
+      - examples/08_mcp/greeter/run.yml
 ---
 Use the tools to say hi to Joe Doe. Get the response and output it here without any changes.
