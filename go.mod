@@ -5,6 +5,10 @@ go 1.24.0
 require (
 	github.com/TylerBrock/colorjson v0.0.0-20200706003622-8a50f05110d2
 	github.com/akrylysov/pogreb v0.10.2
+	github.com/aws/aws-sdk-go-v2 v1.39.5
+	github.com/aws/aws-sdk-go-v2/config v1.31.16
+	github.com/aws/aws-sdk-go-v2/credentials v1.18.20
+	github.com/aws/aws-sdk-go-v2/service/sts v1.39.0
 	github.com/fogfish/it/v2 v2.2.4
 	github.com/fogfish/opts v0.0.5
 	github.com/fogfish/scanner v0.0.3
@@ -15,7 +19,7 @@ require (
 	github.com/jdxcode/netrc v1.0.0
 	github.com/kshard/chatter v0.11.1
 	github.com/kshard/chatter/provider/autoconfig v0.12.1
-	github.com/kshard/thinker v0.3.0
+	github.com/kshard/thinker v0.3.1
 	github.com/modelcontextprotocol/go-sdk v1.0.0
 	github.com/nickwells/twrap.mod v1.5.10
 	github.com/spf13/cobra v1.9.1
@@ -29,10 +33,7 @@ require (
 	cloud.google.com/go/compute/metadata v0.5.0 // indirect
 	github.com/ajg/form v1.5.2-0.20200323032839-9aeb3cf462e1 // indirect
 	github.com/antlr4-go/antlr/v4 v4.13.0 // indirect
-	github.com/aws/aws-sdk-go-v2 v1.39.5 // indirect
 	github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.7.2 // indirect
-	github.com/aws/aws-sdk-go-v2/config v1.31.16 // indirect
-	github.com/aws/aws-sdk-go-v2/credentials v1.18.20 // indirect
 	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.18.12 // indirect
 	github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.20.2 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/configsources v1.4.12 // indirect
@@ -48,7 +49,6 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.89.1 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sso v1.30.0 // indirect
 	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.35.4 // indirect
-	github.com/aws/aws-sdk-go-v2/service/sts v1.39.0 // indirect
 	github.com/aws/smithy-go v1.23.2 // indirect
 	github.com/chewxy/math32 v1.11.1 // indirect
 	github.com/fatih/color v1.18.0 // indirect

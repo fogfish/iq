@@ -1,0 +1,5 @@
+name: oauth2
+jobs:
+  main:
+    steps:
+      - uses: prompts/github.md

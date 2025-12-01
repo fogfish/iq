@@ -15,6 +15,7 @@ import (
 	"os/exec"
 	"strings"
 
+	"github.com/fogfish/iq/internal/auth"
 	"github.com/fogfish/iq/internal/blueprint/ast"
 	"github.com/google/jsonschema-go/jsonschema"
 	"github.com/kshard/chatter"
@@ -50,34 +51,15 @@ func (agt *Agent) compile(ctx context.Context, llm chatter.Chatter) error {
 	// MCP
 
 	registry := command.NewRegistry()
-	for i, srv := range agt.Node.Servers {
-		// TODO: mcp connector (from lib, cloudmcp)
-		switch {
-		case len(srv.Command) > 0:
-			cmd := exec.Command(srv.Command[0], srv.Command[1:]...)
-			rpc := &mcp.CommandTransport{Command: cmd}
-			cli := mcp.NewClient(&mcp.Implementation{Name: srv.Name}, nil)
-			api, err := cli.Connect(context.Background(), rpc, nil)
-			if err != nil {
-				return err
-			}
-			agt.servers[i] = Server{uid: srv.Name, cmd: rpc, cli: cli, api: api}
-			if err := registry.Attach(srv.Name, api); err != nil {
-				return err
-			}
-		case len(srv.Url) > 0:
-			rpc := &mcp.StreamableClientTransport{Endpoint: srv.Url}
-			cli := mcp.NewClient(&mcp.Implementation{Name: srv.Name}, nil)
-			api, err := cli.Connect(context.Background(), rpc, nil)
-			if err != nil {
-				return err
-			}
-			agt.servers[i] = Server{uid: srv.Name, cmd: rpc, cli: cli, api: api}
-			if err := registry.Attach(srv.Name, api); err != nil {
-				return err
-			}
-		default:
-			return fmt.Errorf("server '%s' type '%s' is not supported", srv.Name, srv.Type)
+	for i, node := range agt.Node.Servers {
+		srv, err := agt.server(node)
+		if err != nil {
+			return err
+		}
+
+		agt.servers[i] = srv
+		if err := registry.Attach(node.Name, srv.api); err != nil {
+			return err
 		}
 	}
 
@@ -100,6 +82,35 @@ func (agt *Agent) compile(ctx context.Context, llm chatter.Chatter) error {
 	)
 
 	return nil
+}
+
+func (agt *Agent) server(srv ast.ServerNode) (Server, error) {
+	switch {
+	case len(srv.Command) > 0:
+		cmd := exec.Command(srv.Command[0], srv.Command[1:]...)
+		rpc := &mcp.CommandTransport{Command: cmd}
+		cli := mcp.NewClient(&mcp.Implementation{Name: srv.Name}, nil)
+		api, err := cli.Connect(context.Background(), rpc, nil)
+		if err != nil {
+			return Server{}, err
+		}
+		return Server{uid: srv.Name, cmd: rpc, cli: cli, api: api}, nil
+
+	case len(srv.Url) > 0:
+		rpc, err := auth.NewTransport(auth.Config{Endpoint: srv.Url})
+		if err != nil {
+			return Server{}, err
+		}
+
+		cli := mcp.NewClient(&mcp.Implementation{Name: srv.Name}, nil)
+		api, err := cli.Connect(context.Background(), rpc, nil)
+		if err != nil {
+			return Server{}, err
+		}
+		return Server{uid: srv.Name, cmd: rpc, cli: cli, api: api}, nil
+	default:
+		return Server{}, fmt.Errorf("server '%s' type '%s' is not supported", srv.Name, srv.Type)
+	}
 }
 
 // Prompt executes the agent with given input and returns the output
