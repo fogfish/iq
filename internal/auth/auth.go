@@ -77,10 +77,10 @@ func NewTransport(spec Config) (*mcp.StreamableClientTransport, error) {
 
 //------------------------------------------------------------------------------
 
-func defTransport(endpoint string, client *http.Client, machine *netrc.Machine) (*mcp.StreamableClientTransport, error) {
+func defTransport(url string, client *http.Client, machine *netrc.Machine) (*mcp.StreamableClientTransport, error) {
 	secret := machine.Get("token")
 	if secret == "" {
-		return &mcp.StreamableClientTransport{Endpoint: endpoint}, nil
+		return &mcp.StreamableClientTransport{Endpoint: url}, nil
 	}
 
 	bearer := machine.Get("type")
@@ -102,8 +102,13 @@ func defTransport(endpoint string, client *http.Client, machine *netrc.Machine) 
 	}
 	client.Transport = sock
 
+	override := machine.Get("url")
+	if override != "" {
+		url = override
+	}
+
 	return &mcp.StreamableClientTransport{
-		Endpoint:   endpoint,
+		Endpoint:   url,
 		HTTPClient: client,
 	}, nil
 }
@@ -120,7 +125,7 @@ func (api *transport) RoundTrip(req *http.Request) (*http.Response, error) {
 
 //------------------------------------------------------------------------------
 
-func awsTransport(endpoint string, client *http.Client, machine *netrc.Machine) (*mcp.StreamableClientTransport, error) {
+func awsTransport(url string, client *http.Client, machine *netrc.Machine) (*mcp.StreamableClientTransport, error) {
 	conf, err := config.LoadDefaultConfig(context.Background())
 	if err != nil {
 		return nil, err
@@ -164,7 +169,7 @@ func awsTransport(endpoint string, client *http.Client, machine *netrc.Machine) 
 	client.Transport = sock
 
 	return &mcp.StreamableClientTransport{
-		Endpoint:   endpoint,
+		Endpoint:   url,
 		HTTPClient: client,
 	}, nil
 }
