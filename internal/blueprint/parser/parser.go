@@ -369,7 +369,7 @@ func (p *Parser) convertStep(raw *stepYAML) ast.StepNode {
 		retry = &ast.RetryNode{
 			Attempts: raw.Retry.Attempts,
 			Delay:    raw.Retry.Delay,
-			Yield:    raw.Retry.Yield,
+			Yield:    os.ExpandEnv(raw.Retry.Yield),
 		}
 	}
 
@@ -389,7 +389,7 @@ func (p *Parser) convertStep(raw *stepYAML) ast.StepNode {
 		return &ast.ForeachStepNode{
 			Name:     raw.Name,
 			RunsOn:   raw.RunsOn,
-			Uses:     raw.Uses,
+			Uses:     os.ExpandEnv(raw.Uses),
 			Selector: raw.Foreach.Selector,
 			Job:      raw.Foreach.Job,
 			Output:   raw.Output,
@@ -410,7 +410,7 @@ func (p *Parser) convertStep(raw *stepYAML) ast.StepNode {
 		return &ast.RouterStepNode{
 			Name:    raw.Name,
 			RunsOn:  raw.RunsOn,
-			Uses:    raw.Uses,
+			Uses:    os.ExpandEnv(raw.Uses),
 			Output:  raw.Output,
 			Routes:  routes,
 			Default: raw.Default,
@@ -422,7 +422,7 @@ func (p *Parser) convertStep(raw *stepYAML) ast.StepNode {
 	return &ast.AgentStepNode{
 		Name:   raw.Name,
 		RunsOn: raw.RunsOn,
-		Uses:   raw.Uses,
+		Uses:   os.ExpandEnv(raw.Uses),
 		Output: raw.Output,
 		Retry:  retry,
 	}
@@ -431,10 +431,15 @@ func (p *Parser) convertStep(raw *stepYAML) ast.StepNode {
 func (p *Parser) convertAgent(raw *agentYAML) *ast.AgentNode {
 	servers := make([]ast.ServerNode, 0, len(raw.Servers))
 	for _, srv := range raw.Servers {
+		argv := make([]string, len(srv.Command))
+		for i, arg := range srv.Command {
+			argv[i] = os.ExpandEnv(arg)
+		}
+
 		servers = append(servers, ast.ServerNode{
 			Type:    srv.Type,
 			Name:    srv.Name,
-			Command: srv.Command,
+			Command: argv,
 			Url:     srv.Url,
 		})
 	}
