@@ -135,6 +135,25 @@ func (n *RunStepNode) GetRetry() *RetryNode { return n.Retry }
 func (n *RunStepNode) GetOutput() string    { return n.Output }
 func (n *RunStepNode) GetRunsOn() string    { return n.RunsOn }
 
+// SplitStepNode represents a document splitting step
+type SplitStepNode struct {
+	Name     string
+	RunsOn   string
+	Strategy string     // "none", "sentence", "paragraph", "chunk", "tag"
+	Size     int        // Chunk size in bytes (for chunk strategy)
+	Overlap  int        // Overlap size (for chunk strategy)
+	Chars    string     // Delimiter characters (strategy-specific)
+	Output   string     // Variable name to store array of chunks
+	Retry    *RetryNode
+}
+
+func (n *SplitStepNode) stepNode()            {}
+func (n *SplitStepNode) GetName() string      { return n.Name }
+func (n *SplitStepNode) GetUses() string      { return "" }
+func (n *SplitStepNode) GetRetry() *RetryNode { return n.Retry }
+func (n *SplitStepNode) GetOutput() string    { return n.Output }
+func (n *SplitStepNode) GetRunsOn() string    { return n.RunsOn }
+
 type RetryNode struct {
 	Attempts int    // Number of retry attempts
 	Delay    int    // Delay between attempts in seconds
