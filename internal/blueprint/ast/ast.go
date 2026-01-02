@@ -139,11 +139,11 @@ func (n *RunStepNode) GetRunsOn() string    { return n.RunsOn }
 type SplitStepNode struct {
 	Name     string
 	RunsOn   string
-	Strategy string     // "none", "sentence", "paragraph", "chunk", "tag"
-	Size     int        // Chunk size in bytes (for chunk strategy)
-	Overlap  int        // Overlap size (for chunk strategy)
-	Chars    string     // Delimiter characters (strategy-specific)
-	Output   string     // Variable name to store array of chunks
+	Strategy string // "none", "sentence", "paragraph", "chunk", "tag"
+	Size     int    // Chunk size in bytes (for chunk strategy)
+	Overlap  int    // Overlap size (for chunk strategy)
+	Chars    string // Delimiter characters (strategy-specific)
+	Output   string // Variable name to store array of chunks
 	Retry    *RetryNode
 }
 
