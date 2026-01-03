@@ -26,7 +26,7 @@ func TestIdentityProcessor(t *testing.T) {
 	ctx := context.Background()
 	doc := iosystem.NewDocument("test.txt", strings.NewReader("test content"))
 
-	results, err := proc.Process(ctx, doc)
+	results, err := proc.Process(ctx, []*iosystem.Document{doc})
 
 	it.Then(t).Should(
 		it.Nil(err),
@@ -45,7 +45,7 @@ func TestChunkerProcessor_None(t *testing.T) {
 	content := "Line 1\nLine 2\nLine 3"
 	doc := iosystem.NewDocument("test.txt", strings.NewReader(content))
 
-	results, err := proc.Process(ctx, doc)
+	results, err := proc.Process(ctx, []*iosystem.Document{doc})
 	data, _ := io.ReadAll(results[0].Reader)
 
 	it.Then(t).Should(
@@ -65,7 +65,7 @@ func TestChunkerProcessor_Sentence(t *testing.T) {
 	content := "First sentence. Second sentence. Third sentence."
 	doc := iosystem.NewDocument("test.txt", strings.NewReader(content))
 
-	results, err := proc.Process(ctx, doc)
+	results, err := proc.Process(ctx, []*iosystem.Document{doc})
 
 	it.Then(t).Should(
 		it.Nil(err),
@@ -91,7 +91,7 @@ func TestChunkerProcessor_Paragraph(t *testing.T) {
 	content := "Paragraph 1\n\nParagraph 2\n\nParagraph 3"
 	doc := iosystem.NewDocument("test.txt", strings.NewReader(content))
 
-	results, err := proc.Process(ctx, doc)
+	results, err := proc.Process(ctx, []*iosystem.Document{doc})
 
 	it.Then(t).Should(
 		it.Nil(err),
@@ -110,7 +110,7 @@ func TestChunkerProcessor_Chunk(t *testing.T) {
 	content := strings.Repeat("This is a sentence. ", 10)
 	doc := iosystem.NewDocument("test.txt", strings.NewReader(content))
 
-	results, err := proc.Process(ctx, doc)
+	results, err := proc.Process(ctx, []*iosystem.Document{doc})
 
 	it.Then(t).Should(
 		it.Nil(err),
@@ -127,7 +127,7 @@ func TestChunkerProcessor_EmptyContent(t *testing.T) {
 	ctx := context.Background()
 	doc := iosystem.NewDocument("test.txt", strings.NewReader(""))
 
-	results, err := proc.Process(ctx, doc)
+	results, err := proc.Process(ctx, []*iosystem.Document{doc})
 
 	it.Then(t).Should(
 		it.Nil(err),
@@ -146,7 +146,7 @@ func TestChunkerProcessor_PreservesMetadata(t *testing.T) {
 		WithMetadata("source", "test").
 		WithMetadata("size", "14")
 
-	results, err := proc.Process(ctx, doc)
+	results, err := proc.Process(ctx, []*iosystem.Document{doc})
 
 	it.Then(t).Should(it.Nil(err))
 

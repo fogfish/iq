@@ -24,8 +24,8 @@ func NewIdentity() iosystem.Processor {
 }
 
 // Process returns the document unchanged in a slice.
-func (p *Identity) Process(ctx context.Context, doc *iosystem.Document) ([]*iosystem.Document, error) {
-	return []*iosystem.Document{doc}, nil
+func (p *Identity) Process(ctx context.Context, docs []*iosystem.Document) ([]*iosystem.Document, error) {
+	return docs, nil
 }
 
 // Close implements iosystem.Processor.

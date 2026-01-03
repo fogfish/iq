@@ -22,6 +22,7 @@ const (
 	ContentPNG    = "image/png"
 	ContentJPG    = "image/jpeg"
 	ContentText   = "text/plain"
+	ContentEOF    = "application/x-eof" // Signals end of stream
 )
 
 // Document represents a single input document with metadata.

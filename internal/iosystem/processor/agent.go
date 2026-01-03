@@ -77,28 +77,44 @@ func NewAgent(w Worker, config *AgentConfig) *Agent {
 //
 // The agent's response becomes the content of the output document.
 // Output format depends on agent's configuration (text or JSON).
-func (p *Agent) Process(ctx context.Context, doc *iosystem.Document) ([]*iosystem.Document, error) {
-	if doc == nil {
-		return nil, fmt.Errorf("document is nil")
+func (p *Agent) Process(ctx context.Context, docs []*iosystem.Document) ([]*iosystem.Document, error) {
+	// Passthrough EOF or empty
+	if len(docs) == 0 || (len(docs) == 1 && docs[0].Type == iosystem.ContentEOF) {
+		return docs, nil
 	}
 
-	content, err := p.decode(doc)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read document: %w", err)
+	var input any
+
+	items := make([]any, 0, len(docs))
+	for _, doc := range docs {
+		content, err := p.decode(doc)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read document: %w", err)
+		}
+		items = append(items, content)
+	}
+	input = items
+
+	if len(items) == 1 {
+		input = items[0]
 	}
 
-	result, err := p.w.Prompt(ctx, content, p.config.Options...)
+	result, err := p.w.Prompt(ctx, input, p.config.Options...)
 	if err != nil {
-		return nil, fmt.Errorf("agent processing failed for '%s': %w", doc.Path, err)
+		docPath := docs[0].Path
+		if len(docs) > 1 {
+			docPath = fmt.Sprintf("%s (array of %d)", docPath, len(docs))
+		}
+		return nil, fmt.Errorf("agent processing failed for '%s': %w", docPath, err)
 	}
 
 	reply, err := p.encode(result)
 	if err != nil {
-		return nil, fmt.Errorf("failed to encode agent response for '%s': %w", doc.Path, err)
+		return nil, fmt.Errorf("failed to encode agent response: %w", err)
 	}
 
-	reply.Path = doc.Path + p.config.Suffix
-	reply.Metadata = copyMetadata(doc.Metadata)
+	reply.Path = docs[0].Path + p.config.Suffix
+	reply.Metadata = copyMetadata(docs[0].Metadata)
 
 	return []*iosystem.Document{reply}, nil
 }
