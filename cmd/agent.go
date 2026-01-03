@@ -43,6 +43,7 @@ specified prompt or workflow configuration.
 The command supports multiple input sources:
 - Direct file arguments
 - Standard input (stdin) for piped content
+- Chunks
 - etc.
 
 For batch processing of multiple files, use the 'batch' subcommand.
@@ -53,6 +54,7 @@ See more info https://github.com/fogfish/iq
 	Example: `
 	iq agent -f <yml>
 	iq agent -f <yml> FILE1 FILE2 ...
+	iq agent -f <yml> --array data.json
 	`,
 	SilenceUsage:  true,
 	SilenceErrors: true,

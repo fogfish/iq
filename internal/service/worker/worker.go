@@ -138,6 +138,29 @@ func (b *Builder) Splitter(conf processor.ChunkConfig) *Builder {
 	return b
 }
 
+// ArrayMode enables batch processing by collecting all documents into array.
+// When enabled, adds ArrayCollector processor as first stage after Runtime.
+// ArrayCollector buffers all documents until EOF, then emits them as array.
+//
+// Use cases:
+//   - Process JSON array files
+//   - Batch process split documents
+//   - Enable foreach with selector: document
+//
+// Memory warning: All documents buffered in memory until EOF.
+// Not suitable for very large document streams.
+func (b *Builder) ArrayMode(enable bool) *Builder {
+	if b.err != nil || b.runtime == nil || !enable {
+		return b
+	}
+
+	// Add ArrayCollector as first processor
+	// It will collect documents and emit array on EOF
+	b.runtime.AddProcessor(processor.NewArrayCollector())
+
+	return b
+}
+
 // Workflow sets the blueprint to use for creating processors.
 // This is required.
 func (b *Builder) Workflow(file string, llm chatter.Chatter) *Builder {
