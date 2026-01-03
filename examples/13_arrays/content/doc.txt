@@ -1,0 +1,3 @@
+The new laptop model features a 3.5 GHz octa-core processor, 16GB of RAM, and a 1TB NVMe SSD.
+
+The old laptop model features a 1.2 GHz intel atom processor, 4GB of RAM, and a 256GB SSD.
