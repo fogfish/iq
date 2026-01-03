@@ -284,7 +284,6 @@ type stepYAML struct {
 	Switch  []routeYAML  `yaml:"switch,omitempty"`
 	Default string       `yaml:"default,omitempty"`
 	Foreach *foreachYAML `yaml:"foreach,omitempty"`
-	Split   *splitYAML   `yaml:"split,omitempty"`
 	Retry   *retryYAML   `yaml:"retry,omitempty"`
 	Prompt  string       `yaml:"prompt,omitempty"`
 }
@@ -292,13 +291,6 @@ type stepYAML struct {
 type foreachYAML struct {
 	Selector string `yaml:"selector,omitempty"`
 	Job      string `yaml:"job,omitempty"`
-}
-
-type splitYAML struct {
-	Strategy string `yaml:"strategy,omitempty"` // Required
-	Size     int    `yaml:"size,omitempty"`     // Optional, default 1024
-	Overlap  int    `yaml:"overlap,omitempty"`  // Optional, default 0
-	Chars    string `yaml:"chars,omitempty"`    // Optional, strategy-specific defaults
 }
 
 type routeYAML struct {
@@ -389,30 +381,6 @@ func (p *Parser) convertStep(raw *stepYAML) ast.StepNode {
 			Run:    raw.Run,
 			Output: raw.Output,
 			Retry:  retry,
-		}
-	}
-
-	// Check if this is a split step
-	if raw.Split != nil {
-		strategy := raw.Split.Strategy
-		if strategy == "" {
-			strategy = "none" // Default to pass-through
-		}
-
-		size := raw.Split.Size
-		if size == 0 {
-			size = 1024 // Default chunk size
-		}
-
-		return &ast.SplitStepNode{
-			Name:     raw.Name,
-			RunsOn:   raw.RunsOn,
-			Strategy: strategy,
-			Size:     size,
-			Overlap:  raw.Split.Overlap,
-			Chars:    raw.Split.Chars,
-			Output:   raw.Output,
-			Retry:    retry,
 		}
 	}
 
