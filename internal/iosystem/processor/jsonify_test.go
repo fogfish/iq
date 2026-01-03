@@ -32,7 +32,7 @@ func TestJSONFormatter_FormatsJSON(t *testing.T) {
 	doc := iosystem.NewDocument("test.json", strings.NewReader(jsonContent))
 	doc.Type = iosystem.ContentJSON
 
-	results, err := proc.Process(ctx, doc)
+	results, err := proc.Process(ctx, []*iosystem.Document{doc})
 
 	it.Then(t).Should(
 		it.Nil(err),
@@ -65,7 +65,7 @@ func TestJSONFormatter_PassThroughNonJSON(t *testing.T) {
 	doc := iosystem.NewDocument("test.txt", strings.NewReader(textContent))
 	doc.Type = iosystem.ContentText
 
-	results, err := proc.Process(ctx, doc)
+	results, err := proc.Process(ctx, []*iosystem.Document{doc})
 
 	it.Then(t).Should(
 		it.Nil(err),
@@ -88,7 +88,7 @@ func TestJSONFormatter_HandlesInvalidJSON(t *testing.T) {
 	doc := iosystem.NewDocument("test.json", strings.NewReader(invalidJSON))
 	doc.Type = iosystem.ContentJSON
 
-	results, err := proc.Process(ctx, doc)
+	results, err := proc.Process(ctx, []*iosystem.Document{doc})
 
 	// Should not error, just pass through
 	it.Then(t).Should(
@@ -112,7 +112,7 @@ func TestJSONFormatter_NoContentType(t *testing.T) {
 	doc := iosystem.NewDocument("test.json", strings.NewReader(jsonContent))
 	// No content-type metadata
 
-	results, err := proc.Process(ctx, doc)
+	results, err := proc.Process(ctx, []*iosystem.Document{doc})
 
 	// Should pass through unchanged without content-type
 	it.Then(t).Should(
@@ -140,7 +140,7 @@ func TestJSONFormatter_PreservesMetadata(t *testing.T) {
 		"custom": "value",
 	}
 
-	results, err := proc.Process(ctx, doc)
+	results, err := proc.Process(ctx, []*iosystem.Document{doc})
 
 	it.Then(t).Should(it.Nil(err))
 
@@ -164,7 +164,7 @@ func TestJSONFormatter_WithColor(t *testing.T) {
 	doc := iosystem.NewDocument("test.json", strings.NewReader(jsonContent))
 	doc.Type = iosystem.ContentJSON
 
-	results, err := proc.Process(ctx, doc)
+	results, err := proc.Process(ctx, []*iosystem.Document{doc})
 
 	it.Then(t).Should(
 		it.Nil(err),
@@ -193,7 +193,7 @@ func TestJSONFormatter_CustomIndent(t *testing.T) {
 	doc := iosystem.NewDocument("test.json", strings.NewReader(jsonContent))
 	doc.Type = iosystem.ContentJSON
 
-	results, err := proc.Process(ctx, doc)
+	results, err := proc.Process(ctx, []*iosystem.Document{doc})
 
 	it.Then(t).Should(it.Nil(err))
 

@@ -40,32 +40,43 @@ func NewPrompter(llm chatter.Chatter) *Prompter {
 //
 // The agent's response becomes the content of the output document.
 // Output format depends on agent's configuration (text or JSON).
-func (p *Prompter) Process(ctx context.Context, doc *iosystem.Document) ([]*iosystem.Document, error) {
-	if doc == nil {
-		return nil, fmt.Errorf("document is nil")
+func (p *Prompter) Process(ctx context.Context, docs []*iosystem.Document) ([]*iosystem.Document, error) {
+	// Passthrough EOF or empty
+	if len(docs) == 0 || (len(docs) == 1 && docs[0].Type == iosystem.ContentEOF) {
+		return docs, nil
 	}
 
-	content, err := p.decode(doc)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read document: %w", err)
+	results := make([]*iosystem.Document, 0)
+
+	for _, doc := range docs {
+		if doc == nil {
+			return nil, fmt.Errorf("document is nil")
+		}
+
+		content, err := p.decode(doc)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read document: %w", err)
+		}
+
+		result, err := p.llm.Prompt(ctx, content)
+		if err != nil {
+			return nil, fmt.Errorf("prompter processing failed for '%s': %w", doc.Path, err)
+		}
+
+		reply, err := p.encode(result)
+		if err != nil {
+			return nil, fmt.Errorf("failed to encode prompter response for '%s': %w", doc.Path, err)
+		}
+
+		for _, r := range reply {
+			r.Path = doc.Path
+			r.Metadata = copyMetadata(doc.Metadata)
+		}
+
+		results = append(results, reply...)
 	}
 
-	result, err := p.llm.Prompt(ctx, content)
-	if err != nil {
-		return nil, fmt.Errorf("prompter processing failed for '%s': %w", doc.Path, err)
-	}
-
-	reply, err := p.encode(result)
-	if err != nil {
-		return nil, fmt.Errorf("failed to encode prompter response for '%s': %w", doc.Path, err)
-	}
-
-	for _, r := range reply {
-		r.Path = doc.Path
-		r.Metadata = copyMetadata(doc.Metadata)
-	}
-
-	return reply, nil
+	return results, nil
 }
 
 // prepare the document for processing by the blueprint.

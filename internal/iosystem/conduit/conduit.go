@@ -167,6 +167,12 @@ func (p *Conduit) runSequential(ctx context.Context, source iosystem.Source, sin
 		// Get next document
 		doc, err := source.Next(ctx)
 		if err == io.EOF {
+			// Inject EOF document into pipeline
+			eofDoc := &iosystem.Document{
+				Type: iosystem.ContentEOF,
+				Path: "",
+			}
+			_ = p.processDocument(ctx, []*iosystem.Document{eofDoc}, sink, stats)
 			return nil // Normal completion
 		}
 		if err != nil {
@@ -177,8 +183,8 @@ func (p *Conduit) runSequential(ctx context.Context, source iosystem.Source, sin
 			continue
 		}
 
-		// Process through pipeline
-		if err := p.processDocument(ctx, doc, sink, stats); err != nil {
+		// Wrap single document in array for monadic processing
+		if err := p.processDocument(ctx, []*iosystem.Document{doc}, sink, stats); err != nil {
 			stats.Errors = append(stats.Errors, err)
 			if p.config.Progress != nil {
 				p.config.Progress(doc, err)
@@ -203,30 +209,30 @@ func (p *Conduit) runConcurrent(ctx context.Context, source iosystem.Source, sin
 	return fmt.Errorf("concurrent processing not yet implemented")
 }
 
-// processDocument runs a single document through all processors and to the sink.
-func (p *Conduit) processDocument(ctx context.Context, doc *iosystem.Document, sink iosystem.Sink, stats *Stats) error {
-	docs := []*iosystem.Document{doc}
+// processDocument runs documents through all processors and to the sink.
+func (p *Conduit) processDocument(ctx context.Context, docs []*iosystem.Document, sink iosystem.Sink, stats *Stats) error {
+	// Pass documents through processor chain
+	currentDocs := docs
 
-	// Apply each processor in sequence
 	for _, processor := range p.processors {
-		var nextDocs []*iosystem.Document
-		for _, d := range docs {
-			processed, err := processor.Process(ctx, d)
-			if err != nil {
-				return fmt.Errorf("processor error: %w", err)
-			}
-			nextDocs = append(nextDocs, processed...)
+		// Monadic call: []*Document -> []*Document
+		nextDocs, err := processor.Process(ctx, currentDocs)
+		if err != nil {
+			return fmt.Errorf("processor error: %w", err)
 		}
-		docs = nextDocs
+		currentDocs = nextDocs
 
-		// If any processor filtered out all documents, stop
-		if len(docs) == 0 {
+		// If processor filtered out all documents, stop
+		if len(currentDocs) == 0 {
 			return nil
 		}
 	}
 
-	// Write all resulting documents to sink
-	for _, d := range docs {
+	// Write final documents to sink
+	for _, d := range currentDocs {
+		if d.Type == iosystem.ContentEOF {
+			continue // Don't write EOF markers to output
+		}
 		if err := sink.Write(ctx, d); err != nil {
 			return fmt.Errorf("sink error: %w", err)
 		}

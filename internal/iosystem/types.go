@@ -28,23 +28,26 @@ type Source interface {
 }
 
 // Processor transforms documents in a pipeline.
-// Processors are the middle stage: Source → Processor → Sink
+// Processors are monadic: accept array of documents, return array of documents.
 //
 // A processor can:
-//   - Transform one document to one document (1:1)
-//   - Split one document into many (1:N) - e.g., chunking
-//   - Filter documents by returning empty slice (1:0)
-//   - Combine is not directly supported (use MergedSource instead)
+//   - Transform documents (map)
+//   - Split documents (flatMap - one doc becomes many)
+//   - Filter documents (return empty slice)
+//   - Collect/aggregate documents (ArrayCollector pattern)
 //
 // Implementations should:
 //   - Be stateless where possible
 //   - Return errors for processing failures
 //   - Release resources in Close()
 type Processor interface {
-	// Process takes an input document and produces zero or more output documents.
-	// Return empty slice to filter out the document.
+	// Process takes input documents and produces zero or more output documents.
+	//   - Single doc processing: len(docs)==1 (normal case)
+	//   - Array processing: len(docs)>1 (array mode after collection)
+	//   - EOF signal: docs[0].Type == ContentEOF (end of stream)
+	// Return empty slice to filter out documents.
 	// Return error for processing failures.
-	Process(ctx context.Context, doc *Document) ([]*Document, error)
+	Process(ctx context.Context, docs []*Document) ([]*Document, error)
 
 	// Close releases any resources held by the processor.
 	Close() error
