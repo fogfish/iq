@@ -9,6 +9,8 @@
 package cmd
 
 import (
+	"fmt"
+
 	"github.com/fogfish/iq/internal/iosystem"
 	"github.com/fogfish/iq/internal/iosystem/processor"
 	"github.com/fogfish/iq/internal/progress"
@@ -113,6 +115,7 @@ type optsAgent struct {
 	splitterChunk int
 	splitterChars string
 	json          bool
+	array         bool
 }
 
 func (opts *optsAgent) apply(cmd *cobra.Command) {
@@ -132,13 +135,30 @@ func (opts *optsAgent) apply(cmd *cobra.Command) {
 
 	f.BoolVar(&opts.json, "json", false,
 		"Display output as formatted, colored JSON")
+
+	f.BoolVar(&opts.array, "array", false,
+		"Collect all inputs into array for batch processing. Enables workflows to process collections via 'selector: document'. Incompatible with --merge.")
+}
+
+// validate checks for incompatible flag combinations
+func (opts *optsAgent) validate() error {
+	if opts.array && finput.merge {
+		return fmt.Errorf("--array and --merge are mutually exclusive (--array collects inputs as array, --merge combines as single document)")
+	}
+	return nil
 }
 
 func (opts *optsAgent) build(llm chatter.Chatter, reporter *progress.Reporter) (*worker.ConduitWithReporter, error) {
+	// Validate flags
+	if err := opts.validate(); err != nil {
+		return nil, err
+	}
+
 	return worker.New().
 		// TODO: ErrorMode
 		Reporter(reporter).
 		Runtime().
+		ArrayMode(opts.array).
 		Splitter(processor.ChunkConfig{
 			Strategy:       opts.splitter,
 			ChunkSize:      opts.splitterChunk,

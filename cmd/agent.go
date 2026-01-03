@@ -45,6 +45,24 @@ The command supports multiple input sources:
 - Standard input (stdin) for piped content
 - etc.
 
+Array Mode (--array):
+  Collects all input documents into an array for batch processing.
+  The workflow can access the array via 'selector: document' in foreach steps.
+  
+  Examples:
+    # Process JSON array file
+    iq agent -f workflow.yml data.json --array
+    
+    # Split and process as array
+    iq agent -f workflow.yml large.txt --splitter paragraph --array
+    
+    # Multiple files as array
+    iq agent -f workflow.yml file1.txt file2.txt file3.txt --array
+
+Normal Mode (without --array):
+  Each input document processed independently through workflow.
+  Maintains streaming behavior for memory efficiency.
+
 For batch processing of multiple files, use the 'batch' subcommand.
 For running as an MCP server, use the 'serve' subcommand.
 
@@ -53,6 +71,7 @@ See more info https://github.com/fogfish/iq
 	Example: `
 	iq agent -f <yml>
 	iq agent -f <yml> FILE1 FILE2 ...
+	iq agent -f <yml> --array data.json
 	`,
 	SilenceUsage:  true,
 	SilenceErrors: true,
