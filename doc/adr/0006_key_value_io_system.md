@@ -1,6 +1,6 @@
 # ADR 0006: Key/Value I/O System with Path-Based Keys
 
-**Status:** Accepted  
+**Status:** Analysis (Decision Pending)  
 **Date:** 2026-01-02  
 **Context:** Refactoring I/O system to support intermediate results, skip-if-exists, and unified multi-stage workflows
 

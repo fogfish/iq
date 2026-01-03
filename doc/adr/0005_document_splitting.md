@@ -1,6 +1,6 @@
 # ADR 0005: Document Splitting and Collection Processing
 
-**Status:** Proposed  
+**Status:** Declined  
 **Date:** 2026-01-02  
 **Context:** Standardizing document splitting from CLI/processor to workflow directive with array-based processing
 
