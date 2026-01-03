@@ -105,10 +105,11 @@ type RouteNode struct {
 type ForeachStepNode struct {
 	Name     string
 	RunsOn   string
-	Uses     string // Optional: Path to agent file to generate array
-	Selector string // Optional: CEL expression to extract array from input
-	Job      string // Job to execute for each array item
-	Output   string // Optional name to store results array in context
+	Uses     string      // Optional: Path to agent file to generate array
+	Selector string      // Optional: CEL expression to extract array from input
+	Job      string      // Job to execute for each array item
+	Output   string      // Optional name to store results array in context
+	Format   *FormatNode // Optional: output serialization format
 	Retry    *RetryNode
 }
 
@@ -139,6 +140,12 @@ type RetryNode struct {
 	Attempts int    // Number of retry attempts
 	Delay    int    // Delay between attempts in seconds
 	Yield    string // Path to agent file if all retries fail
+}
+
+// FormatNode configures output serialization after foreach
+type FormatNode struct {
+	Type      string // "json", "jsonl", "text" (default: "json")
+	Delimiter string // For text format (default: "\n")
 }
 
 // AgentNode represents an agent definition
