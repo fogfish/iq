@@ -43,25 +43,8 @@ specified prompt or workflow configuration.
 The command supports multiple input sources:
 - Direct file arguments
 - Standard input (stdin) for piped content
+- Chunks
 - etc.
-
-Array Mode (--array):
-  Collects all input documents into an array for batch processing.
-  The workflow can access the array via 'selector: document' in foreach steps.
-  
-  Examples:
-    # Process JSON array file
-    iq agent -f workflow.yml data.json --array
-    
-    # Split and process as array
-    iq agent -f workflow.yml large.txt --splitter paragraph --array
-    
-    # Multiple files as array
-    iq agent -f workflow.yml file1.txt file2.txt file3.txt --array
-
-Normal Mode (without --array):
-  Each input document processed independently through workflow.
-  Maintains streaming behavior for memory efficiency.
 
 For batch processing of multiple files, use the 'batch' subcommand.
 For running as an MCP server, use the 'serve' subcommand.

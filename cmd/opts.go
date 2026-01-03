@@ -137,7 +137,7 @@ func (opts *optsAgent) apply(cmd *cobra.Command) {
 		"Display output as formatted, colored JSON")
 
 	f.BoolVar(&opts.array, "array", false,
-		"Collect all inputs into array for batch processing. Enables workflows to process collections via 'selector: document'. Incompatible with --merge.")
+		"Passes input documents or chunks as an array to the workflow.")
 }
 
 // validate checks for incompatible flag combinations
