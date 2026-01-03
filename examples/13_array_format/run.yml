@@ -1,0 +1,38 @@
+name: array-format-demo
+about: Demonstrates different foreach output formats
+
+jobs:
+  main:
+    steps:
+      # Example 1: JSON format (default)
+      - foreach:
+          selector: document
+          job: extract
+          format:
+            type: json
+        output: json_results
+      
+      # Example 2: JSONL format
+      - foreach:
+          selector: document
+          job: extract
+          format:
+            type: jsonl
+        output: jsonl_results
+      
+      # Example 3: Text format with custom delimiter
+      - foreach:
+          selector: document
+          job: summarize
+          format:
+            type: text
+            delim: "\n\n---\n\n"
+        output: text_results
+  
+  extract:
+    steps:
+      - uses: prompts/extract.md
+  
+  summarize:
+    steps:
+      - uses: prompts/summarize.md

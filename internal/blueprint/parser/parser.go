@@ -289,8 +289,14 @@ type stepYAML struct {
 }
 
 type foreachYAML struct {
-	Selector string `yaml:"selector,omitempty"`
-	Job      string `yaml:"job,omitempty"`
+	Selector string      `yaml:"selector,omitempty"`
+	Job      string      `yaml:"job,omitempty"`
+	Format   *formatYAML `yaml:"format,omitempty"`
+}
+
+type formatYAML struct {
+	Type      string `yaml:"type,omitempty"`
+	Delimiter string `yaml:"delim,omitempty"`
 }
 
 type routeYAML struct {
@@ -386,6 +392,36 @@ func (p *Parser) convertStep(raw *stepYAML) ast.StepNode {
 
 	// Check if this is a foreach step
 	if raw.Foreach != nil {
+		// Parse format configuration
+		var format *ast.FormatNode
+		if raw.Foreach.Format != nil {
+			ftype := raw.Foreach.Format.Type
+			if ftype == "" {
+				ftype = "json" // Default
+			}
+
+			// Validate format type (default to json if invalid)
+			if ftype != "json" && ftype != "jsonl" && ftype != "text" {
+				ftype = "json"
+			}
+
+			delim := raw.Foreach.Format.Delimiter
+			if delim == "" {
+				delim = "\n" // Default newline
+			}
+
+			format = &ast.FormatNode{
+				Type:      ftype,
+				Delimiter: delim,
+			}
+		} else {
+			// Default: JSON array
+			format = &ast.FormatNode{
+				Type:      "json",
+				Delimiter: "\n",
+			}
+		}
+
 		return &ast.ForeachStepNode{
 			Name:     raw.Name,
 			RunsOn:   raw.RunsOn,
@@ -393,6 +429,7 @@ func (p *Parser) convertStep(raw *stepYAML) ast.StepNode {
 			Selector: raw.Foreach.Selector,
 			Job:      raw.Foreach.Job,
 			Output:   raw.Output,
+			Format:   format,
 			Retry:    retry,
 		}
 	}
