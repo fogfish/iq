@@ -233,3 +233,26 @@ func (m *mockSink) Write(ctx context.Context, doc *iosystem.Document) error {
 func (m *mockSink) Close() error {
 	return nil
 }
+
+func TestConduit_ArrayCollector(t *testing.T) {
+	// Create source with multiple documents
+	src := newMockSource("doc1", "doc2", "doc3")
+	snk := newMockSink()
+
+	// Create conduit with ArrayCollector + Identity processor
+	// ArrayCollector should collect all, emit on EOF
+	// Identity should receive array and pass it through
+	cfg := &conduit.Config{Concurrency: 1, ErrorMode: conduit.FailFast}
+	c := conduit.New(cfg)
+	c.AddProcessor(processor.NewArrayCollector())
+	c.AddProcessor(processor.NewIdentity())
+
+	ctx := context.Background()
+	stats, err := c.Run(ctx, src, snk)
+
+	it.Then(t).Should(
+		it.Nil(err),
+		it.Equal(stats.DocsProcessed, 3),
+		it.Equal(len(snk.docs), 3),
+	)
+}
