@@ -274,12 +274,19 @@ func (c *Compiler) compileStep(ctx context.Context, index int, node ast.StepNode
 			selectorProgram = prog
 		}
 
+		// Create formatter from format configuration
+		formatter, err := NewFormatter(foreachNode.Format)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create formatter: %w", err)
+		}
+
 		return &ForeachStep{
 			UsesAgent:  usesAgent,
 			Selector:   selectorProgram,
 			JobName:    foreachNode.Job,
 			OutputName: foreachNode.GetOutput(),
 			Retry:      retryNode,
+			Formatter:  formatter,
 		}, nil
 	}
 

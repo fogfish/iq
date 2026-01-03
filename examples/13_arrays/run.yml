@@ -1,0 +1,19 @@
+## iq agent -f examples/13_arrays/run.yml --splitter paragraph --array examples/13_arrays/content/doc.txt
+name: arrays
+about: demo array processing with different output formats
+
+jobs:
+  main:
+    steps:
+      - foreach:
+          selector: input
+          job: extract
+          format: 
+            type: jsonl
+
+      - uses: prompts/reduce.md
+  
+  extract:
+    steps:
+      - uses: prompts/extract.md
+      - uses: prompts/transform.md

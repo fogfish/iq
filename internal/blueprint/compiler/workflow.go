@@ -288,6 +288,7 @@ type ForeachStep struct {
 	JobName    string      // Job name for resolution
 	OutputName string
 	Retry      *Retry
+	Formatter  Formatter // Output serialization format
 }
 
 // GetOutputName returns the name to store output under
@@ -369,6 +370,13 @@ func (step *ForeachStep) Prompt(ctx context.Context, opt ...chatter.Opt) error {
 	results := make([]any, 0, len(items))
 	successCount := 0
 	for i, item := range items {
+		// Convert []byte to string to avoid JSON marshaling issues
+		// When splitters create arrays, they often produce []byte which
+		// gets marshaled as [byte, byte, ...] instead of a string
+		if bytes, ok := item.([]byte); ok {
+			item = string(bytes)
+		}
+
 		// Create a new workflow context that inherits parent context but uses item as current
 		// This preserves state, steps, and original input while making item the current value
 		//lint:ignore SA1029 due to cross-package context key access
@@ -404,11 +412,17 @@ func (step *ForeachStep) Prompt(ctx context.Context, opt ...chatter.Opt) error {
 		reporter.ForeachComplete(successCount, len(items), time.Since(startTime))
 	}
 
+	// Format results using configured formatter
+	formattedResults, err := step.Formatter.Format(results)
+	if err != nil {
+		return fmt.Errorf("failed to format results: %w", err)
+	}
+
 	// Store results in context
 	if step.OutputName != "" {
-		wfCtx.SetStepOutput(step.OutputName, results)
+		wfCtx.SetStepOutput(step.OutputName, formattedResults)
 	} else {
-		wfCtx.Current = results
+		wfCtx.Current = formattedResults
 	}
 
 	return nil
