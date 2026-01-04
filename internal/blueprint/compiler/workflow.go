@@ -96,6 +96,28 @@ func (step *AgentStep) Prompt(ctx context.Context, opt ...chatter.Opt) error {
 		return fmt.Errorf("workflow context not found in context")
 	}
 
+	// Set emit context for this step
+	if step.Emit != "" {
+		emitCtx := GetEmitContext(ctx)
+		if emitCtx == nil {
+			emitCtx = &EmitContext{}
+		}
+		// Create a new context with updated emit prefix
+		newEmitCtx := &EmitContext{
+			Prefix:   step.Emit,
+			Counters: emitCtx.Counters, // Preserve parent counters (for nested foreach)
+		}
+		ctx = WithEmitContext(ctx, newEmitCtx)
+		
+		// Store in workflow context so it can be retrieved later
+		wfCtx.LastEmitContext = newEmitCtx
+		
+		// Also capture it in the mutable capture struct if present
+		if capture := GetEmitCapture(ctx); capture != nil {
+			capture.Captured = newEmitCtx
+		}
+	}
+
 	// Get progress reporter and step info
 	reporter := progress.FromContext(ctx)
 	stepInfo := progress.GetStepInfo(ctx)
@@ -231,6 +253,24 @@ func (step *RouterStep) Prompt(ctx context.Context, opt ...chatter.Opt) error {
 	wfCtx := GetWorkflowContext(ctx)
 	if wfCtx == nil {
 		return fmt.Errorf("workflow context not found in context")
+	}
+
+	// Set emit context for this step
+	if step.Emit != "" {
+		emitCtx := GetEmitContext(ctx)
+		if emitCtx == nil {
+			emitCtx = &EmitContext{}
+		}
+		// Create a new context with updated emit prefix
+		newEmitCtx := &EmitContext{
+			Prefix:   step.Emit,
+			Counters: emitCtx.Counters, // Preserve parent counters (for nested foreach)
+		}
+		ctx = WithEmitContext(ctx, newEmitCtx)
+		// Capture emit context for retrieval
+		if capture := GetEmitCapture(ctx); capture != nil {
+			capture.Captured = newEmitCtx
+		}
 	}
 
 	reporter := progress.FromContext(ctx)
@@ -373,6 +413,21 @@ func (step *ForeachStep) Prompt(ctx context.Context, opt ...chatter.Opt) error {
 		return fmt.Errorf("workflow context not found in context")
 	}
 
+	// Set emit context for foreach
+	parentEmitCtx := GetEmitContext(ctx)
+	foreachEmitCtx := &EmitContext{
+		Prefix:   step.Emit,
+		Counters: make([]int, 0),
+	}
+	// Inherit parent counters if in nested foreach
+	if parentEmitCtx != nil {
+		foreachEmitCtx.Counters = append([]int{}, parentEmitCtx.Counters...)
+	}
+	// Capture emit context for retrieval
+	if capture := GetEmitCapture(ctx); capture != nil {
+		capture.Captured = foreachEmitCtx
+	}
+
 	reporter := progress.FromContext(ctx)
 	startTime := time.Now()
 
@@ -473,6 +528,13 @@ func (step *ForeachStep) Prompt(ctx context.Context, opt ...chatter.Opt) error {
 			item = string(bytes)
 		}
 
+		// Push iteration counter to emit context (1-based indexing)
+		iterEmitCtx := &EmitContext{
+			Prefix:   foreachEmitCtx.Prefix,
+			Counters: append([]int{}, foreachEmitCtx.Counters...),
+		}
+		iterEmitCtx.PushCounter(i + 1)
+
 		// Create a new workflow context that inherits parent context but uses item as current
 		// This preserves state, steps, and original input while making item the current value
 		//lint:ignore SA1029 due to cross-package context key access
@@ -482,6 +544,8 @@ func (step *ForeachStep) Prompt(ctx context.Context, opt ...chatter.Opt) error {
 			Steps:   wfCtx.Steps, // Preserve named step outputs
 			Current: item,        // Set current item for this iteration
 		})
+		// Set emit context with counter for this iteration
+		itemCtx = WithEmitContext(itemCtx, iterEmitCtx)
 
 		result, err := step.Job.Prompt(itemCtx, item, opt...)
 		if err != nil {
@@ -551,6 +615,24 @@ func (step *RunStep) Prompt(ctx context.Context, opt ...chatter.Opt) error {
 	wfCtx := GetWorkflowContext(ctx)
 	if wfCtx == nil {
 		return fmt.Errorf("workflow context not found in context")
+	}
+
+	// Set emit context for this step
+	if step.Emit != "" {
+		emitCtx := GetEmitContext(ctx)
+		if emitCtx == nil {
+			emitCtx = &EmitContext{}
+		}
+		// Create a new context with updated emit prefix
+		newEmitCtx := &EmitContext{
+			Prefix:   step.Emit,
+			Counters: emitCtx.Counters, // Preserve parent counters (for nested foreach)
+		}
+		ctx = WithEmitContext(ctx, newEmitCtx)
+		// Capture emit context for retrieval
+		if capture := GetEmitCapture(ctx); capture != nil {
+			capture.Captured = newEmitCtx
+		}
 	}
 
 	reporter := progress.FromContext(ctx)

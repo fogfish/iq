@@ -243,6 +243,19 @@ func (opts *optsReply) build() (iosystem.Sink, error) {
 		Build()
 }
 
+// buildWithEmit builds sink with emit support if usesEmit is true and dir is set
+func (opts *optsReply) buildWithEmit(usesEmit bool) (iosystem.Sink, error) {
+	// If workflow uses emit and output directory is specified, use Storage sink
+	if usesEmit && opts.dir != "" {
+		return sink.New().
+			Storage(opts.dir).
+			Build()
+	}
+	
+	// Otherwise use regular build
+	return opts.build()
+}
+
 //------------------------------------------------------------------------------
 
 // Batch/Spool options

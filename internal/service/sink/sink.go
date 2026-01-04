@@ -15,6 +15,7 @@ import (
 
 	"github.com/fogfish/iq/internal/iosystem"
 	"github.com/fogfish/iq/internal/iosystem/sink"
+	"github.com/fogfish/iq/internal/iosystem/storage"
 	"github.com/fogfish/stream"
 	"github.com/fogfish/stream/lfs"
 	"github.com/fogfish/stream/spool"
@@ -96,6 +97,25 @@ func (b *Builder) Path(path string) *Builder {
 	}
 
 	b.snk, b.err = sink.NewFS(fs)
+	return b
+}
+
+// Storage sets output to use storage interface (for emit support).
+// This should be used when workflows use emit attributes for output control.
+func (b *Builder) Storage(path string) *Builder {
+	if b.err != nil || b.snk != nil || len(path) == 0 {
+		return b
+	}
+
+	// Create storage
+	store, err := storage.NewFS(path)
+	if err != nil {
+		b.err = fmt.Errorf("failed to create storage at %s: %w", path, err)
+		return b
+	}
+
+	// Create storage sink
+	b.snk = sink.NewStorage(store)
 	return b
 }
 
