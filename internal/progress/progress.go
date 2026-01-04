@@ -230,6 +230,22 @@ func (r *Reporter) StepComplete(jobName, stepName string, stepNum, totalSteps in
 	}
 }
 
+// StepSkipped indicates step was skipped (e.g., cache hit)
+func (r *Reporter) StepSkipped(jobName, stepName string, stepNum, totalSteps int, reason string) {
+	// Don't show step skip messages when inside a foreach loop
+	if r.isInForeachMode {
+		return
+	}
+
+	if stepName != "" {
+		r.println(fmt.Sprintf("   ⏭️  Step %d/%d: %s.%s skipped (%s)",
+			stepNum, totalSteps, jobName, stepName, reason))
+	} else {
+		r.println(fmt.Sprintf("   ⏭️  Step %d/%d: %s skipped (%s)",
+			stepNum, totalSteps, jobName, reason))
+	}
+}
+
 // StepError reports a step error
 func (r *Reporter) StepError(jobName, stepName string, stepNum, totalSteps int, err error) {
 	if stepName != "" {

@@ -32,11 +32,12 @@ import (
 //	    Concurrency(4).
 //	    Build()
 type Builder struct {
-	conduit  conduit.Config
-	runtime  *conduit.Conduit
-	reporter *progress.Reporter
-	workflow *blueprint.Blueprint
-	err      error
+	conduit    conduit.Config
+	runtime    *conduit.Conduit
+	reporter   *progress.Reporter
+	workflow   *blueprint.Blueprint
+	cacheStore storage.Storage // Storage for skip-if-exists caching
+	err        error
 }
 
 // New creates a new conduit builder with default configuration.
@@ -202,30 +203,24 @@ func (b *Builder) Workflow(file string, llm chatter.Chatter) *Builder {
 	return b
 }
 
-// SkipIfExists adds a processor that skips documents whose output already exists.
-// This enables incremental processing and recovery from failures.
+// SkipIfExists enables step-level output caching for incremental processing.
+// When enabled, each step with an 'emit' attribute will check if its output
+// already exists in storage and skip LLM operations if found, using cached output instead.
 // Must be called after Workflow() and before Build().
 func (b *Builder) SkipIfExists(outputPath string) *Builder {
 	if b.err != nil || b.runtime == nil || b.workflow == nil || outputPath == "" {
 		return b
 	}
 
-	// Create storage for output checking
+	// Create storage for output checking/caching
 	store, err := storage.NewFS(outputPath)
 	if err != nil {
 		b.err = fmt.Errorf("failed to create storage for skip-if-exists: %w", err)
 		return b
 	}
 
-	// Create anchor key computer from workflow
-	anchor, err := compiler.NewAnchorKeyComputer(b.workflow.Workflow())
-	if err != nil {
-		b.err = fmt.Errorf("failed to create anchor computer: %w", err)
-		return b
-	}
-
-	// Add skip processor at the beginning of the pipeline (after array collector if present)
-	b.runtime.AddProcessor(processor.NewSkipIfExists(store, anchor, b.reporter))
+	// Store reference for use in Build()
+	b.cacheStore = store
 
 	return b
 }
@@ -256,15 +251,17 @@ func (b *Builder) Build() (*ConduitWithReporter, error) {
 	}
 
 	return &ConduitWithReporter{
-		Conduit:  b.runtime,
-		reporter: b.reporter,
+		Conduit:    b.runtime,
+		reporter:   b.reporter,
+		cacheStore: b.cacheStore,
 	}, nil
 }
 
 // ConduitWithReporter wraps a conduit and injects progress reporter into context
 type ConduitWithReporter struct {
 	*conduit.Conduit
-	reporter *progress.Reporter
+	reporter   *progress.Reporter
+	cacheStore storage.Storage // Storage for skip-if-exists caching
 }
 
 // Run executes the pipeline with progress reporter in context
@@ -275,6 +272,15 @@ func (c *ConduitWithReporter) Run(ctx context.Context, source iosystem.Source, s
 
 		// Wrap sink to buffer output until after summary
 		sink = newBufferingSink(sink)
+	}
+
+	// Add cache context if storage configured
+	if c.cacheStore != nil {
+		cacheCtx := &compiler.CacheContext{
+			Storage: c.cacheStore,
+			Enabled: true,
+		}
+		ctx = compiler.WithCacheContext(ctx, cacheCtx)
 	}
 
 	stats, err := c.Conduit.Run(ctx, source, sink)
