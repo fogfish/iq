@@ -100,6 +100,26 @@ func (step *AgentStep) Prompt(ctx context.Context, opt ...chatter.Opt) error {
 	reporter := progress.FromContext(ctx)
 	stepInfo := progress.GetStepInfo(ctx)
 
+	// Check cache if emit is set and caching is enabled
+	cacheCtx := GetCacheContext(ctx)
+	if cacheCtx != nil && step.Emit != "" {
+		if cachedOutput, found := cacheCtx.TryLoadCached(ctx, step.Emit); found {
+			// Cache hit - use cached output and skip LLM
+			if reporter != nil && stepInfo != nil {
+				reporter.StepSkipped(stepInfo.JobName, stepInfo.StepName, stepInfo.StepNum, stepInfo.TotalSteps, "using cached output")
+			}
+
+			// Store output in context
+			if step.OutputName != "" {
+				wfCtx.SetStepOutput(step.OutputName, cachedOutput)
+			} else {
+				wfCtx.Current = cachedOutput
+			}
+
+			return nil
+		}
+	}
+
 	startTime := time.Now()
 
 	if reporter != nil && stepInfo != nil {
@@ -142,6 +162,16 @@ func (step *AgentStep) Prompt(ctx context.Context, opt ...chatter.Opt) error {
 		duration := time.Since(startTime)
 		// TODO: Track actual token usage from LLM response
 		reporter.StepComplete(stepInfo.JobName, stepInfo.StepName, stepInfo.StepNum, stepInfo.TotalSteps, duration, 0)
+	}
+
+	// Save to cache if emit is set and caching is enabled
+	if cacheCtx != nil && step.Emit != "" {
+		if err := cacheCtx.SaveCached(ctx, step.Emit, result); err != nil {
+			// Log error but don't fail the step
+			if reporter != nil {
+				// TODO: Add a method to report cache save errors
+			}
+		}
 	}
 
 	// Store output in context
@@ -204,13 +234,44 @@ func (step *RouterStep) Prompt(ctx context.Context, opt ...chatter.Opt) error {
 	}
 
 	reporter := progress.FromContext(ctx)
-	if reporter != nil {
-		reporter.RouterEvaluating()
+
+	// Check cache if emit is set and caching is enabled
+	cacheCtx := GetCacheContext(ctx)
+	var choice any
+	var err error
+	var usedCache bool
+
+	if cacheCtx != nil && step.Emit != "" {
+		if cachedOutput, found := cacheCtx.TryLoadCached(ctx, step.Emit); found {
+			// Cache hit - use cached choice
+			choice = cachedOutput
+			usedCache = true
+
+			if reporter != nil {
+				stepInfo := progress.GetStepInfo(ctx)
+				if stepInfo != nil {
+					reporter.StepSkipped(stepInfo.JobName, stepInfo.StepName, stepInfo.StepNum, stepInfo.TotalSteps, "using cached output")
+				}
+			}
+		}
 	}
 
-	choice, err := step.prompt(ctx, opt...)
-	if err != nil {
-		return fmt.Errorf("router agent failed: %w", err)
+	if !usedCache {
+		if reporter != nil {
+			reporter.RouterEvaluating()
+		}
+
+		choice, err = step.prompt(ctx, opt...)
+		if err != nil {
+			return fmt.Errorf("router agent failed: %w", err)
+		}
+
+		// Save to cache if emit is set and caching is enabled
+		if cacheCtx != nil && step.Emit != "" {
+			if err := cacheCtx.SaveCached(ctx, step.Emit, choice); err != nil {
+				// Log error but don't fail the step
+			}
+		}
 	}
 
 	// Evaluate conditions in order
@@ -318,21 +379,47 @@ func (step *ForeachStep) Prompt(ctx context.Context, opt ...chatter.Opt) error {
 	// Get or generate the array
 	var items []any
 	if step.UsesAgent != nil {
+		// Check cache for array generation if emit is set
+		cacheCtx := GetCacheContext(ctx)
 		var result any
 		var err error
+		var usedCache bool
 
-		for i := range step.Retry.Attempts {
-			result, err = step.UsesAgent.Prompt(ctx, wfCtx.ToMap(), opt...)
-			if err == nil {
-				break
-			}
-			if i < step.Retry.Attempts-1 {
-				time.Sleep(time.Duration(step.Retry.Delay) * time.Second)
+		if cacheCtx != nil && step.Emit != "" {
+			if cachedOutput, found := cacheCtx.TryLoadCached(ctx, step.Emit); found {
+				result = cachedOutput
+				usedCache = true
+
+				if reporter != nil {
+					stepInfo := progress.GetStepInfo(ctx)
+					if stepInfo != nil {
+						reporter.StepSkipped(stepInfo.JobName, stepInfo.StepName, stepInfo.StepNum, stepInfo.TotalSteps, "using cached array")
+					}
+				}
 			}
 		}
 
-		if err != nil {
-			return fmt.Errorf("failed to generate array: %w", err)
+		if !usedCache {
+			for i := range step.Retry.Attempts {
+				result, err = step.UsesAgent.Prompt(ctx, wfCtx.ToMap(), opt...)
+				if err == nil {
+					break
+				}
+				if i < step.Retry.Attempts-1 {
+					time.Sleep(time.Duration(step.Retry.Delay) * time.Second)
+				}
+			}
+
+			if err != nil {
+				return fmt.Errorf("failed to generate array: %w", err)
+			}
+
+			// Save to cache if emit is set
+			if cacheCtx != nil && step.Emit != "" {
+				if err := cacheCtx.SaveCached(ctx, step.Emit, result); err != nil {
+					// Log error but don't fail
+				}
+			}
 		}
 
 		if arr, ok := result.([]any); ok {
@@ -469,6 +556,26 @@ func (step *RunStep) Prompt(ctx context.Context, opt ...chatter.Opt) error {
 	reporter := progress.FromContext(ctx)
 	stepInfo := progress.GetStepInfo(ctx)
 
+	// Check cache if emit is set and caching is enabled
+	cacheCtx := GetCacheContext(ctx)
+	if cacheCtx != nil && step.Emit != "" {
+		if cachedOutput, found := cacheCtx.TryLoadCached(ctx, step.Emit); found {
+			// Cache hit - use cached output
+			if reporter != nil && stepInfo != nil {
+				reporter.StepSkipped(stepInfo.JobName, stepInfo.StepName, stepInfo.StepNum, stepInfo.TotalSteps, "using cached output")
+			}
+
+			// Store output in context
+			if step.OutputName != "" {
+				wfCtx.SetStepOutput(step.OutputName, cachedOutput)
+			} else {
+				wfCtx.Current = cachedOutput
+			}
+
+			return nil
+		}
+	}
+
 	startTime := time.Now()
 
 	if reporter != nil && stepInfo != nil {
@@ -510,6 +617,13 @@ func (step *RunStep) Prompt(ctx context.Context, opt ...chatter.Opt) error {
 	if reporter != nil && stepInfo != nil {
 		duration := time.Since(startTime)
 		reporter.StepComplete(stepInfo.JobName, stepInfo.StepName, stepInfo.StepNum, stepInfo.TotalSteps, duration, 0)
+	}
+
+	// Save to cache if emit is set and caching is enabled
+	if cacheCtx != nil && step.Emit != "" {
+		if err := cacheCtx.SaveCached(ctx, step.Emit, result); err != nil {
+			// Log error but don't fail the step
+		}
 	}
 
 	// Store output in context

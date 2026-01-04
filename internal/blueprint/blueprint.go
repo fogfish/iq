@@ -54,6 +54,11 @@ func (bp *Blueprint) Schema() (*jsonschema.Schema, *jsonschema.Schema) {
 	return bp.workflow.Schema.Input, bp.workflow.Schema.Reply
 }
 
+// Workflow returns the compiled workflow (for internal use, e.g., skip-if-exists)
+func (bp *Blueprint) Workflow() *compiler.Workflow {
+	return bp.workflow
+}
+
 // JobCount returns the number of jobs in the workflow
 func (bp *Blueprint) JobCount() int {
 	return len(bp.workflow.Jobs)

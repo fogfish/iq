@@ -15,6 +15,7 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/fogfish/iq/internal/blueprint/compiler"
 	"github.com/fogfish/iq/internal/iosystem"
 	"github.com/goccy/go-yaml"
 	"github.com/kshard/chatter"
@@ -81,6 +82,15 @@ func (p *Agent) Process(ctx context.Context, docs []*iosystem.Document) ([]*iosy
 	// Passthrough EOF or empty
 	if len(docs) == 0 || (len(docs) == 1 && docs[0].Type == iosystem.ContentEOF) {
 		return docs, nil
+	}
+
+	// Inject document key into cache context for step-level caching
+	if len(docs) > 0 {
+		cacheCtx := compiler.GetCacheContext(ctx)
+		if cacheCtx != nil {
+			cacheCtx.DocumentKey = iosystem.Key(docs[0].Path)
+			ctx = compiler.WithCacheContext(ctx, cacheCtx)
+		}
 	}
 
 	var input any

@@ -9,11 +9,16 @@
 package compiler
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
 
 	"github.com/fogfish/iq/internal/blueprint/ast"
 	"github.com/fogfish/iq/internal/iosystem"
+	"github.com/fogfish/iq/internal/iosystem/storage"
+	"github.com/goccy/go-yaml"
 )
 
 const (
@@ -189,4 +194,105 @@ func (ec *EmitContext) PopCounter() {
 	if len(ec.Counters) > 0 {
 		ec.Counters = ec.Counters[:len(ec.Counters)-1]
 	}
+}
+
+type cacheContextKey struct{}
+
+// CacheContext provides step-level output caching configuration.
+type CacheContext struct {
+	// Storage for reading/writing cached outputs
+	Storage storage.Storage
+
+	// Enabled indicates whether caching is active
+	Enabled bool
+
+	// DocumentKey is the current document's key (for computing cache keys)
+	DocumentKey iosystem.Key
+}
+
+// WithCacheContext adds cache context to ctx.
+func WithCacheContext(ctx context.Context, cache *CacheContext) context.Context {
+	return context.WithValue(ctx, cacheContextKey{}, cache)
+}
+
+// GetCacheContext retrieves cache context from ctx.
+func GetCacheContext(ctx context.Context) *CacheContext {
+	if cc, ok := ctx.Value(cacheContextKey{}).(*CacheContext); ok {
+		return cc
+	}
+	return nil
+}
+
+// TryLoadCached attempts to load cached output for a step.
+// Returns (output, true) if cache hit, (nil, false) if cache miss.
+func (cc *CacheContext) TryLoadCached(ctx context.Context, emit string) (any, bool) {
+	if !cc.Enabled || emit == "" || cc.Storage == nil {
+		return nil, false
+	}
+
+	// Compute cache key using emit and document key
+	cacheKey := ApplyEmit(emit, cc.DocumentKey)
+
+	// Check if cached output exists
+	exists, err := cc.Storage.Has(ctx, cacheKey)
+	if err != nil || !exists {
+		return nil, false
+	}
+
+	// Load cached content
+	reader, err := cc.Storage.Get(ctx, cacheKey)
+	if err != nil {
+		return nil, false
+	}
+
+	content, err := io.ReadAll(reader)
+	if err != nil {
+		return nil, false
+	}
+
+	// Try to parse as JSON first, then YAML, otherwise return as string
+	var result any
+	if err := json.Unmarshal(content, &result); err == nil {
+		return result, true
+	}
+
+	if err := yaml.Unmarshal(content, &result); err == nil {
+		return result, true
+	}
+
+	// Return as string if not structured data
+	return string(content), true
+}
+
+// SaveCached saves step output to cache.
+func (cc *CacheContext) SaveCached(ctx context.Context, emit string, output any) error {
+	if !cc.Enabled || emit == "" || cc.Storage == nil {
+		return nil
+	}
+
+	// Compute cache key
+	cacheKey := ApplyEmit(emit, cc.DocumentKey)
+
+	// Serialize output
+	var content []byte
+	var err error
+
+	switch v := output.(type) {
+	case string:
+		content = []byte(v)
+	case []byte:
+		content = v
+	default:
+		// Try JSON first, fall back to YAML
+		content, err = json.MarshalIndent(output, "", "  ")
+		if err != nil {
+			content, err = yaml.Marshal(output)
+			if err != nil {
+				return fmt.Errorf("failed to serialize output: %w", err)
+			}
+		}
+	}
+
+	// Save to storage
+	return cc.Storage.Put(ctx, cacheKey, bytes.NewReader(content))
 }
