@@ -78,7 +78,7 @@ func (m *Union) Next(ctx context.Context) (*iosystem.Document, error) {
 	}
 
 	doc := iosystem.NewDocument(
-		m.paths[0],
+		iosystem.Key(m.paths[0]),
 		io.NopCloser(bytes.NewReader(m.content.Bytes())),
 	)
 

@@ -92,10 +92,10 @@ func (p *Chunker) Process(ctx context.Context, docs []*iosystem.Document) ([]*io
 			chunkNum++
 			chunkPath := fmt.Sprintf("%s#chunk%d", doc.Path, chunkNum)
 
-			chunkDoc := iosystem.NewDocument(chunkPath, strings.NewReader(txt))
+			chunkDoc := iosystem.NewDocument(iosystem.Key(chunkPath), strings.NewReader(txt))
 
 			// Copy metadata from original
-			for k, v := range doc.Metadata {
+			for k, v := range doc.Metadata.Custom {
 				chunkDoc.WithMetadata(k, v)
 			}
 			chunkDoc.WithMetadata("chunk_num", fmt.Sprintf("%d", chunkNum))

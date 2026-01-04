@@ -23,7 +23,7 @@ func TestNewDocument(t *testing.T) {
 	it.Then(t).Should(
 		it.Equal(doc.Path, "test.txt"),
 		it.True(doc.Reader != nil),
-		it.True(doc.Metadata != nil),
+		it.True(doc.Metadata.Custom != nil),
 	)
 }
 
@@ -33,8 +33,8 @@ func TestDocumentWithMetadata(t *testing.T) {
 		WithMetadata("type", "text/plain")
 
 	it.Then(t).Should(
-		it.Equal(doc.Metadata["size"], "1024"),
-		it.Equal(doc.Metadata["type"], "text/plain"),
+		it.Equal(doc.Metadata.Custom["size"], "1024"),
+		it.Equal(doc.Metadata.Custom["type"], "text/plain"),
 	)
 }
 
@@ -44,6 +44,6 @@ func TestDocumentWithMetadata_Chaining(t *testing.T) {
 		WithMetadata("key2", "value2")
 
 	it.Then(t).Should(
-		it.Equal(len(doc.Metadata), 2),
+		it.Equal(len(doc.Metadata.Custom), 2),
 	)
 }

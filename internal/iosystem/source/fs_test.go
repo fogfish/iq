@@ -52,7 +52,7 @@ func TestWalkSource_SingleFile(t *testing.T) {
 	}
 
 	it.Then(t).Should(
-		it.Equal(doc.Path, "/test.txt"),
+		it.Equal(doc.Path, "test.txt"),
 		it.True(doc.Reader != nil),
 	)
 
@@ -241,7 +241,7 @@ func TestWalkSource_SubdirectoryWalk(t *testing.T) {
 	it.Then(t).Should(it.Nil(err))
 
 	it.Then(t).Should(
-		it.Equal(doc.Path, "/subdir/sub.txt"),
+		it.Equal(doc.Path, "subdir/sub.txt"),
 	)
 
 	data, err := io.ReadAll(doc.Reader)
@@ -288,7 +288,7 @@ func TestWalkSource_OnlyFilesNotDirectories(t *testing.T) {
 	// Should only get one document (the file, not directories)
 	doc, err := src.Next(ctx)
 	it.Then(t).Must(it.Nil(err))
-	it.Then(t).Should(it.Equal(doc.Path, "/dir1/dir3/file.txt"))
+	it.Then(t).Should(it.Equal(doc.Path, "dir1/dir3/file.txt"))
 
 	// Second call should return EOF
 	_, err = src.Next(ctx)

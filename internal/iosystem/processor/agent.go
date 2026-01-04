@@ -175,14 +175,18 @@ func (p *Agent) Close() error {
 	return nil
 }
 
-// copyMetadata creates a shallow copy of metadata map.
-func copyMetadata(m map[string]string) map[string]string {
-	if m == nil {
-		return nil
+// copyMetadata creates a shallow copy of metadata.
+func copyMetadata(m iosystem.Metadata) iosystem.Metadata {
+	copy := iosystem.Metadata{
+		ContentType: m.ContentType,
+		Extension:   m.Extension,
+		Size:        m.Size,
 	}
-	copy := make(map[string]string, len(m))
-	for k, v := range m {
-		copy[k] = v
+	if m.Custom != nil {
+		copy.Custom = make(map[string]string, len(m.Custom))
+		for k, v := range m.Custom {
+			copy.Custom[k] = v
+		}
 	}
 	return copy
 }

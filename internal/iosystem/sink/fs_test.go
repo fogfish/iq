@@ -38,7 +38,7 @@ func TestFSSink(t *testing.T) {
 
 		// Write document (lfs paths don't need leading slash)
 		ctx := context.Background()
-		doc := iosystem.NewDocument("/test.txt", io.NopCloser(strings.NewReader("test content")))
+		doc := iosystem.NewDocument(iosystem.Key("/test.txt"), io.NopCloser(strings.NewReader("test content")))
 		err = snk.Write(ctx, doc)
 		it.Then(t).Should(it.Nil(err))
 
@@ -65,7 +65,7 @@ func TestFSSink(t *testing.T) {
 
 		// Write document with nested path
 		ctx := context.Background()
-		doc := iosystem.NewDocument("/subdir/nested/file.txt",
+		doc := iosystem.NewDocument(iosystem.Key("/subdir/nested/file.txt"),
 			io.NopCloser(strings.NewReader("nested content")))
 		err = snk.Write(ctx, doc)
 		it.Then(t).Should(it.Nil(err))
@@ -103,7 +103,7 @@ func TestFSSink(t *testing.T) {
 		}
 
 		for _, d := range docs {
-			doc := iosystem.NewDocument(d.path, io.NopCloser(strings.NewReader(d.content)))
+			doc := iosystem.NewDocument(iosystem.Key(d.path), io.NopCloser(strings.NewReader(d.content)))
 			err := snk.Write(ctx, doc)
 			it.Then(t).Should(it.Nil(err))
 		}
@@ -158,7 +158,7 @@ func TestFSSink(t *testing.T) {
 
 		// Write document
 		ctx := context.Background()
-		doc := iosystem.NewDocument("/large.txt", io.NopCloser(strings.NewReader(largeContent)))
+		doc := iosystem.NewDocument(iosystem.Key("/large.txt"), io.NopCloser(strings.NewReader(largeContent)))
 		err = snk.Write(ctx, doc)
 		it.Then(t).Should(it.Nil(err))
 
@@ -218,7 +218,7 @@ func TestFSSink(t *testing.T) {
 
 		// Write document with same path
 		ctx := context.Background()
-		doc := iosystem.NewDocument("/test.txt", io.NopCloser(strings.NewReader("new content")))
+		doc := iosystem.NewDocument(iosystem.Key("/test.txt"), io.NopCloser(strings.NewReader("new content")))
 		err = snk.Write(ctx, doc)
 		it.Then(t).Should(it.Nil(err))
 

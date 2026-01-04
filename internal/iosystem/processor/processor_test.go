@@ -76,7 +76,7 @@ func TestChunkerProcessor_Sentence(t *testing.T) {
 	for _, result := range results {
 		it.Then(t).Should(
 			it.True(strings.Contains(result.Path, "test.txt#chunk")),
-			it.Equal(result.Metadata["original_path"], "test.txt"),
+			it.Equal(result.Metadata.Custom["original_path"], "test.txt"),
 		)
 	}
 }
@@ -153,8 +153,8 @@ func TestChunkerProcessor_PreservesMetadata(t *testing.T) {
 	// Check that metadata is preserved in chunks
 	for _, result := range results {
 		it.Then(t).Should(
-			it.Equal(result.Metadata["source"], "test"),
-			it.Equal(result.Metadata["size"], "14"),
+			it.Equal(result.Metadata.Custom["source"], "test"),
+			it.Equal(result.Metadata.Custom["size"], "14"),
 		)
 	}
 }
