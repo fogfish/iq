@@ -281,6 +281,7 @@ type stepYAML struct {
 	Uses    string       `yaml:"uses,omitempty"`
 	Run     string       `yaml:"run,omitempty"`
 	Output  string       `yaml:"output,omitempty"`
+	Emit    string       `yaml:"emit,omitempty"`
 	Switch  []routeYAML  `yaml:"switch,omitempty"`
 	Default string       `yaml:"default,omitempty"`
 	Foreach *foreachYAML `yaml:"foreach,omitempty"`
@@ -386,6 +387,7 @@ func (p *Parser) convertStep(raw *stepYAML) ast.StepNode {
 			RunsOn: raw.RunsOn,
 			Run:    raw.Run,
 			Output: raw.Output,
+			Emit:   raw.Emit,
 			Retry:  retry,
 		}
 	}
@@ -429,6 +431,7 @@ func (p *Parser) convertStep(raw *stepYAML) ast.StepNode {
 			Selector: raw.Foreach.Selector,
 			Job:      raw.Foreach.Job,
 			Output:   raw.Output,
+			Emit:     raw.Emit,
 			Format:   format,
 			Retry:    retry,
 		}
@@ -449,6 +452,7 @@ func (p *Parser) convertStep(raw *stepYAML) ast.StepNode {
 			RunsOn:  raw.RunsOn,
 			Uses:    os.ExpandEnv(raw.Uses),
 			Output:  raw.Output,
+			Emit:    raw.Emit,
 			Routes:  routes,
 			Default: raw.Default,
 			Retry:   retry,
@@ -461,6 +465,7 @@ func (p *Parser) convertStep(raw *stepYAML) ast.StepNode {
 		RunsOn: raw.RunsOn,
 		Uses:   os.ExpandEnv(raw.Uses),
 		Output: raw.Output,
+		Emit:   raw.Emit,
 		Retry:  retry,
 	}
 }

@@ -235,3 +235,66 @@ jobs:
 		t.Errorf("Expected default delimiter '\\n', got '%s'", step.Format.Delimiter)
 	}
 }
+
+func TestParser_EmitAttribute(t *testing.T) {
+	tmpDir := t.TempDir()
+	yamlFile := filepath.Join(tmpDir, "test.yml")
+
+	content := `name: emit-test
+jobs:
+  main:
+    steps:
+      - uses: prompts/summarize.md
+        emit: summary
+
+      - foreach:
+          selector: document
+          job: process
+        emit: processed
+
+      - run: echo "test"
+        emit: output
+
+  router:
+    steps:
+      - uses: prompts/decide.md
+        switch:
+          - when: "true"
+            route: next
+        emit: decision
+`
+
+	if err := os.WriteFile(yamlFile, []byte(content), 0644); err != nil {
+		t.Fatalf("failed to write test file: %v", err)
+	}
+
+	p := parser.New(tmpDir)
+	_, tree, err := p.ParseBlueprint(yamlFile)
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+
+	// Check agent step emit
+	agentStep := tree.Jobs["main"].Steps[0].(*ast.AgentStepNode)
+	if agentStep.Emit != "summary" {
+		t.Errorf("AgentStep emit: got %q, want %q", agentStep.Emit, "summary")
+	}
+
+	// Check foreach step emit
+	foreachStep := tree.Jobs["main"].Steps[1].(*ast.ForeachStepNode)
+	if foreachStep.Emit != "processed" {
+		t.Errorf("ForeachStep emit: got %q, want %q", foreachStep.Emit, "processed")
+	}
+
+	// Check run step emit
+	runStep := tree.Jobs["main"].Steps[2].(*ast.RunStepNode)
+	if runStep.Emit != "output" {
+		t.Errorf("RunStep emit: got %q, want %q", runStep.Emit, "output")
+	}
+
+	// Check router step emit
+	routerStep := tree.Jobs["router"].Steps[0].(*ast.RouterStepNode)
+	if routerStep.Emit != "decision" {
+		t.Errorf("RouterStep emit: got %q, want %q", routerStep.Emit, "decision")
+	}
+}
