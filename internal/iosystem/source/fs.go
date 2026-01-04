@@ -156,9 +156,10 @@ func (w *FS) Next(ctx context.Context) (*iosystem.Document, error) {
 
 // fsPathToKey converts filesystem path to relative key.
 // Examples:
-//   "/base/sub/a.txt" → "sub/a.txt"
-//   "/base/a.txt" → "a.txt"
-//   "sub/a.txt" → "sub/a.txt" (already relative)
+//
+//	"/base/sub/a.txt" → "sub/a.txt"
+//	"/base/a.txt" → "a.txt"
+//	"sub/a.txt" → "sub/a.txt" (already relative)
 func (w *FS) fsPathToKey(fsPath string) iosystem.Key {
 	// Remove leading slash if present (from fs.WalkDir)
 	clean := strings.TrimPrefix(fsPath, "/")

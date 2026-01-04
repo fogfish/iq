@@ -157,7 +157,7 @@ func TestBuilder_DirMultipleFiles(t *testing.T) {
 	}
 
 	for _, d := range docs {
-		doc := iosystem.NewDocument(d.path, io.NopCloser(bytes.NewBufferString(d.content)))
+		doc := iosystem.NewDocument(iosystem.Key(d.path), io.NopCloser(bytes.NewBufferString(d.content)))
 		err = snk.Write(ctx, doc)
 		it.Then(t).Should(it.Nil(err))
 	}
