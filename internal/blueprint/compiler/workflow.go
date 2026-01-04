@@ -108,6 +108,14 @@ func (step *AgentStep) Prompt(ctx context.Context, opt ...chatter.Opt) error {
 			Counters: emitCtx.Counters, // Preserve parent counters (for nested foreach)
 		}
 		ctx = WithEmitContext(ctx, newEmitCtx)
+		
+		// Store in workflow context so it can be retrieved later
+		wfCtx.LastEmitContext = newEmitCtx
+		
+		// Also capture it in the mutable capture struct if present
+		if capture := GetEmitCapture(ctx); capture != nil {
+			capture.Captured = newEmitCtx
+		}
 	}
 
 	// Get progress reporter and step info
@@ -259,6 +267,10 @@ func (step *RouterStep) Prompt(ctx context.Context, opt ...chatter.Opt) error {
 			Counters: emitCtx.Counters, // Preserve parent counters (for nested foreach)
 		}
 		ctx = WithEmitContext(ctx, newEmitCtx)
+		// Capture emit context for retrieval
+		if capture := GetEmitCapture(ctx); capture != nil {
+			capture.Captured = newEmitCtx
+		}
 	}
 
 	reporter := progress.FromContext(ctx)
@@ -410,6 +422,10 @@ func (step *ForeachStep) Prompt(ctx context.Context, opt ...chatter.Opt) error {
 	// Inherit parent counters if in nested foreach
 	if parentEmitCtx != nil {
 		foreachEmitCtx.Counters = append([]int{}, parentEmitCtx.Counters...)
+	}
+	// Capture emit context for retrieval
+	if capture := GetEmitCapture(ctx); capture != nil {
+		capture.Captured = foreachEmitCtx
 	}
 
 	reporter := progress.FromContext(ctx)
@@ -613,6 +629,10 @@ func (step *RunStep) Prompt(ctx context.Context, opt ...chatter.Opt) error {
 			Counters: emitCtx.Counters, // Preserve parent counters (for nested foreach)
 		}
 		ctx = WithEmitContext(ctx, newEmitCtx)
+		// Capture emit context for retrieval
+		if capture := GetEmitCapture(ctx); capture != nil {
+			capture.Captured = newEmitCtx
+		}
 	}
 
 	reporter := progress.FromContext(ctx)

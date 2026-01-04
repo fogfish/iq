@@ -39,6 +39,9 @@ type WorkflowContext struct {
 
 	// Current is the most recent step output (for chaining)
 	Current any
+
+	// LastEmitContext captures the final emit context from workflow execution
+	LastEmitContext *EmitContext
 }
 
 // NewWorkflowContext creates a new workflow context embedded in Go context
@@ -102,6 +105,26 @@ func (c *WorkflowContext) ToMap() map[string]any {
 }
 
 type emitContextKey struct{}
+type emitCaptureKey struct{}
+
+// EmitContextCapture is a mutable struct that can capture emit context during execution
+type EmitContextCapture struct {
+	Captured *EmitContext
+}
+
+// WithEmitCapture adds an emit capture struct to context
+func WithEmitCapture(ctx context.Context) (context.Context, *EmitContextCapture) {
+	capture := &EmitContextCapture{}
+	return context.WithValue(ctx, emitCaptureKey{}, capture), capture
+}
+
+// GetEmitCapture retrieves the emit capture from context
+func GetEmitCapture(ctx context.Context) *EmitContextCapture {
+	if capture, ok := ctx.Value(emitCaptureKey{}).(*EmitContextCapture); ok {
+		return capture
+	}
+	return nil
+}
 
 // EmitContext tracks output key prefixes for workflow steps.
 type EmitContext struct {

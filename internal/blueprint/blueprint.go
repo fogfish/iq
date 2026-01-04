@@ -20,7 +20,13 @@ import (
 
 // Blueprint represents a compiled workflow
 type Blueprint struct {
-	workflow *compiler.Workflow
+	workflow        *compiler.Workflow
+	lastEmitContext *compiler.EmitContext // Captured from last execution
+}
+
+// LastEmitContext returns the emit context from the last execution
+func (bp *Blueprint) LastEmitContext() *compiler.EmitContext {
+	return bp.lastEmitContext
 }
 
 // New loads and compiles a blueprint file
@@ -89,5 +95,12 @@ func (bp *Blueprint) Prompt(ctx context.Context, input any, opt ...chatter.Opt) 
 		return nil, fmt.Errorf("entrypoint job '%s' not found in workflow", jobName)
 	}
 
-	return job.Prompt(ctx, input, opt...)
+	result, err := job.Prompt(ctx, input, opt...)
+	
+	// Capture LastEmitContext from the workflow context if present
+	// Note: We can't get the modified context back from job.Prompt because
+	// Go contexts are immutable. But we can store it in a side channel.
+	// For now, this won't work until we refactor job.Prompt to return context.
+	
+	return result, err
 }

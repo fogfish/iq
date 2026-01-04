@@ -32,12 +32,13 @@ import (
 //	    Concurrency(4).
 //	    Build()
 type Builder struct {
-	conduit    conduit.Config
-	runtime    *conduit.Conduit
-	reporter   *progress.Reporter
-	workflow   *blueprint.Blueprint
-	cacheStore storage.Storage // Storage for skip-if-exists caching
-	err        error
+	conduit         conduit.Config
+	runtime         *conduit.Conduit
+	reporter        *progress.Reporter
+	workflow        *blueprint.Blueprint
+	compiledWorkflow *compiler.Workflow // Compiled workflow for emit detection
+	cacheStore      storage.Storage    // Storage for skip-if-exists caching
+	err             error
 }
 
 // New creates a new conduit builder with default configuration.
@@ -187,6 +188,9 @@ func (b *Builder) Workflow(file string, llm chatter.Chatter) *Builder {
 
 	// Store workflow for potential use in SkipIfExists
 	b.workflow = wrk
+	
+	// Store compiled workflow for emit detection
+	b.compiledWorkflow = wrk.Workflow()
 
 	// Report workflow compiled with actual counts
 	if b.reporter != nil {
@@ -251,17 +255,24 @@ func (b *Builder) Build() (*ConduitWithReporter, error) {
 	}
 
 	return &ConduitWithReporter{
-		Conduit:    b.runtime,
-		reporter:   b.reporter,
-		cacheStore: b.cacheStore,
+		Conduit:          b.runtime,
+		reporter:         b.reporter,
+		cacheStore:       b.cacheStore,
+		compiledWorkflow: b.compiledWorkflow,
 	}, nil
 }
 
 // ConduitWithReporter wraps a conduit and injects progress reporter into context
 type ConduitWithReporter struct {
 	*conduit.Conduit
-	reporter   *progress.Reporter
-	cacheStore storage.Storage // Storage for skip-if-exists caching
+	reporter         *progress.Reporter
+	cacheStore       storage.Storage    // Storage for skip-if-exists caching
+	compiledWorkflow *compiler.Workflow // For emit detection
+}
+
+// GetWorkflow returns the compiled workflow.
+func (c *ConduitWithReporter) GetWorkflow() *compiler.Workflow {
+	return c.compiledWorkflow
 }
 
 // Run executes the pipeline with progress reporter in context

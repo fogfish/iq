@@ -95,6 +95,9 @@ func (p *Agent) Process(ctx context.Context, docs []*iosystem.Document) ([]*iosy
 
 	var input any
 
+	// Create emit capture to retrieve emit context after workflow execution
+	ctx, emitCapture := compiler.WithEmitCapture(ctx)
+
 	items := make([]any, 0, len(docs))
 	for _, doc := range docs {
 		content, err := p.decode(doc)
@@ -123,8 +126,22 @@ func (p *Agent) Process(ctx context.Context, docs []*iosystem.Document) ([]*iosy
 		return nil, fmt.Errorf("failed to encode agent response: %w", err)
 	}
 
+	reply.Key = docs[0].Key
 	reply.Path = docs[0].Path + p.config.Suffix
 	reply.Metadata = copyMetadata(docs[0].Metadata)
+
+	// Store captured emit context in document metadata
+	if emitCapture != nil && emitCapture.Captured != nil {
+		if reply.Metadata.Custom == nil {
+			reply.Metadata.Custom = make(map[string]string)
+		}
+		reply.Metadata.Custom["emit.prefix"] = emitCapture.Captured.Prefix
+		// Store counters as JSON if present
+		if len(emitCapture.Captured.Counters) > 0 {
+			countersJSON, _ := json.Marshal(emitCapture.Captured.Counters)
+			reply.Metadata.Custom["emit.counters"] = string(countersJSON)
+		}
+	}
 
 	return []*iosystem.Document{reply}, nil
 }

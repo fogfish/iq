@@ -10,6 +10,7 @@ package sink
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
 	"github.com/fogfish/iq/internal/blueprint/compiler"
@@ -35,8 +36,24 @@ func (s *StorageSink) Write(ctx context.Context, doc *iosystem.Document) error {
 		return fmt.Errorf("document is nil")
 	}
 
-	// Get emit context to determine output key
+	// Get emit context - first from context, then from document metadata
 	emitCtx := compiler.GetEmitContext(ctx)
+	
+	// If not in context, try to load from document metadata
+	if emitCtx == nil || emitCtx.Prefix == "" {
+		if prefix, ok := doc.Metadata.Custom["emit.prefix"]; ok && prefix != "" {
+			emitCtx = &compiler.EmitContext{
+				Prefix: prefix,
+			}
+			// Parse counters if present
+			if countersJSON, ok := doc.Metadata.Custom["emit.counters"]; ok {
+				var counters []int
+				json.Unmarshal([]byte(countersJSON), &counters)
+				emitCtx.Counters = counters
+			}
+		}
+	}
+	
 	outputKey := doc.Key
 
 	// Apply emit prefix and counters if present
