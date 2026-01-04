@@ -47,7 +47,7 @@ Current implementation requires 4 separate pipelines with bash orchestration. Go
 
 ### **Core Architecture: Pure Key/Value Storage with Path-Based Keys**
 
-Use simple filesystem-style paths as document keys, with pure key/value storage abstraction implemented via `github.com/fogfish/stream` for local filesystem and S3. Each processing step explicitly declares output via `emit:` attribute.
+Use simple filesystem-style paths as document keys, with pure key/value storage abstraction implemented via `github.com/fogfish/stream` for local filesystem and S3. Each processing step explicitly declares output via `emit:` attribute (emit defines the prefix).
 
 ---
 
@@ -101,7 +101,7 @@ After foreach processing array with emit: "posts":
 
 **Benefits:**
 - ✅ Simple, intuitive path structure
-- ✅ Filesystem-compatible (no URN parsing)
+- ✅ Filesystem-compatible
 - ✅ Natural prefix matching for batch operations
 - ✅ Easy debugging (paths are human-readable)
 - ✅ No external dependencies
@@ -345,18 +345,8 @@ func (s *FSSource) fsPathToKey(fsPath string) iosystem.Key {
 jobs:
   process:
     steps:
-      # Step 1: Process files with emit prefix
       - uses: prompts/summarize.md
         emit: summary      
-
-      # Step 2: Extract facts (1:N expansion)
-      - uses: prompts/facts.md
-        emit: theories
-
-      # Step 3: Process each theory with foreach
-      - foreach:
-          job: research
-          emit: posts
 ```
 
 **Emit Semantics:**
@@ -420,8 +410,8 @@ func (w *Workflow) ProcessForeach(ctx context.Context, step *Step, arrayKey iosy
         }
         
         // Construct output key with emit prefix and array index
-        // emit="posts", arrayKey="theories/summary/a.txt", i=0
-        // → "posts/theories/summary/a.seq-0001.txt"
+        // emit="research", arrayKey="facts/summary/a.txt", i=0
+        // → "research/facts/summary/a.0000.txt"
         outputKey := w.applyEmitWithIndex(step.Emit, arrayKey, i)
         
         // Write to storage
@@ -435,8 +425,8 @@ func (w *Workflow) ProcessForeach(ctx context.Context, step *Step, arrayKey iosy
 }
 
 // applyEmitWithIndex adds emit prefix and array index
-// emit="posts", key="theories/summary/a.txt", index=0
-// → "posts/theories/summary/a.seq-0001.txt"
+// emit="research", key="facts/summary/a.txt", index=0
+// → "posts/facts/summary/a.0001.txt"
 func (w *Workflow) applyEmitWithIndex(emit string, key iosystem.Key, index int) iosystem.Key {
     suffix := fmt.Sprintf("-%06d", index+1)
     
@@ -446,6 +436,22 @@ func (w *Workflow) applyEmitWithIndex(emit string, key iosystem.Key, index int) 
     
     return iosystem.Key(emit + "/" + string(key) + suffix)
 }
+```
+
+The foreach counter is propagated withing the context so that all inner emits uses it. For the nested loops counters are concatenated
+
+```
+// Before the foreach 
+emit: research  => research/sub/a.txt
+
+// At the foreach loop level, i=1
+emit: research  => research/sub/a.0001.txt
+
+// Within the foreach loop
+emit: foobar    => foobar/sub/a.0001.txt
+
+// At the nested foreach loop, i=1, j=0
+emit: research  => foobar/sub/a.0001.0000.txt
 ```
 
 **Benefits:**
@@ -459,7 +465,7 @@ func (w *Workflow) applyEmitWithIndex(emit string, key iosystem.Key, index int) 
 
 ### **6. Skip-If-Exists: CLI Flag**
 
-**Skip-if-exists is implemented as a CLI flag**, not a workflow directive. It checks if output keys exist before processing.
+**Skip-if-exists is implemented as a CLI flag**, not a workflow directive. It checks if output keys exist before processing. The directive is applied for each step annotated with emit attribute.
 
 **CLI Usage:**
 
@@ -554,26 +560,6 @@ func (c *RunCommand) computeOutputKey(step *blueprint.Step, inputKey iosystem.Ke
 - ✅ Cheap Has() operation (no full read)
 - ✅ Enables incremental pipeline recovery
 
-**Example:**
-
-```yaml
-# workflow.yml
-jobs:
-  process:
-    steps:
-      - name: summarize
-        emit: summary
-        processor: { type: llm, prompt: summarize.md }
-      
-      - name: theorize
-        emit: theories
-        processor: { type: llm, prompt: theorize.md }
-      
-      - name: post
-        emit: posts        # ← Anchor step (last)
-        foreach:
-          processor: { type: llm, prompt: post.md }
-```
 
 ```bash
 # First run: processes all files
