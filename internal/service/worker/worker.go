@@ -13,9 +13,11 @@ import (
 	"fmt"
 
 	"github.com/fogfish/iq/internal/blueprint"
+	"github.com/fogfish/iq/internal/blueprint/compiler"
 	"github.com/fogfish/iq/internal/iosystem"
 	"github.com/fogfish/iq/internal/iosystem/conduit"
 	"github.com/fogfish/iq/internal/iosystem/processor"
+	"github.com/fogfish/iq/internal/iosystem/storage"
 	"github.com/fogfish/iq/internal/progress"
 	"github.com/kshard/chatter"
 )
@@ -33,6 +35,7 @@ type Builder struct {
 	conduit  conduit.Config
 	runtime  *conduit.Conduit
 	reporter *progress.Reporter
+	workflow *blueprint.Blueprint
 	err      error
 }
 
@@ -181,6 +184,9 @@ func (b *Builder) Workflow(file string, llm chatter.Chatter) *Builder {
 		return b
 	}
 
+	// Store workflow for potential use in SkipIfExists
+	b.workflow = wrk
+
 	// Report workflow compiled with actual counts
 	if b.reporter != nil {
 		b.reporter.WorkflowCompiled(wrk.Name(), wrk.JobCount(), wrk.StepCount())
@@ -192,6 +198,34 @@ func (b *Builder) Workflow(file string, llm chatter.Chatter) *Builder {
 	b.runtime.Name = wrk.Name()
 	b.runtime.About = wrk.About()
 	b.runtime.Input, b.runtime.Reply = wrk.Schema()
+
+	return b
+}
+
+// SkipIfExists adds a processor that skips documents whose output already exists.
+// This enables incremental processing and recovery from failures.
+// Must be called after Workflow() and before Build().
+func (b *Builder) SkipIfExists(outputPath string) *Builder {
+	if b.err != nil || b.runtime == nil || b.workflow == nil || outputPath == "" {
+		return b
+	}
+
+	// Create storage for output checking
+	store, err := storage.NewFS(outputPath)
+	if err != nil {
+		b.err = fmt.Errorf("failed to create storage for skip-if-exists: %w", err)
+		return b
+	}
+
+	// Create anchor key computer from workflow
+	anchor, err := compiler.NewAnchorKeyComputer(b.workflow.Workflow())
+	if err != nil {
+		b.err = fmt.Errorf("failed to create anchor computer: %w", err)
+		return b
+	}
+
+	// Add skip processor at the beginning of the pipeline (after array collector if present)
+	b.runtime.AddProcessor(processor.NewSkipIfExists(store, anchor, b.reporter))
 
 	return b
 }

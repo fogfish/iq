@@ -116,6 +116,7 @@ type optsAgent struct {
 	splitterChars string
 	json          bool
 	array         bool
+	skipIfExists  bool
 }
 
 func (opts *optsAgent) apply(cmd *cobra.Command) {
@@ -138,6 +139,9 @@ func (opts *optsAgent) apply(cmd *cobra.Command) {
 
 	f.BoolVar(&opts.array, "array", false,
 		"Passes input documents or chunks as an array to the workflow.")
+
+	f.BoolVar(&opts.skipIfExists, "skip-if-exists", false,
+		"Skip documents that already have output (checks last step emit)")
 }
 
 // validate checks for incompatible flag combinations
@@ -154,7 +158,7 @@ func (opts *optsAgent) build(llm chatter.Chatter, reporter *progress.Reporter) (
 		return nil, err
 	}
 
-	return worker.New().
+	builder := worker.New().
 		// TODO: ErrorMode
 		Reporter(reporter).
 		Runtime().
@@ -164,9 +168,20 @@ func (opts *optsAgent) build(llm chatter.Chatter, reporter *progress.Reporter) (
 			ChunkSize:      opts.splitterChunk,
 			DelimiterChars: opts.splitterChars,
 		}).
-		Workflow(opts.file, llm).
-		Jsonify(opts.json).
-		Build()
+		Workflow(opts.file, llm)
+
+	// Add skip-if-exists processor if flag enabled
+	if opts.skipIfExists {
+		// Get output path from freply
+		outputPath := freply.dir
+		if outputPath == "" {
+			// If no output dir specified, skip-if-exists doesn't make sense
+			return nil, fmt.Errorf("--skip-if-exists requires --output-dir to be specified")
+		}
+		builder = builder.SkipIfExists(outputPath)
+	}
+
+	return builder.Jsonify(opts.json).Build()
 }
 
 //------------------------------------------------------------------------------
