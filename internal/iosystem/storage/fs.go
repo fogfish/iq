@@ -77,12 +77,12 @@ func (s *FSStorage) Put(ctx context.Context, key iosystem.Key, value io.Reader) 
 }
 
 // Get reads value from key.
-func (s *FSStorage) Get(ctx context.Context, key iosystem.Key) (io.ReadCloser, error) {
+func (s *FSStorage) Get(ctx context.Context, key iosystem.Key) (io.Reader, error) {
 	reader, err := s.fs.Open(string(key))
 	if err != nil {
 		return nil, fmt.Errorf("failed to open key %s: %w", key, err)
 	}
-	return reader, nil
+	return &autoCloser{ReadCloser: reader}, nil
 }
 
 // Has checks if key exists.
@@ -131,4 +131,34 @@ func (s *FSStorage) Walk(ctx context.Context, prefix iosystem.Key, visitor func(
 	}
 
 	return nil
+}
+
+// autoCloser wraps an io.ReadCloser and automatically closes it when:
+// - Read returns io.EOF (file fully read)
+// - Read returns any other error
+// This prevents file descriptor leaks when documents are not explicitly closed.
+type autoCloser struct {
+	io.ReadCloser
+	closed bool
+}
+
+func (a *autoCloser) Read(p []byte) (n int, err error) {
+	if a.closed {
+		return 0, io.EOF
+	}
+
+	n, err = a.ReadCloser.Read(p)
+	if err != nil {
+		a.Close()
+		a.closed = true
+	}
+	return n, err
+}
+
+func (a *autoCloser) Close() error {
+	if a.closed {
+		return nil
+	}
+	a.closed = true
+	return a.ReadCloser.Close()
 }

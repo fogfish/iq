@@ -42,7 +42,6 @@ func TestFSStorage_PutGet(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Get failed: %v", err)
 	}
-	defer reader.Close()
 
 	got, err := io.ReadAll(reader)
 	if err != nil {
@@ -172,7 +171,6 @@ func TestFSStorage_PutOverwrite(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Get failed: %v", err)
 	}
-	defer reader.Close()
 
 	got, err := io.ReadAll(reader)
 	if err != nil {
