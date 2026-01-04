@@ -64,7 +64,7 @@ func (s *Reader) Next(ctx context.Context) (*iosystem.Document, error) {
 		return nil, io.EOF
 	}
 	s.consumed = true
-	doc := iosystem.NewDocument(s.path, s.reader)
+	doc := iosystem.NewDocument(iosystem.Key(s.path), s.reader)
 	doc.Type = s.content
 	return doc, nil
 }

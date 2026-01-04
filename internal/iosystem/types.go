@@ -70,3 +70,12 @@ type Sink interface {
 	// Should flush any buffered writes.
 	Close() error
 }
+
+// Key is a simple filesystem-style path used as document identity.
+// Keys are relative paths using forward slashes as separators.
+//
+// Examples:
+//   "a.txt"           - file in root
+//   "sub/a.txt"       - file in subdirectory
+//   "summary/a.txt"   - file with emit prefix
+type Key string

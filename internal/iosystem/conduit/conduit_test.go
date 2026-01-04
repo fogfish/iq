@@ -80,7 +80,7 @@ func TestPipeline_WithChunking(t *testing.T) {
 	for _, doc := range snk.docs {
 		it.Then(t).Should(
 			it.True(strings.Contains(doc.Path, "#chunk")),
-			it.Equal(doc.Metadata["original_path"], "mock.txt"),
+			it.Equal(doc.Metadata.Custom["original_path"], "mock.txt"),
 		)
 	}
 }
@@ -222,8 +222,8 @@ func (m *mockSink) Write(ctx context.Context, doc *iosystem.Document) error {
 	buf := &bytes.Buffer{}
 	io.Copy(buf, doc.Reader)
 
-	captured := iosystem.NewDocument(doc.Path, buf)
-	for k, v := range doc.Metadata {
+	captured := iosystem.NewDocument(iosystem.Key(doc.Path), buf)
+	for k, v := range doc.Metadata.Custom {
 		captured.WithMetadata(k, v)
 	}
 	m.docs = append(m.docs, captured)

@@ -55,7 +55,7 @@ func (f *File) Next(ctx context.Context) (*iosystem.Document, error) {
 		return nil, fmt.Errorf("failed to open file %s: %w", path, err)
 	}
 
-	doc := iosystem.NewDocument(path, &autoCloser{ReadCloser: file})
+	doc := iosystem.NewDocument(iosystem.Key(path), &autoCloser{ReadCloser: file})
 	switch filepath.Ext(path) {
 	case ".json":
 		doc.Type = iosystem.ContentJSON

@@ -14,6 +14,7 @@ import (
 	"io"
 	"io/fs"
 	"path/filepath"
+	"strings"
 	"sync"
 
 	"github.com/fogfish/iq/internal/iosystem"
@@ -122,12 +123,15 @@ func (w *FS) Next(ctx context.Context) (*iosystem.Document, error) {
 			return nil, io.EOF
 		}
 
+		// Construct relative key from filesystem path
+		key := w.fsPathToKey(path)
+
 		file, err := w.fsys.Open(path)
 		if err != nil {
 			return nil, fmt.Errorf("failed to open file %s: %w", path, err)
 		}
 
-		doc := iosystem.NewDocument(path, &autoCloser{ReadCloser: file})
+		doc := iosystem.NewDocument(key, &autoCloser{ReadCloser: file})
 		switch filepath.Ext(path) {
 		case ".json":
 			doc.Type = iosystem.ContentJSON
@@ -148,6 +152,25 @@ func (w *FS) Next(ctx context.Context) (*iosystem.Document, error) {
 		}
 		return nil, io.EOF
 	}
+}
+
+// fsPathToKey converts filesystem path to relative key.
+// Examples:
+//   "/base/sub/a.txt" → "sub/a.txt"
+//   "/base/a.txt" → "a.txt"
+//   "sub/a.txt" → "sub/a.txt" (already relative)
+func (w *FS) fsPathToKey(fsPath string) iosystem.Key {
+	// Remove leading slash if present (from fs.WalkDir)
+	clean := strings.TrimPrefix(fsPath, "/")
+
+	// Remove base directory prefix
+	relPath := strings.TrimPrefix(clean, w.dir)
+	relPath = strings.TrimPrefix(relPath, "/")
+
+	// Ensure forward slashes (portable)
+	relPath = filepath.ToSlash(relPath)
+
+	return iosystem.Key(relPath)
 }
 
 // Close signals the background walker to stop and drains the path channel

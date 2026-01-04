@@ -135,7 +135,7 @@ func TestJSONFormatter_PreservesMetadata(t *testing.T) {
 	jsonContent := `{"name":"test"}`
 	doc := iosystem.NewDocument("test.json", strings.NewReader(jsonContent))
 	doc.Type = iosystem.ContentJSON
-	doc.Metadata = map[string]string{
+	doc.Metadata.Custom = map[string]string{
 		"source": "agent",
 		"custom": "value",
 	}
@@ -147,8 +147,8 @@ func TestJSONFormatter_PreservesMetadata(t *testing.T) {
 	// Check that metadata is preserved
 	it.Then(t).Should(
 		it.Equal(results[0].Type, iosystem.ContentJSON),
-		it.Equal(results[0].Metadata["source"], "agent"),
-		it.Equal(results[0].Metadata["custom"], "value"),
+		it.Equal(results[0].Metadata.Custom["source"], "agent"),
+		it.Equal(results[0].Metadata.Custom["custom"], "value"),
 	)
 }
 

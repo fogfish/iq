@@ -89,19 +89,19 @@ func (p *Chunker) Process(ctx context.Context, docs []*iosystem.Document) ([]*io
 				continue
 			}
 
-			chunkNum++
-			chunkPath := fmt.Sprintf("%s#chunk%d", doc.Path, chunkNum)
+		chunkNum++
+		chunkPath := fmt.Sprintf("%s#chunk%d", doc.Path, chunkNum)
 
-			chunkDoc := iosystem.NewDocument(chunkPath, strings.NewReader(txt))
+		chunkDoc := iosystem.NewDocument(iosystem.Key(chunkPath), strings.NewReader(txt))
 
-			// Copy metadata from original
-			for k, v := range doc.Metadata {
-				chunkDoc.WithMetadata(k, v)
-			}
-			chunkDoc.WithMetadata("chunk_num", fmt.Sprintf("%d", chunkNum))
-			chunkDoc.WithMetadata("original_path", doc.Path)
+		// Copy metadata from original
+		for k, v := range doc.Metadata.Custom {
+			chunkDoc.WithMetadata(k, v)
+		}
+		chunkDoc.WithMetadata("chunk_num", fmt.Sprintf("%d", chunkNum))
+		chunkDoc.WithMetadata("original_path", doc.Path)
 
-			chunks = append(chunks, chunkDoc)
+		chunks = append(chunks, chunkDoc)
 		}
 
 		if err := s.Err(); err != nil {
