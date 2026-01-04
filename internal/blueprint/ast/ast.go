@@ -67,6 +67,7 @@ type AgentStepNode struct {
 	RunsOn string
 	Uses   string // Path to agent file
 	Output string // Optional name to store output in context
+	Emit   string // Optional output key prefix
 	Retry  *RetryNode
 }
 
@@ -83,6 +84,7 @@ type RouterStepNode struct {
 	RunsOn  string
 	Uses    string      // Path to agent file
 	Output  string      // Optional name to store output in context
+	Emit    string      // Optional output key prefix
 	Routes  []RouteNode // Ordered routes (first match wins)
 	Default string      // Default job name if no route matches
 	Retry   *RetryNode
@@ -109,6 +111,7 @@ type ForeachStepNode struct {
 	Selector string      // Optional: CEL expression to extract array from input
 	Job      string      // Job to execute for each array item
 	Output   string      // Optional name to store results array in context
+	Emit     string      // Optional output key prefix
 	Format   *FormatNode // Optional: output serialization format
 	Retry    *RetryNode
 }
@@ -126,6 +129,7 @@ type RunStepNode struct {
 	RunsOn string // Shell to use (bash, zsh, sh); defaults to "sh"
 	Run    string // Shell command with template variables
 	Output string // Optional name to store output in context
+	Emit   string // Optional output key prefix
 	Retry  *RetryNode
 }
 

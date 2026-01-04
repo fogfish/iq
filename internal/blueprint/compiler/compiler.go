@@ -248,6 +248,7 @@ func (c *Compiler) compileStep(ctx context.Context, index int, node ast.StepNode
 			Command:    runNode.Run,
 			Shell:      shell,
 			OutputName: runNode.GetOutput(),
+			Emit:       runNode.Emit,
 			Retry:      retryNode,
 		}, nil
 	}
@@ -285,6 +286,7 @@ func (c *Compiler) compileStep(ctx context.Context, index int, node ast.StepNode
 			Selector:   selectorProgram,
 			JobName:    foreachNode.Job,
 			OutputName: foreachNode.GetOutput(),
+			Emit:       foreachNode.Emit,
 			Retry:      retryNode,
 			Formatter:  formatter,
 		}, nil
@@ -318,6 +320,7 @@ func (c *Compiler) compileStep(ctx context.Context, index int, node ast.StepNode
 		return &RouterStep{
 			Agent:      agt,
 			OutputName: routerNode.GetOutput(),
+			Emit:       routerNode.Emit,
 			RouteNodes: routerNode.Routes,
 			Conditions: conditions,
 			DefaultJob: routerNode.Default,
@@ -329,6 +332,7 @@ func (c *Compiler) compileStep(ctx context.Context, index int, node ast.StepNode
 	return &AgentStep{
 		Agent:      agt,
 		OutputName: node.GetOutput(),
+		Emit:       node.(*ast.AgentStepNode).Emit,
 		Retry:      retryNode,
 	}, nil
 }

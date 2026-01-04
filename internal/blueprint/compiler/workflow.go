@@ -49,6 +49,12 @@ func (job *Job) Prompt(ctx context.Context, input any, opt ...chatter.Opt) (any,
 		ctx = NewWorkflowContext(ctx, input)
 	}
 
+	// Initialize emit context if not present
+	emitCtx := GetEmitContext(ctx)
+	if emitCtx == nil {
+		ctx = WithEmitContext(ctx, &EmitContext{})
+	}
+
 	totalSteps := len(job.Steps)
 	for i, step := range job.Steps {
 		stepInfo := progress.StepInfo{
@@ -74,6 +80,7 @@ func (job *Job) Prompt(ctx context.Context, input any, opt ...chatter.Opt) (any,
 type AgentStep struct {
 	Agent      *Agent
 	OutputName string
+	Emit       string
 	Retry      *Retry
 }
 
@@ -153,6 +160,7 @@ func (step *AgentStep) Prompt(ctx context.Context, opt ...chatter.Opt) error {
 type RouterStep struct {
 	Agent      *Agent
 	OutputName string
+	Emit       string
 	RouteNodes []ast.RouteNode // For reference
 	Conditions []cel.Program   // Compiled CEL expressions
 	Routes     map[string]*Job // Resolved job references
@@ -287,6 +295,7 @@ type ForeachStep struct {
 	Job        *Job        // Job to execute for each item (resolved)
 	JobName    string      // Job name for resolution
 	OutputName string
+	Emit       string
 	Retry      *Retry
 	Formatter  Formatter // Output serialization format
 }
@@ -441,6 +450,7 @@ type RunStep struct {
 	Command    string // Compiled template for the command
 	Shell      string // Shell to use (sh, bash, zsh, etc.)
 	OutputName string
+	Emit       string
 	Retry      *Retry
 }
 
