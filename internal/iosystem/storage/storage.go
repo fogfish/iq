@@ -24,7 +24,7 @@ type Storage interface {
 
 	// Get reads value from key (returns auto-closing reader).
 	// Returns error if key does not exist.
-	Get(ctx context.Context, key iosystem.Key) (io.ReadCloser, error)
+	Get(ctx context.Context, key iosystem.Key) (io.Reader, error)
 
 	// Has checks if key exists (cheap operation for skip-if-exists logic).
 	Has(ctx context.Context, key iosystem.Key) (bool, error)

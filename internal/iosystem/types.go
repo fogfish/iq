@@ -75,7 +75,8 @@ type Sink interface {
 // Keys are relative paths using forward slashes as separators.
 //
 // Examples:
-//   "a.txt"           - file in root
-//   "sub/a.txt"       - file in subdirectory
-//   "summary/a.txt"   - file with emit prefix
+//
+//	"a.txt"           - file in root
+//	"sub/a.txt"       - file in subdirectory
+//	"summary/a.txt"   - file with emit prefix
 type Key string
