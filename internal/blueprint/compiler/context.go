@@ -123,8 +123,9 @@ func GetEmitContext(ctx context.Context) *EmitContext {
 
 // ApplyEmit transforms input key by adding emit prefix.
 // Examples:
-//   emit="summary", key="a.txt" → "summary/a.txt"
-//   emit="", key="a.txt" → "a.txt" (no change)
+//
+//	emit="summary", key="a.txt" → "summary/a.txt"
+//	emit="", key="a.txt" → "a.txt" (no change)
 func ApplyEmit(emit string, key iosystem.Key) iosystem.Key {
 	if emit == "" {
 		return key
@@ -134,17 +135,18 @@ func ApplyEmit(emit string, key iosystem.Key) iosystem.Key {
 
 // ApplyEmitWithCounters adds emit prefix and foreach counters to key.
 // Examples:
-//   emit="research", key="a.txt", counters=[1] → "research/a.000001.txt"
-//   emit="research", key="a.txt", counters=[1,5] → "research/a.000001.000005.txt"
+//
+//	emit="research", key="a.txt", counters=[1] → "research/a.000001.txt"
+//	emit="research", key="a.txt", counters=[1,5] → "research/a.000001.000005.txt"
 func ApplyEmitWithCounters(emit string, key iosystem.Key, counters []int) iosystem.Key {
 	keyStr := string(key)
-	
+
 	// Build counter suffix
 	suffix := ""
 	for _, counter := range counters {
 		suffix += fmt.Sprintf(".%06d", counter)
 	}
-	
+
 	// Insert suffix before file extension (if present)
 	if suffix != "" {
 		// Find the last dot for extension
@@ -159,7 +161,7 @@ func ApplyEmitWithCounters(emit string, key iosystem.Key, counters []int) iosyst
 				break
 			}
 		}
-		
+
 		if lastDot > 0 {
 			// Insert suffix before extension
 			keyStr = keyStr[:lastDot] + suffix + keyStr[lastDot:]
@@ -168,12 +170,12 @@ func ApplyEmitWithCounters(emit string, key iosystem.Key, counters []int) iosyst
 			keyStr = keyStr + suffix
 		}
 	}
-	
+
 	// Apply emit prefix
 	if emit == "" {
 		return iosystem.Key(keyStr)
 	}
-	
+
 	return iosystem.Key(emit + "/" + keyStr)
 }
 
