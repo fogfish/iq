@@ -19,6 +19,19 @@ import (
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 )
 
+/*
+
+TODO: 6. Manifold MCP Server Cleanup
+
+
+func (agt *Manifold) Close() error {
+    for _, srv := range agt.servers {
+        srv.cli.Close()  // ← No such method exists
+    }
+}
+
+*/
+
 // Manifold is an agent state machine bound with input/output event types.
 type Manifold struct {
 	Node     *ast.AgentNode

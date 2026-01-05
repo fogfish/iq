@@ -10,20 +10,20 @@ import (
 )
 
 type ForEach struct {
-	Node     string
+	Node     *ast.ForeachStepNode
 	selector cel.Program
 	prompter Prompter
 }
 
 var _ Prompter = (*ForEach)(nil)
 
-func NewForEach(node string, selector cel.Program) *ForEach {
+func NewForEach(node *ast.ForeachStepNode, selector cel.Program) *ForEach {
 	return &ForEach{Node: node, selector: selector}
 }
 
 func (f *ForEach) Config(jobs map[string]*Job) error {
-	if f.Node != "" {
-		f.prompter = jobs[f.Node]
+	if f.Node.Job != "" {
+		f.prompter = jobs[f.Node.Job]
 	}
 
 	return nil

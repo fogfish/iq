@@ -35,12 +35,11 @@ func New(llm chatter.Chatter) (*Compiler, error) {
 	// - steps: named step outputs (map[string]any)
 	// - document: original workflow input (router context)
 	env, err := cel.NewEnv(
-		cel.Variable("choice", cel.DynType),
-		cel.Variable("input", cel.DynType),
-		cel.Variable("current", cel.DynType),
-		cel.Variable("state", cel.MapType(cel.StringType, cel.DynType)),
-		cel.Variable("steps", cel.MapType(cel.StringType, cel.DynType)),
-		cel.Variable("document", cel.DynType),
+		cel.Variable(ast.ContextKeyChoice, cel.DynType),
+		cel.Variable(ast.ContextKeyInput, cel.DynType),
+		cel.Variable(ast.ContextKeyCurrent, cel.DynType),
+		cel.Variable(ast.ContextKeySteps, cel.MapType(cel.StringType, cel.DynType)),
+		cel.Variable(ast.ContextKeyDocument, cel.DynType),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create CEL environment: %w", err)
@@ -158,24 +157,6 @@ func (c *Compiler) compile(ctx context.Context, tree *ast.AST) (*Workflow, error
 		if err := job.Config(jobs); err != nil {
 			return nil, fmt.Errorf("job '%s' configuration failed: %w", job.Name, err)
 		}
-
-		// for _, step := range job.Steps {
-		// 	fmt.Printf("==> %T\n", step)
-		// 	// Resolve router step references
-		// 	if router, ok := step.(*runtime.Router); ok {
-		// 		for _, route := range router.Nodes {
-		// 			router.Routes[route.Route] = jobs[route.Route]
-		// 		}
-		// 		if router.Default != "" {
-		// 			router.Unknown = jobs[router.Default]
-		// 		}
-		// 	}
-
-		// 	// // Resolve foreach step references
-		// 	// if foreach, ok := step.(*ForeachStep); ok {
-		// 	// 	foreach.Job = jobs[foreach.JobName]
-		// 	// }
-		// }
 	}
 
 	return &Workflow{
@@ -458,7 +439,7 @@ func (c *Compiler) compileRouterNode(ctx context.Context, tree *ast.AST, node *a
 		conditions = append(conditions, prog)
 	}
 
-	return runtime.NewRouter(node.Routes, node.Default, manifold, conditions), nil
+	return runtime.NewRouter(node, manifold, conditions), nil
 }
 
 func (c *Compiler) compileForEach(ctx context.Context, tree *ast.AST, node *ast.ForeachStepNode, llm chatter.Chatter) (runtime.Prompter, error) {
@@ -472,7 +453,7 @@ func (c *Compiler) compileForEach(ctx context.Context, tree *ast.AST, node *ast.
 		selector = prog
 	}
 
-	return runtime.NewForEach(node.Job, selector), nil
+	return runtime.NewForEach(node, selector), nil
 }
 
 func (c *Compiler) compileShellNode(ctx context.Context, tree *ast.AST, node *ast.RunStepNode, llm chatter.Chatter) (runtime.Prompter, error) {
@@ -486,11 +467,11 @@ func (c *Compiler) compileShellNode(ctx context.Context, tree *ast.AST, node *as
 
 func (c *Compiler) compileMemento(ctx context.Context, node ast.StepNode, prompter runtime.Prompter) runtime.Prompter {
 	variable := node.GetOutput()
-	if variable != "" {
-		return runtime.NewMemento(node.GetOutput(), prompter)
+	if variable == "" {
+		return prompter
 	}
+	return runtime.NewMemento(node.GetOutput(), prompter)
 
-	return prompter
 }
 
 func (c *Compiler) compilePrinter(ctx context.Context, node ast.StepNode, prompter runtime.Prompter) runtime.Prompter {
@@ -499,8 +480,13 @@ func (c *Compiler) compilePrinter(ctx context.Context, node ast.StepNode, prompt
 
 func (c *Compiler) compileRepeater(ctx context.Context, node ast.StepNode, prompter runtime.Prompter) runtime.Prompter {
 	retryNode := node.GetRetry()
+
+	if retryNode == nil || retryNode.Attempts < 2 {
+		return prompter
+	}
+
 	if retryNode != nil && retryNode.Attempts > 1 {
-		return runtime.NewRepeater(retryNode.Attempts, retryNode.Delay, prompter)
+		return runtime.NewRepeater(retryNode.Attempts, retryNode.Delay, retryNode.Yield, prompter)
 	}
 
 	return prompter

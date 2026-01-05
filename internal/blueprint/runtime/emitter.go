@@ -6,6 +6,23 @@ import (
 	"github.com/kshard/chatter"
 )
 
+/*
+
+TODO:
+
+🔴  2. Emitter Decorator (Empty Stub)
+Current State:
+
+What's Missing:
+
+No emit context management
+No emit prefix application to output keys
+No foreach counter handling
+Needs emit configuration passed from compiler
+
+
+*/
+
 type Emitter struct {
 	Prompter
 }
