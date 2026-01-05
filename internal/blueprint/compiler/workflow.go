@@ -29,7 +29,7 @@ type Workflow struct {
 	About      string
 	Entrypoint string // Optional: default job name, or "main" if empty
 	Schema     ast.SchemaNode
-	Jobs       map[string]*Job
+	Jobs       map[string]*runtime.Job
 }
 
 // Job represents a compiled job with executable steps

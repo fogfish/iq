@@ -2,6 +2,7 @@ package runtime
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/kshard/chatter"
 )
@@ -9,15 +10,37 @@ import (
 // Input/Output content
 type Gist interface{ HKT1(Gist) }
 
-// Input/Output context is plain text
+// Input/Output content is plain text
 type Text string
 
 func (Text) HKT1(Gist) {}
 
-// Input/Output context is JSON
+// Input/Output content is JSON
 type Json map[string]any
 
 func (Json) HKT1(Gist) {}
+
+// Input/Output content is a JSON array
+type List []any
+
+func (List) HKT1(Gist) {}
+
+func ToGist(x any) (Gist, error) {
+	switch v := x.(type) {
+	case string:
+		return Text(v), nil
+	case []byte:
+		return Text(v), nil
+	case map[string]any:
+		return Json(v), nil
+	case []any:
+		return List(v), nil
+	case Gist:
+		return v, nil
+	default:
+		return nil, fmt.Errorf("unsupported Gist type: %T", v)
+	}
+}
 
 // Event represents an event processed by the workflow.
 type Event struct {

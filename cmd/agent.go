@@ -13,7 +13,6 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/fogfish/iq/internal/blueprint/compiler"
 	snk "github.com/fogfish/iq/internal/iosystem/sink"
 	src "github.com/fogfish/iq/internal/iosystem/source"
 	"github.com/spf13/cobra"
@@ -87,10 +86,10 @@ func agent(cmd *cobra.Command, args []string) error {
 	}
 
 	// Get workflow to check if it uses emit
-	workflow := srv.GetWorkflow()
-	usesEmit := workflowUsesEmit(workflow)
-
-	snk, err := freply.buildWithEmit(usesEmit)
+	// workflow := srv.GetWorkflow()
+	// usesEmit := workflowUsesEmit(workflow)
+	//
+	snk, err := freply.build()
 	if err != nil {
 		return err
 	}
@@ -104,34 +103,34 @@ func agent(cmd *cobra.Command, args []string) error {
 }
 
 // workflowUsesEmit checks if any step in workflow uses emit attribute.
-func workflowUsesEmit(workflow *compiler.Workflow) bool {
-	if workflow == nil {
-		return false
-	}
-	for _, job := range workflow.Jobs {
-		for _, step := range job.Steps {
-			switch s := step.(type) {
-			case *compiler.AgentStep:
-				if s.Emit != "" {
-					return true
-				}
-			case *compiler.RouterStep:
-				if s.Emit != "" {
-					return true
-				}
-			case *compiler.ForeachStep:
-				if s.Emit != "" {
-					return true
-				}
-			case *compiler.RunStep:
-				if s.Emit != "" {
-					return true
-				}
-			}
-		}
-	}
-	return false
-}
+// func workflowUsesEmit(workflow *compiler.Workflow) bool {
+// 	if workflow == nil {
+// 		return false
+// 	}
+// 	for _, job := range workflow.Jobs {
+// 		for _, step := range job.Steps {
+// 			switch s := step.(type) {
+// 			case *compiler.AgentStep:
+// 				if s.Emit != "" {
+// 					return true
+// 				}
+// 			case *compiler.RouterStep:
+// 				if s.Emit != "" {
+// 					return true
+// 				}
+// 			case *compiler.ForeachStep:
+// 				if s.Emit != "" {
+// 					return true
+// 				}
+// 			case *compiler.RunStep:
+// 				if s.Emit != "" {
+// 					return true
+// 				}
+// 			}
+// 		}
+// 	}
+// 	return false
+// }
 
 //------------------------------------------------------------------------------
 

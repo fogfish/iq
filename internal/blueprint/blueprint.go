@@ -14,6 +14,7 @@ import (
 
 	"github.com/fogfish/iq/internal/blueprint/compiler"
 	"github.com/fogfish/iq/internal/blueprint/parser"
+	"github.com/fogfish/iq/internal/blueprint/runtime"
 	"github.com/google/jsonschema-go/jsonschema"
 	"github.com/kshard/chatter"
 )
@@ -95,12 +96,23 @@ func (bp *Blueprint) Prompt(ctx context.Context, input any, opt ...chatter.Opt) 
 		return nil, fmt.Errorf("entrypoint job '%s' not found in workflow", jobName)
 	}
 
-	result, err := job.Prompt(ctx, input, opt...)
-	
+	val, err := runtime.ToGist(input)
+	if err != nil {
+		return nil, fmt.Errorf("input conversion failed: %w", err)
+	}
+
+	evt := runtime.Event{
+		Document: val,
+		Current:  val,
+		Steps:    make(map[string]runtime.Gist),
+	}
+
+	result, err := job.Prompt(ctx, evt, opt...)
+
 	// Capture LastEmitContext from the workflow context if present
 	// Note: We can't get the modified context back from job.Prompt because
 	// Go contexts are immutable. But we can store it in a side channel.
 	// For now, this won't work until we refactor job.Prompt to return context.
-	
-	return result, err
+
+	return result.Current, err
 }
