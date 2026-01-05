@@ -228,10 +228,16 @@ func (c *Compiler) compileStep(ctx context.Context, index int, node ast.StepNode
 		if err != nil {
 			return nil, err
 		}
-	// case *ast.RunStepNode:
-	// 	return c.compileRunStepNode(ctx, tree, v, llm)
-	// case *ast.ForeachStepNode:
-	// 	return c.compileForeachStepNode(ctx, tree, v, llm)
+	case *ast.ForeachStepNode:
+		prompter, err = c.compileForEach(ctx, tree, v, llm)
+		if err != nil {
+			return nil, err
+		}
+	case *ast.RunStepNode:
+		prompter, err = c.compileShellNode(ctx, tree, v, llm)
+		if err != nil {
+			return nil, err
+		}
 	default:
 		return nil, fmt.Errorf("unsupported step node type at index %d", index)
 	}
@@ -426,17 +432,21 @@ func (c *Compiler) compileAgentNode(ctx context.Context, tree *ast.AST, node *as
 }
 
 func (c *Compiler) compileRouterNode(ctx context.Context, tree *ast.AST, node *ast.RouterStepNode, llm chatter.Chatter) (runtime.Prompter, error) {
-	agent, ok := tree.Agents[node.Uses]
-	if !ok {
-		return nil, fmt.Errorf("agent '%s' not found in AST", node.Uses)
-	}
-
-	agent.RunsOn = node.RunsOn
-
 	var manifold runtime.Prompter
-	manifold, err := runtime.NewManifold(agent, llm)
-	if err != nil {
-		return nil, fmt.Errorf("manifold compile error: %w", err)
+
+	if node.Uses != "" {
+		agent, ok := tree.Agents[node.Uses]
+		if !ok {
+			return nil, fmt.Errorf("agent '%s' not found in AST", node.Uses)
+		}
+
+		agent.RunsOn = node.RunsOn
+
+		var err error
+		manifold, err = runtime.NewManifold(agent, llm)
+		if err != nil {
+			return nil, fmt.Errorf("manifold compile error: %w", err)
+		}
 	}
 
 	conditions := make([]cel.Program, 0, len(node.Routes))
@@ -449,6 +459,29 @@ func (c *Compiler) compileRouterNode(ctx context.Context, tree *ast.AST, node *a
 	}
 
 	return runtime.NewRouter(node.Routes, node.Default, manifold, conditions), nil
+}
+
+func (c *Compiler) compileForEach(ctx context.Context, tree *ast.AST, node *ast.ForeachStepNode, llm chatter.Chatter) (runtime.Prompter, error) {
+	// Compile CEL selector if provided
+	var selector cel.Program
+	if node.Selector != "" {
+		prog, err := c.compileCEL(node.Selector)
+		if err != nil {
+			return nil, fmt.Errorf("failed to compile selector '%s': %w", node.Selector, err)
+		}
+		selector = prog
+	}
+
+	return runtime.NewForEach(node.Job, selector), nil
+}
+
+func (c *Compiler) compileShellNode(ctx context.Context, tree *ast.AST, node *ast.RunStepNode, llm chatter.Chatter) (runtime.Prompter, error) {
+	shell := node.RunsOn
+	if shell == "" {
+		shell = "sh"
+	}
+
+	return runtime.NewShell(shell, node.Run)
 }
 
 func (c *Compiler) compileMemento(ctx context.Context, node ast.StepNode, prompter runtime.Prompter) runtime.Prompter {

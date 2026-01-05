@@ -162,13 +162,21 @@ func (agt *Manifold) validateSchema(in Event, schema *jsonschema.Schema) error {
 
 func (agt *Manifold) decode(reply *chatter.Reply) (float64, Gist, error) {
 	if agt.Node.Format == "json" {
-		var obj Json
+		var obj any
 		// Decode with schema (will validate if schema is non-nil)
 		if err := jsonify.Strings.Decode(reply, agt.Node.Schema.Reply, &obj); err != nil {
 			return 0.0, nil, err
 		}
 
-		return 1.0, obj, nil
+		switch v := obj.(type) {
+		case []any:
+			return 1.0, List(v), nil
+		case map[string]any:
+			return 1.0, Json(v), nil
+		default:
+			return 0.0, nil, fmt.Errorf("unsupported reply shape: %T", obj)
+
+		}
 	}
 
 	return 1.0, Text(reply.String()), nil

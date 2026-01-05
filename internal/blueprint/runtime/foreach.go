@@ -10,17 +10,22 @@ import (
 )
 
 type ForEach struct {
+	Node     string
 	selector cel.Program
 	prompter Prompter
 }
 
 var _ Prompter = (*ForEach)(nil)
 
-func NewForEach(selector cel.Program, prompter Prompter) *ForEach {
-	return &ForEach{selector: selector, prompter: prompter}
+func NewForEach(node string, selector cel.Program) *ForEach {
+	return &ForEach{Node: node, selector: selector}
 }
 
-func (f *ForEach) Config(map[string]*Job) error {
+func (f *ForEach) Config(jobs map[string]*Job) error {
+	if f.Node != "" {
+		f.prompter = jobs[f.Node]
+	}
+
 	return nil
 }
 
@@ -54,7 +59,8 @@ func (f *ForEach) Prompt(ctx context.Context, in Event, opts ...chatter.Opt) (Ev
 		}
 	}
 
-	for _, item := range list {
+	output := make(List, len(list))
+	for i, item := range list {
 		val, err := ToGist(item)
 		if err != nil {
 			return in, fmt.Errorf("foreach item conversion failed: %w", err)
@@ -69,8 +75,10 @@ func (f *ForEach) Prompt(ctx context.Context, in Event, opts ...chatter.Opt) (Ev
 		if err != nil {
 			return in, fmt.Errorf("foreach item processing failed: %w", err)
 		}
-		in.Steps = reply.Steps
+		// TODO: merge steps
+		// in.Steps = reply.Steps
+		output[i] = reply.Current
 	}
 
-	return in, nil
+	return in.copy(output), nil
 }

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/fogfish/iq/internal/progress"
 	"github.com/kshard/chatter"
 )
 
@@ -23,11 +22,11 @@ func NewRepeater(attempts int, delay int, p Prompter) *Repeater {
 }
 
 func (r *Repeater) Prompt(ctx context.Context, evt Event, opts ...chatter.Opt) (Event, error) {
-	stepInfo := progress.GetStepInfo(ctx)
+	// stepInfo := progress.GetStepInfo(ctx)
 	for i := range r.attempts {
-		stepInfo.Attempt = i + 1
-		stepInfo.Delay = r.delay
-		ctx = progress.WithStepInfo(ctx, *stepInfo)
+		// stepInfo.Attempt = i + 1
+		// stepInfo.Delay = r.delay
+		// ctx = progress.WithStepInfo(ctx, *stepInfo)
 
 		result, err := r.Prompter.Prompt(ctx, evt, opts...)
 		if err == nil {

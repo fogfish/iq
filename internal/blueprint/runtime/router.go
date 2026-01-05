@@ -10,23 +10,23 @@ import (
 )
 
 type Router struct {
-	Nodes      []ast.RouteNode
-	Default    string
-	Prompter   Prompter
-	Conditions []cel.Program
-	Routes     map[string]Prompter
-	Unknown    Prompter
+	Nodes       []ast.RouteNode
+	DefaultNode string
+	Prompter    Prompter
+	Conditions  []cel.Program
+	Routes      map[string]Prompter
+	Unknown     Prompter
 }
 
 var _ Prompter = (*Router)(nil)
 
 func NewRouter(nodes []ast.RouteNode, def string, prompter Prompter, conditions []cel.Program) *Router {
 	return &Router{
-		Nodes:      nodes,
-		Default:    def,
-		Prompter:   prompter,
-		Conditions: conditions,
-		Routes:     make(map[string]Prompter),
+		Nodes:       nodes,
+		DefaultNode: def,
+		Prompter:    prompter,
+		Conditions:  conditions,
+		Routes:      make(map[string]Prompter),
 	}
 }
 
@@ -34,16 +34,20 @@ func (r *Router) Config(jobs map[string]*Job) error {
 	for _, route := range r.Nodes {
 		r.Routes[route.Route] = jobs[route.Route]
 	}
-	if r.Default != "" {
-		r.Unknown = jobs[r.Default]
+	if r.DefaultNode != "" {
+		r.Unknown = jobs[r.DefaultNode]
 	}
 	return nil
 }
 
 func (r *Router) Prompt(ctx context.Context, in Event, opts ...chatter.Opt) (Event, error) {
-	choice, err := r.Prompter.Prompt(ctx, in, opts...)
-	if err != nil {
-		return in, fmt.Errorf("router agent failed: %w", err)
+	choice := in.Current
+	if r.Prompter != nil {
+		c, err := r.Prompter.Prompt(ctx, in, opts...)
+		if err != nil {
+			return in, fmt.Errorf("router agent failed: %w", err)
+		}
+		choice = c.Current
 	}
 
 	variables := map[string]any{
@@ -51,7 +55,7 @@ func (r *Router) Prompt(ctx context.Context, in Event, opts ...chatter.Opt) (Eve
 		ast.ContextKeyCurrent:  in.Current,
 		ast.ContextKeyInput:    in.Current,
 		ast.ContextKeySteps:    in.Steps,
-		ast.ContextKeyChoice:   choice.Current,
+		ast.ContextKeyChoice:   choice,
 	}
 
 	for i, condition := range r.Conditions {
@@ -87,5 +91,5 @@ func (r *Router) Prompt(ctx context.Context, in Event, opts ...chatter.Opt) (Eve
 		return jobResult, nil
 	}
 
-	return in, fmt.Errorf("no matching route for choice: %v", choice.Current)
+	return in, fmt.Errorf("no matching route for choice: %v", choice)
 }
