@@ -13,6 +13,7 @@ import (
 	"fmt"
 
 	"github.com/fogfish/iq/internal/blueprint/ast"
+	"github.com/fogfish/iq/internal/blueprint/runtime"
 	"github.com/google/cel-go/cel"
 	"github.com/kshard/chatter"
 )
@@ -235,6 +236,11 @@ func (c *Compiler) compileStep(ctx context.Context, index int, node ast.StepNode
 				Delay:    retryNAst.Delay,
 			}
 		}
+	} else if retryNAst != nil {
+		retryNode = &Retry{
+			Attempts: retryNAst.Attempts,
+			Delay:    retryNAst.Delay,
+		}
 	}
 
 	// Check if this is a run step (shell command)
@@ -328,9 +334,25 @@ func (c *Compiler) compileStep(ctx context.Context, index int, node ast.StepNode
 		}, nil
 	}
 
-	// Simple agent step
+	// Create and initialize agent
+	var manifold runtime.Prompter
+	agentNode.RunsOn = node.GetRunsOn()
+	manifold, err := runtime.NewManifold(agentNode, llm)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create manifold: %w", err)
+	}
+	manifold = runtime.NewMemento(node.GetOutput(), manifold)
+	manifold = runtime.NewPrinter(manifold)
+	if retryNode != nil && retryNode.Attempts > 1 {
+		manifold = runtime.NewRepeater(retryNode.Attempts, retryNode.Delay, manifold)
+	}
+	if node.(*ast.AgentStepNode).Emit != "" {
+		manifold = runtime.NewEmitter(manifold)
+		manifold = runtime.NewCache(manifold)
+	}
+
 	return &AgentStep{
-		Agent:      agt,
+		Manifold:   manifold,
 		OutputName: node.GetOutput(),
 		Emit:       node.(*ast.AgentStepNode).Emit,
 		Retry:      retryNode,

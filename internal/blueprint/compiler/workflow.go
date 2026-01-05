@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/fogfish/iq/internal/blueprint/ast"
+	"github.com/fogfish/iq/internal/blueprint/runtime"
 	"github.com/fogfish/iq/internal/progress"
 	"github.com/google/cel-go/cel"
 	"github.com/kshard/chatter"
@@ -78,7 +79,8 @@ func (job *Job) Prompt(ctx context.Context, input any, opt ...chatter.Opt) (any,
 
 // AgentStep is a simple agent execution step
 type AgentStep struct {
-	Agent      *Agent
+	// Agent      *Agent
+	Manifold   runtime.Prompter
 	OutputName string
 	Emit       string
 	Retry      *Retry
@@ -108,10 +110,10 @@ func (step *AgentStep) Prompt(ctx context.Context, opt ...chatter.Opt) error {
 			Counters: emitCtx.Counters, // Preserve parent counters (for nested foreach)
 		}
 		ctx = WithEmitContext(ctx, newEmitCtx)
-		
+
 		// Store in workflow context so it can be retrieved later
 		wfCtx.LastEmitContext = newEmitCtx
-		
+
 		// Also capture it in the mutable capture struct if present
 		if capture := GetEmitCapture(ctx); capture != nil {
 			capture.Captured = newEmitCtx
@@ -142,37 +144,39 @@ func (step *AgentStep) Prompt(ctx context.Context, opt ...chatter.Opt) error {
 		}
 	}
 
-	startTime := time.Now()
+	// startTime := time.Now()
 
-	if reporter != nil && stepInfo != nil {
-		reporter.StepStart(stepInfo.JobName, stepInfo.StepName, stepInfo.StepNum, stepInfo.TotalSteps)
-	}
+	// if reporter != nil && stepInfo != nil {
+	// 	reporter.StepStart(stepInfo.JobName, stepInfo.StepName, stepInfo.StepNum, stepInfo.TotalSteps)
+	// }
 
-	var result any
+	var result runtime.Event
 	var err error
 
 	// Retry logic
-	for i := range step.Retry.Attempts {
-		if i > 0 && reporter != nil && step.Retry.Attempts > 1 {
-			reporter.RetryAttempt(i+1, step.Retry.Attempts, time.Duration(step.Retry.Delay)*time.Second)
-		}
+	// for i := range step.Retry.Attempts {
+	// if i > 0 && reporter != nil && step.Retry.Attempts > 1 {
+	// 	reporter.RetryAttempt(i+1, step.Retry.Attempts, time.Duration(step.Retry.Delay)*time.Second)
+	// }
 
-		result, err = step.Agent.Prompt(ctx, wfCtx.ToMap(), opt...)
-		if err == nil {
-			if i > 0 && reporter != nil {
-				reporter.RetrySuccess(i + 1)
-			}
-			break
-		}
-		if i < step.Retry.Attempts-1 {
-			time.Sleep(time.Duration(step.Retry.Delay) * time.Second)
-		}
-	}
+	// result, err = step.Agent.Prompt(ctx, wfCtx.ToMap(), opt...)
+	result, err = step.Manifold.Prompt(ctx, wfCtx.ToEvent(), opt...)
+
+	// if err == nil {
+	// 	// if i > 0 && reporter != nil {
+	// 	// 	reporter.RetrySuccess(i + 1)
+	// 	// }
+	// 	break
+	// }
+	// if i < step.Retry.Attempts-1 {
+	// time.Sleep(time.Duration(step.Retry.Delay) * time.Second)
+	// }
+	// }
 
 	if err != nil {
-		if reporter != nil && stepInfo != nil {
-			reporter.StepError(stepInfo.JobName, stepInfo.StepName, stepInfo.StepNum, stepInfo.TotalSteps, err)
-		}
+		// if reporter != nil && stepInfo != nil {
+		// 	reporter.StepError(stepInfo.JobName, stepInfo.StepName, stepInfo.StepNum, stepInfo.TotalSteps, err)
+		// }
 		if step.Retry.Attempts > 1 && reporter != nil {
 			reporter.RetryExhausted(step.Retry.Attempts)
 		}
@@ -180,11 +184,11 @@ func (step *AgentStep) Prompt(ctx context.Context, opt ...chatter.Opt) error {
 	}
 
 	// Report step complete
-	if reporter != nil && stepInfo != nil {
-		duration := time.Since(startTime)
-		// TODO: Track actual token usage from LLM response
-		reporter.StepComplete(stepInfo.JobName, stepInfo.StepName, stepInfo.StepNum, stepInfo.TotalSteps, duration, 0)
-	}
+	// if reporter != nil && stepInfo != nil {
+	// 	duration := time.Since(startTime)
+	// 	// TODO: Track actual token usage from LLM response
+	// 	reporter.StepComplete(stepInfo.JobName, stepInfo.StepName, stepInfo.StepNum, stepInfo.TotalSteps, duration, 0)
+	// }
 
 	// Save to cache if emit is set and caching is enabled
 	if cacheCtx != nil && step.Emit != "" {
@@ -198,9 +202,9 @@ func (step *AgentStep) Prompt(ctx context.Context, opt ...chatter.Opt) error {
 
 	// Store output in context
 	if step.OutputName != "" {
-		wfCtx.SetStepOutput(step.OutputName, result)
+		wfCtx.SetStepFromEvent(step.OutputName, result)
 	} else {
-		wfCtx.Current = result
+		wfCtx.Current = result.Current
 	}
 
 	return nil

@@ -16,6 +16,7 @@ import (
 	"io"
 
 	"github.com/fogfish/iq/internal/blueprint/ast"
+	"github.com/fogfish/iq/internal/blueprint/runtime"
 	"github.com/fogfish/iq/internal/iosystem"
 	"github.com/fogfish/iq/internal/iosystem/storage"
 	"github.com/goccy/go-yaml"
@@ -87,6 +88,13 @@ func (c *WorkflowContext) SetStepOutput(name string, output any) {
 	c.Current = output
 }
 
+func (c *WorkflowContext) SetStepFromEvent(name string, evt runtime.Event) {
+	for k, v := range evt.Steps {
+		c.Steps[k] = v
+	}
+	c.Current = evt.Current
+}
+
 // GetStepOutput retrieves the output of a named step
 func (c *WorkflowContext) GetStepOutput(name string) (any, bool) {
 	val, ok := c.Steps[name]
@@ -101,6 +109,36 @@ func (c *WorkflowContext) ToMap() map[string]any {
 		ast.ContextKeySteps:    c.Steps,   // Named step outputs
 		ast.ContextKeyState:    c.State,   // Shared workflow state
 		// Note: .input is added as alias in agent.encodeStruct()
+	}
+}
+
+func (c *WorkflowContext) ToEvent() runtime.Event {
+	steps := make(map[string]runtime.Gist, len(c.Steps))
+	for k, v := range c.Steps {
+		steps[k] = anyToGist(v)
+	}
+
+	return runtime.Event{
+		Document: anyToGist(c.Input),
+		Current:  anyToGist(c.Current),
+		Steps:    steps,
+	}
+}
+
+func anyToGist(in any) runtime.Gist {
+	switch v := in.(type) {
+	case string:
+		return runtime.Text(v)
+	case []byte:
+		return runtime.Text(v)
+	case map[string]any:
+		return runtime.Json(v)
+	case runtime.Text:
+		return v
+	case runtime.Json:
+		return v
+	default:
+		panic(fmt.Sprintf("unsupported runtime.Gist type: %T", v))
 	}
 }
 

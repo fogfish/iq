@@ -21,6 +21,8 @@ const (
 type StepInfo struct {
 	JobName    string
 	StepName   string
+	Attempt    int
+	Delay      int
 	StepNum    int
 	TotalSteps int
 }
