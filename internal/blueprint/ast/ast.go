@@ -26,6 +26,9 @@ const (
 
 	// ContextKeyState is a shared key-value store for workflow data
 	ContextKeyState = "state"
+
+	// Selected route in router step
+	ContextKeyChoice = "choice"
 )
 
 // AST represents the complete workflow abstract syntax tree

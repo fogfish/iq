@@ -20,6 +20,10 @@ func NewForEach(selector cel.Program, prompter Prompter) *ForEach {
 	return &ForEach{selector: selector, prompter: prompter}
 }
 
+func (f *ForEach) Config(map[string]*Job) error {
+	return nil
+}
+
 func (f *ForEach) Prompt(ctx context.Context, in Event, opts ...chatter.Opt) (Event, error) {
 	var list List
 

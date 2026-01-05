@@ -100,6 +100,10 @@ func connect(srv ast.ServerNode) (server, error) {
 	}
 }
 
+func (agt *Manifold) Config(map[string]*Job) error {
+	return nil
+}
+
 // Executes the agent with given input and returns the output
 func (agt *Manifold) Prompt(ctx context.Context, input Event, opt ...chatter.Opt) (Event, error) {
 	opt = append(opt, aio.Route(agt.Node.RunsOn))

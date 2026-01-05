@@ -18,6 +18,15 @@ func NewJob(name string, steps []Prompter) *Job {
 	return &Job{Name: name, Steps: steps}
 }
 
+func (j *Job) Config(jobs map[string]*Job) error {
+	for _, step := range j.Steps {
+		if err := step.Config(jobs); err != nil {
+			return fmt.Errorf("job '%s' configuration failed: %w", j.Name, err)
+		}
+	}
+	return nil
+}
+
 func (j *Job) Prompt(ctx context.Context, in Event, opts ...chatter.Opt) (Event, error) {
 	evt := in
 	var err error

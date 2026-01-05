@@ -154,27 +154,29 @@ func (c *Compiler) compile(ctx context.Context, tree *ast.AST) (*Workflow, error
 	}
 
 	// Resolve job references (now that all jobs are compiled)
-	/* TODO: fix
 	for _, job := range jobs {
-		for _, step := range job.Steps {
-			// Resolve router step references
-			if router, ok := step.(*RouterStep); ok {
-				router.Routes = make(map[string]*Job)
-				for _, route := range router.RouteNodes {
-					router.Routes[route.Route] = jobs[route.Route]
-				}
-				if router.DefaultJob != "" {
-					router.Default = jobs[router.DefaultJob]
-				}
-			}
-
-			// Resolve foreach step references
-			if foreach, ok := step.(*ForeachStep); ok {
-				foreach.Job = jobs[foreach.JobName]
-			}
+		if err := job.Config(jobs); err != nil {
+			return nil, fmt.Errorf("job '%s' configuration failed: %w", job.Name, err)
 		}
+
+		// for _, step := range job.Steps {
+		// 	fmt.Printf("==> %T\n", step)
+		// 	// Resolve router step references
+		// 	if router, ok := step.(*runtime.Router); ok {
+		// 		for _, route := range router.Nodes {
+		// 			router.Routes[route.Route] = jobs[route.Route]
+		// 		}
+		// 		if router.Default != "" {
+		// 			router.Unknown = jobs[router.Default]
+		// 		}
+		// 	}
+
+		// 	// // Resolve foreach step references
+		// 	// if foreach, ok := step.(*ForeachStep); ok {
+		// 	// 	foreach.Job = jobs[foreach.JobName]
+		// 	// }
+		// }
 	}
-	*/
 
 	return &Workflow{
 		Name:       bp.Name,
@@ -218,8 +220,14 @@ func (c *Compiler) compileStep(ctx context.Context, index int, node ast.StepNode
 	switch v := node.(type) {
 	case *ast.AgentStepNode:
 		prompter, err = c.compileAgentNode(ctx, tree, v, llm)
-	// case *ast.RouterStepNode:
-	// 	return c.compileRouterStepNode(ctx, tree, v, llm)
+		if err != nil {
+			return nil, err
+		}
+	case *ast.RouterStepNode:
+		prompter, err = c.compileRouterNode(ctx, tree, v, llm)
+		if err != nil {
+			return nil, err
+		}
 	// case *ast.RunStepNode:
 	// 	return c.compileRunStepNode(ctx, tree, v, llm)
 	// case *ast.ForeachStepNode:
@@ -415,6 +423,32 @@ func (c *Compiler) compileAgentNode(ctx context.Context, tree *ast.AST, node *as
 	}
 
 	return manifold, nil
+}
+
+func (c *Compiler) compileRouterNode(ctx context.Context, tree *ast.AST, node *ast.RouterStepNode, llm chatter.Chatter) (runtime.Prompter, error) {
+	agent, ok := tree.Agents[node.Uses]
+	if !ok {
+		return nil, fmt.Errorf("agent '%s' not found in AST", node.Uses)
+	}
+
+	agent.RunsOn = node.RunsOn
+
+	var manifold runtime.Prompter
+	manifold, err := runtime.NewManifold(agent, llm)
+	if err != nil {
+		return nil, fmt.Errorf("manifold compile error: %w", err)
+	}
+
+	conditions := make([]cel.Program, 0, len(node.Routes))
+	for _, route := range node.Routes {
+		prog, err := c.compileCEL(route.When)
+		if err != nil {
+			return nil, fmt.Errorf("failed to compile CEL: %w", err)
+		}
+		conditions = append(conditions, prog)
+	}
+
+	return runtime.NewRouter(node.Routes, node.Default, manifold, conditions), nil
 }
 
 func (c *Compiler) compileMemento(ctx context.Context, node ast.StepNode, prompter runtime.Prompter) runtime.Prompter {

@@ -63,5 +63,6 @@ func (evt Event) copy(current Gist) Event {
 }
 
 type Prompter interface {
+	Config(map[string]*Job) error
 	Prompt(context.Context, Event, ...chatter.Opt) (Event, error)
 }
