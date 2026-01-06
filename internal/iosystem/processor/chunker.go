@@ -86,7 +86,7 @@ func (p *Chunker) Process(ctx context.Context, docs []*iosystem.Document) ([]*io
 				continue
 			}
 
-			chunk := iosystem.NewDocument(doc.Key, strings.NewReader(txt))
+			chunk := iosystem.NewDocument(doc.Key, doc.Type, strings.NewReader(txt))
 			chunks = append(chunks, chunk)
 		}
 

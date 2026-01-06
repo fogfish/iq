@@ -1,8 +1,5 @@
 ---
 name: unreliable
 ---
-# Fetch Weather Data
-
-Fetch current weather data for: {{.input}}
-
-This might fail occasionally. Return JSON with temperature and conditions.
+Fetch current weather data for: {{.input}}.  Return JSON with temperature and conditions.
+Artificially simulate the failure with 0.5 probability - return corrupted JSON.

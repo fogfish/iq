@@ -84,6 +84,8 @@ func (f *ForEach) evalSelect(in Event) (List, error) {
 		switch v := val.Value().(type) {
 		case List:
 			list = v
+		case []any:
+			list = List(v)
 		default:
 			return nil, fmt.Errorf("selector must return a list, got %T", val)
 		}

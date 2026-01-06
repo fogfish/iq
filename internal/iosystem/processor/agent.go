@@ -132,7 +132,10 @@ func (p *Agent) encode(reply runtime.Event) (*iosystem.Document, error) {
 		return nil, fmt.Errorf("failed to encode agent reply: %w", err)
 	}
 
-	return iosystem.NewDocument(reply.Key, raw), nil
+	doc := iosystem.NewDocument(reply.Key, reply.Current.ContentType(), raw)
+	doc.EnsureExtension()
+
+	return doc, nil
 }
 
 // Close releases resources. For AgentProcessor, this is a no-op

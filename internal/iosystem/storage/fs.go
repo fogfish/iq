@@ -16,6 +16,7 @@ import (
 	"strings"
 
 	"github.com/fogfish/iq/internal/iosystem"
+	"github.com/fogfish/iq/internal/iosystem/codec"
 	"github.com/fogfish/stream"
 	"github.com/fogfish/stream/lfs"
 )
@@ -111,7 +112,7 @@ func (s *FileSystem) Walk(ctx context.Context, prefix iosystem.Key, visitor func
 				return err
 			}
 
-			doc := iosystem.NewDocument(key, reader)
+			doc := iosystem.NewDocument(key, codec.Default.DetectContentType(string(key)), reader)
 			if err := visitor(doc); err != nil {
 				return err
 			}
@@ -146,7 +147,7 @@ func (s *FileSystem) walk(ctx context.Context, prefix iosystem.Key, visitor func
 			return err
 		}
 
-		doc := iosystem.NewDocument(key, reader)
+		doc := iosystem.NewDocument(key, codec.Default.DetectContentType(string(key)), reader)
 		return visitor(doc)
 	})
 

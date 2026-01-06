@@ -55,7 +55,8 @@ func (e *Emitter) Prompt(ctx context.Context, in Event, opts ...chatter.Opt) (Ev
 	if err != nil {
 		return in, fmt.Errorf("emitter: failed to encode content: %w", err)
 	}
-	doc := iosystem.NewDocument(key, dat)
+	doc := iosystem.NewDocument(key, val.Current.ContentType(), dat)
+	doc.EnsureExtension()
 
 	err = e.sink.Write(ctx, doc)
 	if err != nil {

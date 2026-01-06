@@ -145,3 +145,20 @@ func (r *Registry) DetectContentType(path string) string {
 	}
 	return contentType
 }
+
+// GetExtension returns the preferred file extension for a content type.
+// Returns empty string if content type is not registered.
+func (r *Registry) GetExtension(contentType string) string {
+	codec, ok := r.Get(contentType)
+	if !ok {
+		return ""
+	}
+	
+	exts := codec.Extensions()
+	if len(exts) == 0 {
+		return ""
+	}
+	
+	// Return the first (preferred) extension
+	return exts[0]
+}

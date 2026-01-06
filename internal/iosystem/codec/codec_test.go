@@ -96,13 +96,38 @@ func TestRegistry(t *testing.T) {
 			{"file.json", ContentJSON},
 			{"file.yaml", ContentYAML},
 			{"file.txt", ContentText},
-			{"file.unknown", ContentText},
+			{"file.unknown", ContentStream},
 		}
 
 		for _, tt := range tests {
 			got := r.DetectContentType(tt.path)
 			if got != tt.want {
 				t.Errorf("DetectContentType(%s) = %v, want %v", tt.path, got, tt.want)
+			}
+		}
+	})
+
+	t.Run("GetExtension", func(t *testing.T) {
+		r := NewRegistry()
+
+		tests := []struct {
+			contentType string
+			want        string
+		}{
+			{ContentJSON, ".json"},
+			{ContentYAML, ".yaml"},
+			{ContentText, ".txt"},
+			{ContentPNG, ".png"},
+			{ContentJPG, ".jpg"},
+			{ContentJSONL, ".jsonl"},
+			{ContentStream, ".bin"},
+			{"unknown/type", ""},
+		}
+
+		for _, tt := range tests {
+			got := r.GetExtension(tt.contentType)
+			if got != tt.want {
+				t.Errorf("GetExtension(%s) = %v, want %v", tt.contentType, got, tt.want)
 			}
 		}
 	})

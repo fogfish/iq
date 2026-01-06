@@ -14,6 +14,7 @@ import (
 	"io"
 
 	"github.com/fogfish/iq/internal/iosystem"
+	"github.com/fogfish/iq/internal/iosystem/codec"
 )
 
 // Collector collects all input documents and emits them as array on EOF.
@@ -62,7 +63,8 @@ func (p *Collector) Process(ctx context.Context, docs []*iosystem.Document) ([]*
 			}
 			buf.WriteByte('\n')
 		}
-		return []*iosystem.Document{iosystem.NewDocument(p.collected[0].Key, &buf)}, nil
+		doc := iosystem.NewDocument(p.collected[0].Key, codec.ContentText, &buf)
+		return []*iosystem.Document{doc}, nil
 	}
 
 	p.collected = append(p.collected, docs...)

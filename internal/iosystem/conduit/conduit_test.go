@@ -16,6 +16,7 @@ import (
 	"testing"
 
 	"github.com/fogfish/iq/internal/iosystem"
+	"github.com/fogfish/iq/internal/iosystem/codec"
 	"github.com/fogfish/iq/internal/iosystem/conduit"
 	"github.com/fogfish/iq/internal/iosystem/processor"
 	"github.com/fogfish/it/v2"
@@ -190,7 +191,7 @@ type mockSource struct {
 func newMockSource(contents ...string) *mockSource {
 	docs := make([]*iosystem.Document, len(contents))
 	for i, content := range contents {
-		docs[i] = iosystem.NewDocument("mock.txt", strings.NewReader(content))
+		docs[i] = iosystem.NewDocument("mock.txt", codec.ContentText, strings.NewReader(content))
 	}
 	return &mockSource{docs: docs}
 }
@@ -222,7 +223,7 @@ func (m *mockSink) Write(ctx context.Context, doc *iosystem.Document) error {
 	buf := &bytes.Buffer{}
 	io.Copy(buf, doc.Reader)
 
-	captured := iosystem.NewDocument(iosystem.Key(doc.Key), buf)
+	captured := iosystem.NewDocument(iosystem.Key(doc.Key), doc.Type, buf)
 	for k, v := range doc.Metadata.Custom {
 		captured.WithMetadata(k, v)
 	}

@@ -10,6 +10,8 @@ package iosystem
 
 import (
 	"io"
+	"path/filepath"
+	"strings"
 
 	"github.com/fogfish/iq/internal/iosystem/codec"
 )
@@ -51,10 +53,10 @@ func IsEOF(docs []*Document) bool {
 
 // NewDocument creates a new document with the given key and reader.
 // The content type defaults to application/octet-stream.
-func NewDocument(key Key, reader io.Reader) *Document {
+func NewDocument(key Key, contentType string, reader io.Reader) *Document {
 	return &Document{
 		Key:      key,
-		Type:     codec.Default.DetectContentType(string(key)),
+		Type:     contentType, // codec.Default.DetectContentType(string(key)),
 		Reader:   reader,
 		Metadata: Metadata{Custom: make(map[string]string)},
 	}
@@ -67,6 +69,36 @@ func (d *Document) WithMetadata(key, value string) *Document {
 	}
 	d.Metadata.Custom[key] = value
 	return d
+}
+
+// EnsureExtension updates the document key to have the correct file extension
+// based on the document's content type. If the extension already matches,
+// the key is unchanged.
+func (d *Document) EnsureExtension() {
+	if d.Key == "" {
+		return
+	}
+
+	// Get the expected extension for this content type
+	expectedExt := codec.Default.GetExtension(d.Type)
+	if expectedExt == "" {
+		return // No mapping for this content type
+	}
+
+	// Get current extension
+	currentExt := filepath.Ext(string(d.Key))
+
+	// If extension already matches, nothing to do
+	if currentExt == expectedExt {
+		return
+	}
+
+	// Replace or add the correct extension
+	keyStr := string(d.Key)
+	if currentExt != "" {
+		keyStr = strings.TrimSuffix(keyStr, currentExt)
+	}
+	d.Key = Key(keyStr + expectedExt)
 }
 
 /*

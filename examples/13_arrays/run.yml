@@ -1,4 +1,4 @@
-## iq agent -f examples/13_arrays/run.yml --splitter paragraph --array -O snap examples/13_arrays/content/doc.txt
+## iq agent -f examples/13_arrays/run.yml --splitter paragraph --array examples/13_arrays/content/doc.txt
 name: arrays
 about: demo array processing with different output formats
 
