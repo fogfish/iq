@@ -295,15 +295,6 @@ func (c *ConduitWithReporter) Run(ctx context.Context, source iosystem.Source, s
 		sink = newBufferingSink(sink)
 	}
 
-	// Add cache context if storage configured
-	// if c.cacheStore != nil {
-	// 	cacheCtx := &compiler.CacheContext{
-	// 		Storage: c.cacheStore,
-	// 		Enabled: true,
-	// 	}
-	// 	ctx = compiler.WithCacheContext(ctx, cacheCtx)
-	// }
-
 	stats, err := c.Conduit.Run(ctx, source, sink)
 
 	// If we have a buffering sink, flush it after summary

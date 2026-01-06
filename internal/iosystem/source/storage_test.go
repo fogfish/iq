@@ -8,8 +8,6 @@
 
 package source_test
 
-/* TODO: fix
-
 import (
 	"context"
 	"io"
@@ -17,9 +15,10 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/fogfish/iq/internal/iosystem"
 	"github.com/fogfish/iq/internal/iosystem/source"
+	"github.com/fogfish/iq/internal/iosystem/storage"
 	"github.com/fogfish/it/v2"
-	"github.com/fogfish/stream/lfs"
 )
 
 func TestWalkSource_SingleFile(t *testing.T) {
@@ -31,7 +30,7 @@ func TestWalkSource_SingleFile(t *testing.T) {
 	it.Then(t).Should(it.Nil(err))
 
 	// Create filesystem using lfs
-	fsys, err := lfs.New(tmpDir)
+	fsys, err := storage.NewFileSystem(tmpDir)
 	it.Then(t).Should(it.Nil(err))
 
 	// Walk the root directory - lfs uses "/" for root
@@ -54,7 +53,7 @@ func TestWalkSource_SingleFile(t *testing.T) {
 	}
 
 	it.Then(t).Should(
-		it.Equal(doc.Path, "test.txt"),
+		it.Equal(doc.Key, "test.txt"),
 		it.True(doc.Reader != nil),
 	)
 
@@ -82,7 +81,7 @@ func TestWalkSource_MultipleFiles(t *testing.T) {
 	os.WriteFile(file3, []byte("content 3"), 0644)
 
 	// Create filesystem using lfs
-	fsys, err := lfs.New(tmpDir)
+	fsys, err := storage.NewFileSystem(tmpDir)
 	it.Then(t).Should(it.Nil(err))
 
 	src, err := source.NewStorage(fsys, "/")
@@ -95,12 +94,12 @@ func TestWalkSource_MultipleFiles(t *testing.T) {
 	ctx := context.Background()
 
 	// Read all three files
-	paths := make([]string, 0)
+	paths := make([]iosystem.Key, 0)
 	for i := 0; i < 3; i++ {
 		doc, err := src.Next(ctx)
 		it.Then(t).Should(it.Nil(err))
 
-		paths = append(paths, doc.Path)
+		paths = append(paths, doc.Key)
 
 		data, err := io.ReadAll(doc.Reader)
 		it.Then(t).Should(
@@ -132,7 +131,7 @@ func TestWalkSource_NestedDirectories(t *testing.T) {
 	os.WriteFile(subFile, []byte("sub content"), 0644)
 
 	// Create filesystem using lfs
-	fsys, err := lfs.New(tmpDir)
+	fsys, err := storage.NewFileSystem(tmpDir)
 	it.Then(t).Should(it.Nil(err))
 
 	// Use "/" for root directory with lfs
@@ -146,12 +145,12 @@ func TestWalkSource_NestedDirectories(t *testing.T) {
 	ctx := context.Background()
 
 	// Read both files
-	paths := make([]string, 0)
+	paths := make([]iosystem.Key, 0)
 	for i := 0; i < 2; i++ {
 		doc, err := src.Next(ctx)
 		it.Then(t).Must(it.Nil(err))
 
-		paths = append(paths, doc.Path)
+		paths = append(paths, doc.Key)
 
 		data, err := io.ReadAll(doc.Reader)
 		it.Then(t).Should(
@@ -173,7 +172,7 @@ func TestWalkSource_EmptyDirectory(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Create filesystem using lfs
-	fsys, err := lfs.New(tmpDir)
+	fsys, err := storage.NewFileSystem(tmpDir)
 	it.Then(t).Should(it.Nil(err))
 
 	src, err := source.NewStorage(fsys, "/")
@@ -199,7 +198,7 @@ func TestWalkSource_NonExistentDirectory(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Create filesystem using lfs
-	fsys, err := lfs.New(tmpDir)
+	fsys, err := storage.NewFileSystem(tmpDir)
 	it.Then(t).Should(it.Nil(err))
 
 	// Try to walk a non-existent directory
@@ -225,7 +224,7 @@ func TestWalkSource_SubdirectoryWalk(t *testing.T) {
 	os.WriteFile(subFile, []byte("sub content"), 0644)
 
 	// Create filesystem using lfs
-	fsys, err := lfs.New(tmpDir)
+	fsys, err := storage.NewFileSystem(tmpDir)
 	it.Then(t).Should(it.Nil(err))
 
 	// Walk only the subdirectory
@@ -243,7 +242,7 @@ func TestWalkSource_SubdirectoryWalk(t *testing.T) {
 	it.Then(t).Should(it.Nil(err))
 
 	it.Then(t).Should(
-		it.Equal(doc.Path, "subdir/sub.txt"),
+		it.Equal(doc.Key, "subdir/sub.txt"),
 	)
 
 	data, err := io.ReadAll(doc.Reader)
@@ -275,7 +274,7 @@ func TestWalkSource_OnlyFilesNotDirectories(t *testing.T) {
 	os.WriteFile(file, []byte("content"), 0644)
 
 	// Create filesystem using lfs
-	fsys, err := lfs.New(tmpDir)
+	fsys, err := storage.NewFileSystem(tmpDir)
 	it.Then(t).Should(it.Nil(err))
 
 	src, err := source.NewStorage(fsys, "/")
@@ -290,7 +289,7 @@ func TestWalkSource_OnlyFilesNotDirectories(t *testing.T) {
 	// Should only get one document (the file, not directories)
 	doc, err := src.Next(ctx)
 	it.Then(t).Must(it.Nil(err))
-	it.Then(t).Should(it.Equal(doc.Path, "dir1/dir3/file.txt"))
+	it.Then(t).Should(it.Equal(doc.Key, "dir1/dir3/file.txt"))
 
 	// Second call should return EOF
 	_, err = src.Next(ctx)
@@ -303,7 +302,7 @@ func TestWalkSource_MultipleEOF(t *testing.T) {
 	os.WriteFile(file, []byte("content"), 0644)
 
 	// Create filesystem using lfs
-	fsys, err := lfs.New(tmpDir)
+	fsys, err := storage.NewFileSystem(tmpDir)
 	it.Then(t).Should(it.Nil(err))
 
 	src, err := source.NewStorage(fsys, "/")
@@ -322,5 +321,3 @@ func TestWalkSource_MultipleEOF(t *testing.T) {
 		it.Then(t).Should(it.Equal(err, io.EOF))
 	}
 }
-
-*/

@@ -1,5 +1,5 @@
 //
-// Copyright (C) 2025 Dmitry Kolesnikov
+// Copyright (C) 2025 - 2026 Dmitry Kolesnikov
 //
 // This file may be modified and distributed under the terms
 // of the MIT license.  See the LICENSE file for details.
@@ -24,6 +24,15 @@ type Compiler struct {
 	llm    chatter.Chatter
 	sink   iosystem.Sink
 	celEnv *cel.Env
+}
+
+// Workflow represents a compiled, executable workflow
+type Workflow struct {
+	Name       string
+	About      string
+	Entrypoint string // Optional: default job name, or "main" if empty
+	Schema     ast.SchemaNode
+	Jobs       map[string]*runtime.Job
 }
 
 // New creates a new compiler

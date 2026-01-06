@@ -65,34 +65,6 @@ func (b *Builder) Files(dir string, file ...string) *Builder {
 	return b
 }
 
-// Merge enables merge mode - all files are concatenated into a single document.
-// Only applies when multiple files are specified.
-// func (b *Builder) Merge(enable bool) *Builder {
-// 	if b.err != nil || b.src == nil || !enable {
-// 		return b
-// 	}
-//
-// 	b.src, b.err = source.NewUnion(b.src)
-// 	return b
-// }
-
-// Path sets the input to read from files from dir path.
-// func (b *Builder) Path(path string) *Builder {
-// 	if b.err != nil || b.src != nil || len(path) == 0 {
-// 		return b
-// 	}
-
-// 	dir, base := filepath.Split(path)
-// 	fs, err := Mount(dir)
-// 	if err != nil {
-// 		b.err = fmt.Errorf("failed to mount input dir %s: %w", dir, err)
-// 		return b
-// 	}
-
-// 	b.src, b.err = source.NewStorage(fs, base)
-// 	return b
-// }
-
 func (b *Builder) None() *Builder {
 	if b.err != nil || b.src != nil {
 		return b
@@ -124,17 +96,3 @@ func HasStdinBytes() bool {
 
 	return (fi.Mode() & os.ModeCharDevice) == 0
 }
-
-// Mounts local or S3 filesystem based on path prefix.
-// func Mount(path string) (spool.FileSystem, error) {
-// 	if len(path) == 0 {
-// 		return nil, fmt.Errorf("undefined mount point")
-// 	}
-
-// 	const s3pfx = "s3://"
-// 	if strings.HasPrefix(path, s3pfx) {
-// 		return stream.NewFS(path[len(s3pfx):])
-// 	}
-
-// 	return lfs.New(path)
-// }
