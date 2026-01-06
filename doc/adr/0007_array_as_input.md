@@ -1,6 +1,6 @@
 # ADR 0007: Array Input and Foreach Output Formatting
 
-**Status:** Proposed  
+**Status:** Accepted  
 **Date:** 2026-01-03  
 **Context:** Enabling array-based input and configurable output formatting for map/reduce workflows
 
