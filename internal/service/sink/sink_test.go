@@ -23,7 +23,7 @@ import (
 
 func TestBuilder_NoOutput(t *testing.T) {
 	// No output specified → should error
-	snk, err := sink.New().Build()
+	snk, _, err := sink.New().Build()
 
 	it.Then(t).Should(
 		it.True(err != nil),
@@ -36,7 +36,7 @@ func TestBuilder_File(t *testing.T) {
 	tmpDir := t.TempDir()
 	outFile := filepath.Join(tmpDir, "output.txt")
 
-	snk, err := sink.New().
+	snk, _, err := sink.New().
 		File(outFile).
 		Build()
 
@@ -72,7 +72,7 @@ func TestBuilder_Dir(t *testing.T) {
 	// Create temp directory
 	tmpDir := t.TempDir()
 
-	snk, err := sink.New().
+	snk, _, err := sink.New().
 		Path(tmpDir).
 		Build()
 
@@ -103,7 +103,7 @@ func TestBuilder_FileBeforeDir(t *testing.T) {
 	tmpDir := t.TempDir()
 	outFile := filepath.Join(tmpDir, "output.txt")
 
-	snk, err := sink.New().
+	snk, _, err := sink.New().
 		File(outFile).
 		Path(tmpDir).
 		Build()
@@ -137,7 +137,7 @@ func TestBuilder_DirMultipleFiles(t *testing.T) {
 	// Test directory sink with multiple documents
 	tmpDir := t.TempDir()
 
-	snk, err := sink.New().
+	snk, _, err := sink.New().
 		Path(tmpDir).
 		Build()
 

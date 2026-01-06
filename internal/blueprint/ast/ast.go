@@ -62,6 +62,7 @@ type StepNode interface {
 	GetUses() string
 	GetRetry() *RetryNode
 	GetOutput() string
+	GetEmit() string
 }
 
 // AgentStepNode represents a simple agent execution step
@@ -80,6 +81,7 @@ func (n *AgentStepNode) GetUses() string      { return n.Uses }
 func (n *AgentStepNode) GetRetry() *RetryNode { return n.Retry }
 func (n *AgentStepNode) GetOutput() string    { return n.Output }
 func (n *AgentStepNode) GetRunsOn() string    { return n.RunsOn }
+func (n *AgentStepNode) GetEmit() string      { return n.Emit }
 
 // RouterStepNode represents a conditional routing step
 type RouterStepNode struct {
@@ -99,6 +101,7 @@ func (n *RouterStepNode) GetUses() string      { return n.Uses }
 func (n *RouterStepNode) GetRetry() *RetryNode { return n.Retry }
 func (n *RouterStepNode) GetOutput() string    { return n.Output }
 func (n *RouterStepNode) GetRunsOn() string    { return n.RunsOn }
+func (n *RouterStepNode) GetEmit() string      { return n.Emit }
 
 // RouteNode represents a single conditional route
 type RouteNode struct {
@@ -125,6 +128,7 @@ func (n *ForeachStepNode) GetUses() string      { return n.Uses }
 func (n *ForeachStepNode) GetRetry() *RetryNode { return n.Retry }
 func (n *ForeachStepNode) GetOutput() string    { return n.Output }
 func (n *ForeachStepNode) GetRunsOn() string    { return n.RunsOn }
+func (n *ForeachStepNode) GetEmit() string      { return n.Emit }
 
 // RunStepNode represents a shell command execution step
 type RunStepNode struct {
@@ -142,6 +146,7 @@ func (n *RunStepNode) GetUses() string      { return "" }
 func (n *RunStepNode) GetRetry() *RetryNode { return n.Retry }
 func (n *RunStepNode) GetOutput() string    { return n.Output }
 func (n *RunStepNode) GetRunsOn() string    { return n.RunsOn }
+func (n *RunStepNode) GetEmit() string      { return n.Emit }
 
 type RetryNode struct {
 	Attempts int    // Number of retry attempts

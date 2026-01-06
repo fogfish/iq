@@ -15,6 +15,8 @@ import (
 	"github.com/fogfish/iq/internal/blueprint/compiler"
 	"github.com/fogfish/iq/internal/blueprint/parser"
 	"github.com/fogfish/iq/internal/blueprint/runtime"
+	"github.com/fogfish/iq/internal/iosystem"
+	"github.com/fogfish/iq/internal/iosystem/storage"
 	"github.com/google/jsonschema-go/jsonschema"
 	"github.com/kshard/chatter"
 )
@@ -31,7 +33,7 @@ type Blueprint struct {
 // }
 
 // New loads and compiles a blueprint file
-func New(file string, llm chatter.Chatter) (*Blueprint, error) {
+func New(file string, llm chatter.Chatter, snapshot storage.Storage) (*Blueprint, error) {
 	// Phase 1: Parse YAML to AST
 	p := parser.New(".")
 	tree, err := p.Parse(file)
@@ -40,7 +42,7 @@ func New(file string, llm chatter.Chatter) (*Blueprint, error) {
 	}
 
 	// Phase 2: Compile AST to executable workflow
-	comp, err := compiler.New(llm)
+	comp, err := compiler.New(llm, snapshot)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create compiler: %w", err)
 	}
@@ -81,7 +83,7 @@ func (bp *Blueprint) StepCount() int {
 }
 
 // Run executes the entrypoint job (or "main" if no entrypoint specified)
-func (bp *Blueprint) Prompt(ctx context.Context, input any, opt ...chatter.Opt) (any, error) {
+func (bp *Blueprint) Prompt(ctx context.Context, key iosystem.Key, input any, opt ...chatter.Opt) (any, error) {
 	// Determine which job to run
 	jobName := bp.workflow.Entrypoint
 	if jobName == "" {
@@ -102,6 +104,7 @@ func (bp *Blueprint) Prompt(ctx context.Context, input any, opt ...chatter.Opt) 
 	}
 
 	evt := runtime.Event{
+		Key:      key,
 		Document: val,
 		Current:  val,
 		Steps:    make(map[string]runtime.Gist),

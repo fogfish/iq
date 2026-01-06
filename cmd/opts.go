@@ -13,6 +13,7 @@ import (
 
 	"github.com/fogfish/iq/internal/iosystem"
 	"github.com/fogfish/iq/internal/iosystem/processor"
+	"github.com/fogfish/iq/internal/iosystem/storage"
 	"github.com/fogfish/iq/internal/progress"
 	"github.com/fogfish/iq/internal/service/batch"
 	"github.com/fogfish/iq/internal/service/llm"
@@ -152,7 +153,7 @@ func (opts *optsAgent) validate() error {
 	return nil
 }
 
-func (opts *optsAgent) build(llm chatter.Chatter, reporter *progress.Reporter) (*worker.ConduitWithReporter, error) {
+func (opts *optsAgent) build(llm chatter.Chatter, snapshot storage.Storage, reporter *progress.Reporter) (*worker.ConduitWithReporter, error) {
 	// Validate flags
 	if err := opts.validate(); err != nil {
 		return nil, err
@@ -168,7 +169,7 @@ func (opts *optsAgent) build(llm chatter.Chatter, reporter *progress.Reporter) (
 			ChunkSize:      opts.splitterChunk,
 			DelimiterChars: opts.splitterChars,
 		}).
-		Workflow(opts.file, llm)
+		Workflow(opts.file, llm, snapshot)
 
 	// Add skip-if-exists processor if flag enabled
 	if opts.skipIfExists {
@@ -220,8 +221,9 @@ func (opts *optsInput) build(files []string) (iosystem.Source, error) {
 var freply optsReply
 
 type optsReply struct {
-	dir  string
-	file string
+	dir      string
+	file     string
+	snapshot string
 }
 
 func (opts *optsReply) apply(cmd *cobra.Command) {
@@ -233,27 +235,17 @@ func (opts *optsReply) apply(cmd *cobra.Command) {
 	f.StringVarP(&opts.file, "output", "o", "",
 		"Path to the output file")
 
+	f.StringVarP(&opts.snapshot, "snapshot-dir", "S", "",
+		"Path to the snapshot storage directory or S3 URI")
 }
 
-func (opts *optsReply) build() (iosystem.Sink, error) {
+func (opts *optsReply) build() (iosystem.Sink, storage.Storage, error) {
 	return sink.New().
 		File(opts.file).
 		Path(opts.dir).
+		Snapshot(opts.snapshot).
 		Stdout(!fglobal.quiet && !fglobal.silent).
 		Build()
-}
-
-// buildWithEmit builds sink with emit support if usesEmit is true and dir is set
-func (opts *optsReply) buildWithEmit(usesEmit bool) (iosystem.Sink, error) {
-	// If workflow uses emit and output directory is specified, use Storage sink
-	if usesEmit && opts.dir != "" {
-		return sink.New().
-			Storage(opts.dir).
-			Build()
-	}
-	
-	// Otherwise use regular build
-	return opts.build()
 }
 
 //------------------------------------------------------------------------------

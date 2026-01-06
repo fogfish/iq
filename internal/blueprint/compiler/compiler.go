@@ -14,18 +14,20 @@ import (
 
 	"github.com/fogfish/iq/internal/blueprint/ast"
 	"github.com/fogfish/iq/internal/blueprint/runtime"
+	"github.com/fogfish/iq/internal/iosystem/storage"
 	"github.com/google/cel-go/cel"
 	"github.com/kshard/chatter"
 )
 
 // Compiler compiles AST to executable workflow
 type Compiler struct {
-	llm    chatter.Chatter
-	celEnv *cel.Env
+	llm      chatter.Chatter
+	snapshot storage.Storage
+	celEnv   *cel.Env
 }
 
 // New creates a new compiler
-func New(llm chatter.Chatter) (*Compiler, error) {
+func New(llm chatter.Chatter, snapshot storage.Storage) (*Compiler, error) {
 	// Create CEL environment for route conditions and selector expressions
 	// Variables available in CEL expressions:
 	// - choice: output from the router agent (router context)
@@ -46,8 +48,9 @@ func New(llm chatter.Chatter) (*Compiler, error) {
 	}
 
 	return &Compiler{
-		llm:    llm,
-		celEnv: env,
+		llm:      llm,
+		snapshot: snapshot,
+		celEnv:   env,
 	}, nil
 }
 
@@ -144,7 +147,7 @@ func (c *Compiler) compile(ctx context.Context, tree *ast.AST) (*Workflow, error
 
 	jobs := make(map[string]*runtime.Job)
 	for jobName, jobNode := range bp.Jobs {
-		job, err := c.compileJob(ctx, jobName, jobNode, tree, c.llm)
+		job, err := c.compileJob(ctx, tree, jobName, jobNode)
 		if err != nil {
 			return nil, fmt.Errorf("failed to compile job '%s': %w", jobName, err)
 		}
@@ -168,21 +171,10 @@ func (c *Compiler) compile(ctx context.Context, tree *ast.AST) (*Workflow, error
 }
 
 // compileJob compiles a single job
-func (c *Compiler) compileJob(ctx context.Context, name string, node *ast.JobNode, tree *ast.AST, sysLLM chatter.Chatter) (*runtime.Job, error) {
-	// Determine LLM for this job
-	llm := c.llm
-	// if node.RunsOn != "" {
-	// 	var err error
-	// 	llm, err = c.factory.LLM(node.RunsOn)
-	// 	if err != nil {
-	// 		return nil, err
-	// 	}
-	// }
-
-	// Compile all steps
+func (c *Compiler) compileJob(ctx context.Context, tree *ast.AST, name string, node *ast.JobNode) (*runtime.Job, error) {
 	steps := make([]runtime.Prompter, 0, len(node.Steps))
-	for i, stepNode := range node.Steps {
-		step, err := c.compileStep(ctx, i, stepNode, tree, llm)
+	for _, stepNode := range node.Steps {
+		step, err := c.compileStep(ctx, tree, stepNode)
 		if err != nil {
 			return nil, err
 		}
@@ -196,30 +188,30 @@ func (c *Compiler) compileJob(ctx context.Context, name string, node *ast.JobNod
 }
 
 // compileStep compiles a single step
-func (c *Compiler) compileStep(ctx context.Context, index int, node ast.StepNode, tree *ast.AST, llm chatter.Chatter) (prompter runtime.Prompter, err error) {
+func (c *Compiler) compileStep(ctx context.Context, tree *ast.AST, node ast.StepNode) (prompter runtime.Prompter, err error) {
 	switch v := node.(type) {
 	case *ast.AgentStepNode:
-		prompter, err = c.compileAgentNode(ctx, tree, v, llm)
+		prompter, err = c.compileAgentNode(ctx, tree, v)
 		if err != nil {
 			return nil, err
 		}
 	case *ast.RouterStepNode:
-		prompter, err = c.compileRouterNode(ctx, tree, v, llm)
+		prompter, err = c.compileRouterNode(ctx, tree, v)
 		if err != nil {
 			return nil, err
 		}
 	case *ast.ForeachStepNode:
-		prompter, err = c.compileForEach(ctx, tree, v, llm)
+		prompter, err = c.compileForEach(ctx, tree, v)
 		if err != nil {
 			return nil, err
 		}
 	case *ast.RunStepNode:
-		prompter, err = c.compileShellNode(ctx, tree, v, llm)
+		prompter, err = c.compileShellNode(ctx, tree, v)
 		if err != nil {
 			return nil, err
 		}
 	default:
-		return nil, fmt.Errorf("unsupported step node type at index %d", index)
+		return nil, fmt.Errorf("unsupported step type: %+v", node)
 	}
 
 	prompter = c.compileMemento(ctx, node, prompter)
@@ -246,7 +238,7 @@ func (c *Compiler) compileCEL(expr string) (cel.Program, error) {
 
 }
 
-func (c *Compiler) compileAgentNode(ctx context.Context, tree *ast.AST, node *ast.AgentStepNode, llm chatter.Chatter) (runtime.Prompter, error) {
+func (c *Compiler) compileAgentNode(_ context.Context, tree *ast.AST, node *ast.AgentStepNode) (runtime.Prompter, error) {
 	agent, ok := tree.Agents[node.Uses]
 	if !ok {
 		return nil, fmt.Errorf("agent '%s' not found in AST", node.Uses)
@@ -255,7 +247,7 @@ func (c *Compiler) compileAgentNode(ctx context.Context, tree *ast.AST, node *as
 	agent.RunsOn = node.RunsOn
 
 	var manifold runtime.Prompter
-	manifold, err := runtime.NewManifold(agent, llm)
+	manifold, err := runtime.NewManifold(agent, c.llm)
 	if err != nil {
 		return nil, fmt.Errorf("manifold compile error: %w", err)
 	}
@@ -263,7 +255,7 @@ func (c *Compiler) compileAgentNode(ctx context.Context, tree *ast.AST, node *as
 	return manifold, nil
 }
 
-func (c *Compiler) compileRouterNode(ctx context.Context, tree *ast.AST, node *ast.RouterStepNode, llm chatter.Chatter) (runtime.Prompter, error) {
+func (c *Compiler) compileRouterNode(_ context.Context, tree *ast.AST, node *ast.RouterStepNode) (runtime.Prompter, error) {
 	var manifold runtime.Prompter
 
 	if node.Uses != "" {
@@ -275,7 +267,7 @@ func (c *Compiler) compileRouterNode(ctx context.Context, tree *ast.AST, node *a
 		agent.RunsOn = node.RunsOn
 
 		var err error
-		manifold, err = runtime.NewManifold(agent, llm)
+		manifold, err = runtime.NewManifold(agent, c.llm)
 		if err != nil {
 			return nil, fmt.Errorf("manifold compile error: %w", err)
 		}
@@ -293,7 +285,7 @@ func (c *Compiler) compileRouterNode(ctx context.Context, tree *ast.AST, node *a
 	return runtime.NewRouter(node, manifold, conditions), nil
 }
 
-func (c *Compiler) compileForEach(ctx context.Context, tree *ast.AST, node *ast.ForeachStepNode, llm chatter.Chatter) (runtime.Prompter, error) {
+func (c *Compiler) compileForEach(_ context.Context, tree *ast.AST, node *ast.ForeachStepNode) (runtime.Prompter, error) {
 	// Compile CEL selector if provided
 	var selector cel.Program
 	if node.Selector != "" {
@@ -307,7 +299,7 @@ func (c *Compiler) compileForEach(ctx context.Context, tree *ast.AST, node *ast.
 	return runtime.NewForEach(node, selector), nil
 }
 
-func (c *Compiler) compileShellNode(ctx context.Context, tree *ast.AST, node *ast.RunStepNode, llm chatter.Chatter) (runtime.Prompter, error) {
+func (c *Compiler) compileShellNode(_ context.Context, tree *ast.AST, node *ast.RunStepNode) (runtime.Prompter, error) {
 	shell := node.RunsOn
 	if shell == "" {
 		shell = "sh"
@@ -316,7 +308,7 @@ func (c *Compiler) compileShellNode(ctx context.Context, tree *ast.AST, node *as
 	return runtime.NewShell(shell, node.Run)
 }
 
-func (c *Compiler) compileMemento(ctx context.Context, node ast.StepNode, prompter runtime.Prompter) runtime.Prompter {
+func (c *Compiler) compileMemento(_ context.Context, node ast.StepNode, prompter runtime.Prompter) runtime.Prompter {
 	variable := node.GetOutput()
 	if variable == "" {
 		return prompter
@@ -325,11 +317,11 @@ func (c *Compiler) compileMemento(ctx context.Context, node ast.StepNode, prompt
 
 }
 
-func (c *Compiler) compilePrinter(ctx context.Context, node ast.StepNode, prompter runtime.Prompter) runtime.Prompter {
+func (c *Compiler) compilePrinter(_ context.Context, node ast.StepNode, prompter runtime.Prompter) runtime.Prompter {
 	return runtime.NewPrinter(prompter)
 }
 
-func (c *Compiler) compileRepeater(ctx context.Context, node ast.StepNode, prompter runtime.Prompter) runtime.Prompter {
+func (c *Compiler) compileRepeater(_ context.Context, node ast.StepNode, prompter runtime.Prompter) runtime.Prompter {
 	retryNode := node.GetRetry()
 
 	if retryNode == nil || retryNode.Attempts < 2 {
@@ -343,9 +335,13 @@ func (c *Compiler) compileRepeater(ctx context.Context, node ast.StepNode, promp
 	return prompter
 }
 
-func (c *Compiler) compileEmitter(ctx context.Context, node ast.StepNode, prompter runtime.Prompter) runtime.Prompter {
-	// TODO: implement emitter compilation
-	return prompter
+func (c *Compiler) compileEmitter(_ context.Context, node ast.StepNode, prompter runtime.Prompter) runtime.Prompter {
+	emit := node.GetEmit()
+	if emit == "" || c.snapshot == nil {
+		return prompter
+	}
+
+	return runtime.NewEmitter(c.snapshot, emit, prompter)
 }
 
 func (c *Compiler) compileCache(ctx context.Context, node ast.StepNode, prompter runtime.Prompter) runtime.Prompter {

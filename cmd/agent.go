@@ -74,22 +74,17 @@ func agent(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	srv, err := fagent.build(llm, reporter)
-	if err != nil {
-		reporter.WorkflowError(err)
-		return err
-	}
-
 	src, err := finput.build(args)
 	if err != nil {
 		return err
 	}
 
-	// Get workflow to check if it uses emit
-	// workflow := srv.GetWorkflow()
-	// usesEmit := workflowUsesEmit(workflow)
-	//
-	snk, err := freply.build()
+	snk, snap, err := freply.build()
+	if err != nil {
+		return err
+	}
+
+	srv, err := fagent.build(llm, snap, reporter)
 	if err != nil {
 		return err
 	}
@@ -185,7 +180,8 @@ func agentBatch(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	srv, err := fagent.build(llm, reporter)
+	// TODO: decision about snapshot is needed
+	srv, err := fagent.build(llm, nil, reporter)
 	if err != nil {
 		reporter.WorkflowError(err)
 		return err
@@ -227,7 +223,8 @@ func agentServe(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	srv, err := fagent.build(llm, reporter)
+	// TODO: decision about snapshot is needed
+	srv, err := fagent.build(llm, nil, reporter)
 	if err != nil {
 		return err
 	}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/fogfish/iq/internal/iosystem"
 	"github.com/kshard/chatter"
 )
 
@@ -44,6 +45,9 @@ func ToGist(x any) (Gist, error) {
 
 // Event represents an event processed by the workflow.
 type Event struct {
+	// Unique identity of the document
+	Key iosystem.Key
+
 	// Original workflow input
 	Document Gist
 
@@ -56,6 +60,7 @@ type Event struct {
 
 func (evt Event) copy(current Gist) Event {
 	return Event{
+		Key:      evt.Key,
 		Document: evt.Document,
 		Current:  current,
 		Steps:    evt.Steps,

@@ -1,5 +1,5 @@
 //
-// Copyright (C) 2025 Dmitry Kolesnikov
+// Copyright (C) 2025 - 2026 Dmitry Kolesnikov
 //
 // This file may be modified and distributed under the terms
 // of the MIT license.  See the LICENSE file for details.
@@ -16,7 +16,6 @@ import (
 )
 
 // Storage provides pure key/value operations for document persistence.
-// Implementations use github.com/fogfish/stream for filesystem and S3.
 type Storage interface {
 	// Put writes value to key (overwrites if exists).
 	// Key should be a relative path like "sub/file.txt".
@@ -26,7 +25,7 @@ type Storage interface {
 	// Returns error if key does not exist.
 	Get(ctx context.Context, key iosystem.Key) (io.Reader, error)
 
-	// Has checks if key exists (cheap operation for skip-if-exists logic).
+	// Has checks if key exists.
 	Has(ctx context.Context, key iosystem.Key) (bool, error)
 
 	// Walk traverses all keys matching prefix pattern.

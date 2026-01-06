@@ -22,7 +22,7 @@ import (
 
 // Worker abstraction
 type Worker interface {
-	Prompt(ctx context.Context, input any, opt ...chatter.Opt) (any, error)
+	Prompt(ctx context.Context, key iosystem.Key, input any, opt ...chatter.Opt) (any, error)
 }
 
 // Agent wraps a blueprint to use as a pipeline processor.
@@ -93,6 +93,7 @@ func (p *Agent) Process(ctx context.Context, docs []*iosystem.Document) ([]*iosy
 	// }
 
 	var input any
+	key := docs[0].Key
 
 	// Create emit capture to retrieve emit context after workflow execution
 	// ctx, emitCapture := compiler.WithEmitCapture(ctx)
@@ -111,7 +112,7 @@ func (p *Agent) Process(ctx context.Context, docs []*iosystem.Document) ([]*iosy
 		input = items[0]
 	}
 
-	result, err := p.w.Prompt(ctx, input, p.config.Options...)
+	result, err := p.w.Prompt(ctx, key, input, p.config.Options...)
 	if err != nil {
 		docPath := docs[0].Path
 		if len(docs) > 1 {

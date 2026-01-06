@@ -13,54 +13,59 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
-	"os"
 	"strings"
 
 	"github.com/fogfish/iq/internal/iosystem"
 	"github.com/fogfish/stream"
 	"github.com/fogfish/stream/lfs"
-	"github.com/fogfish/stream/spool"
 )
 
-// FSStorage wraps github.com/fogfish/stream for filesystem and S3 operations.
-type FSStorage struct {
-	fs   spool.FileSystem
-	base string // Base directory path
+type FS interface {
+	stream.CreateFS[struct{}]
+	Stat(path string) (fs.FileInfo, error)
 }
 
-// NewFS creates filesystem storage.
-// Supports local paths and s3:// URLs via stream library.
-func NewFS(path string) (*FSStorage, error) {
-	if path == "" {
-		return nil, fmt.Errorf("path cannot be empty")
+// FileSystem
+type FileSystem struct {
+	fs    FS
+	mount string
+	files []string
+}
+
+// NewFileSystem creates filesystem storage.
+func NewFileSystem(mount string, files ...string) (*FileSystem, error) {
+	if mount == "" {
+		return nil, fmt.Errorf("mount cannot be empty")
 	}
 
-	var fsys spool.FileSystem
-	var err error
-	var base string
-
-	// Mount appropriate filesystem
 	const s3pfx = "s3://"
-	if strings.HasPrefix(path, s3pfx) {
-		base = path[len(s3pfx):]
-		fsys, err = stream.NewFS(base)
-	} else {
-		base = path
-		fsys, err = lfs.New(path)
+	if strings.HasPrefix(mount, s3pfx) {
+		mount = mount[len(s3pfx):]
+		fsys, err := stream.NewFS(mount)
+		if err != nil {
+			return nil, fmt.Errorf("failed to mount S3 storage at %s: %w", mount, err)
+		}
+		return &FileSystem{
+			fs:    fsys,
+			mount: mount,
+			files: files,
+		}, nil
 	}
 
+	fsys, err := lfs.New(mount)
 	if err != nil {
-		return nil, fmt.Errorf("failed to mount storage at %s: %w", path, err)
+		return nil, fmt.Errorf("failed to mount local storage at %s: %w", mount, err)
 	}
 
-	return &FSStorage{
-		fs:   fsys,
-		base: base,
+	return &FileSystem{
+		fs:    fsys,
+		mount: mount,
+		files: files,
 	}, nil
 }
 
 // Put writes value to key.
-func (s *FSStorage) Put(ctx context.Context, key iosystem.Key, value io.Reader) error {
+func (s *FileSystem) Put(ctx context.Context, key iosystem.Key, value io.Reader) error {
 	file, err := s.fs.Create(string(key), nil)
 	if err != nil {
 		return fmt.Errorf("failed to create key %s: %w", key, err)
@@ -77,29 +82,48 @@ func (s *FSStorage) Put(ctx context.Context, key iosystem.Key, value io.Reader) 
 }
 
 // Get reads value from key.
-func (s *FSStorage) Get(ctx context.Context, key iosystem.Key) (io.Reader, error) {
+func (s *FileSystem) Get(ctx context.Context, key iosystem.Key) (io.Reader, error) {
 	reader, err := s.fs.Open(string(key))
 	if err != nil {
 		return nil, fmt.Errorf("failed to open key %s: %w", key, err)
 	}
-	return &autoCloser{ReadCloser: reader}, nil
+	return &safeIO{ReadCloser: reader}, nil
 }
 
 // Has checks if key exists.
-func (s *FSStorage) Has(ctx context.Context, key iosystem.Key) (bool, error) {
-	reader, err := s.fs.Open(string(key))
+func (s *FileSystem) Has(ctx context.Context, key iosystem.Key) (bool, error) {
+	fi, err := s.fs.Stat(string(key))
 	if err != nil {
-		if os.IsNotExist(err) {
-			return false, nil
-		}
-		return false, fmt.Errorf("failed to check key %s: %w", key, err)
+		return false, nil
 	}
-	reader.Close()
-	return true, nil
+
+	return fi != nil, nil
 }
 
 // Walk traverses keys matching prefix.
-func (s *FSStorage) Walk(ctx context.Context, prefix iosystem.Key, visitor func(*iosystem.Document) error) error {
+func (s *FileSystem) Walk(ctx context.Context, prefix iosystem.Key, visitor func(*iosystem.Document) error) error {
+	// Walk only specified files
+	if len(s.files) > 0 {
+		for _, file := range s.files {
+			key := iosystem.Key(file)
+			reader, err := s.Get(ctx, key)
+			if err != nil {
+				return err
+			}
+
+			doc := iosystem.NewDocument(key, reader)
+			if err := visitor(doc); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+
+	// Walk all files under prefix
+	return s.walk(ctx, prefix, visitor)
+}
+
+func (s *FileSystem) walk(ctx context.Context, prefix iosystem.Key, visitor func(*iosystem.Document) error) error {
 	searchPath := string(prefix)
 	if searchPath == "" {
 		searchPath = "."
@@ -133,16 +157,16 @@ func (s *FSStorage) Walk(ctx context.Context, prefix iosystem.Key, visitor func(
 	return nil
 }
 
-// autoCloser wraps an io.ReadCloser and automatically closes it when:
+// safeIO wraps an io.ReadCloser and automatically closes it when:
 // - Read returns io.EOF (file fully read)
 // - Read returns any other error
 // This prevents file descriptor leaks when documents are not explicitly closed.
-type autoCloser struct {
+type safeIO struct {
 	io.ReadCloser
 	closed bool
 }
 
-func (a *autoCloser) Read(p []byte) (n int, err error) {
+func (a *safeIO) Read(p []byte) (n int, err error) {
 	if a.closed {
 		return 0, io.EOF
 	}
@@ -155,7 +179,7 @@ func (a *autoCloser) Read(p []byte) (n int, err error) {
 	return n, err
 }
 
-func (a *autoCloser) Close() error {
+func (a *safeIO) Close() error {
 	if a.closed {
 		return nil
 	}

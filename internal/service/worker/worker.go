@@ -168,7 +168,7 @@ func (b *Builder) ArrayMode(enable bool) *Builder {
 
 // Workflow sets the blueprint to use for creating processors.
 // This is required.
-func (b *Builder) Workflow(file string, llm chatter.Chatter) *Builder {
+func (b *Builder) Workflow(file string, llm chatter.Chatter, snapshot storage.Storage) *Builder {
 	if b.err != nil || b.runtime == nil {
 		return b
 	}
@@ -180,7 +180,7 @@ func (b *Builder) Workflow(file string, llm chatter.Chatter) *Builder {
 		return b
 	}
 
-	wrk, err := blueprint.New(file, llm)
+	wrk, err := blueprint.New(file, llm, snapshot)
 	if err != nil {
 		b.err = fmt.Errorf("failed to create blueprint from %s: %w", file, err)
 		return b
@@ -217,7 +217,7 @@ func (b *Builder) SkipIfExists(outputPath string) *Builder {
 	}
 
 	// Create storage for output checking/caching
-	store, err := storage.NewFS(outputPath)
+	store, err := storage.NewFileSystem(outputPath)
 	if err != nil {
 		b.err = fmt.Errorf("failed to create storage for skip-if-exists: %w", err)
 		return b

@@ -24,8 +24,9 @@ import (
 // Builder creates iosystem.Sink instances from CLI flags.
 // Supports stdout, single file, and directory outputs.
 type Builder struct {
-	snk iosystem.Sink
-	err error
+	snk  iosystem.Sink
+	snap storage.Storage
+	err  error
 }
 
 // New creates a sink builder.
@@ -100,35 +101,26 @@ func (b *Builder) Path(path string) *Builder {
 	return b
 }
 
-// Storage sets output to use storage interface (for emit support).
-// This should be used when workflows use emit attributes for output control.
-func (b *Builder) Storage(path string) *Builder {
+// Builds the snapshot storage sink.
+func (b *Builder) Snapshot(path string) *Builder {
 	if b.err != nil || b.snk != nil || len(path) == 0 {
 		return b
 	}
 
-	// Create storage
-	store, err := storage.NewFS(path)
-	if err != nil {
-		b.err = fmt.Errorf("failed to create storage at %s: %w", path, err)
-		return b
-	}
-
-	// Create storage sink
-	b.snk = sink.NewStorage(store)
+	b.snap, b.err = storage.NewFileSystem(path)
 	return b
 }
 
-func (b *Builder) Build() (iosystem.Sink, error) {
+func (b *Builder) Build() (iosystem.Sink, storage.Storage, error) {
 	if b.err != nil {
-		return nil, b.err
+		return nil, nil, b.err
 	}
 
 	if b.snk == nil {
-		return nil, fmt.Errorf("no output specified")
+		return nil, nil, fmt.Errorf("no output specified")
 	}
 
-	return b.snk, b.err
+	return b.snk, b.snap, b.err
 }
 
 func Mount(path string) (spool.FileSystem, error) {

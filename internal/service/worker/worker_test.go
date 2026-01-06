@@ -54,7 +54,7 @@ jobs:
 	// Build conduit with blueprint
 	pipe, err := worker.New().
 		Runtime().
-		Workflow(bpFile, mockLLM).
+		Workflow(bpFile, mockLLM, nil).
 		Build()
 
 	it.Then(t).Should(
@@ -91,7 +91,7 @@ jobs:
 			// Progress callback
 		}).
 		Runtime().
-		Workflow(bpFile, mockLLM).
+		Workflow(bpFile, mockLLM, nil).
 		Build()
 
 	it.Then(t).Should(
@@ -123,7 +123,7 @@ jobs:
 	// Build conduit
 	pipe, err := worker.New().
 		Runtime().
-		Workflow(bpFile, mockLLM).
+		Workflow(bpFile, mockLLM, nil).
 		Build()
 	it.Then(t).Must(it.Nil(err))
 
