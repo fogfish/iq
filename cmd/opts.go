@@ -117,7 +117,7 @@ type optsAgent struct {
 	json          bool
 	array         bool
 	merge         bool
-	skipIfExists  bool
+	cache         string
 }
 
 func (opts *optsAgent) apply(cmd *cobra.Command) {
@@ -144,8 +144,8 @@ func (opts *optsAgent) apply(cmd *cobra.Command) {
 	f.BoolVar(&opts.merge, "merge", false,
 		"Combine all input files into a single document before processing")
 
-	f.BoolVar(&opts.skipIfExists, "skip-if-exists", false,
-		"Skip documents that already have output (checks last step emit)")
+	f.StringVar(&opts.cache, "cache-dir", "",
+		"Path to the LLM response cache database (enables caching)")
 }
 
 // validate checks for incompatible flag combinations
@@ -162,7 +162,7 @@ func (opts *optsAgent) build(llm chatter.Chatter, sink iosystem.Sink, reporter *
 		return nil, err
 	}
 
-	builder := worker.New().
+	return worker.New().
 		// TODO: ErrorMode
 		Reporter(reporter).
 		Runtime().
@@ -173,20 +173,9 @@ func (opts *optsAgent) build(llm chatter.Chatter, sink iosystem.Sink, reporter *
 		}).
 		ListCollector(opts.array).
 		TextCollector(opts.merge).
-		Workflow(opts.file, llm, sink)
-
-	// Add skip-if-exists processor if flag enabled
-	if opts.skipIfExists {
-		// Get output path from freply
-		outputPath := freply.dir
-		if outputPath == "" {
-			// If no output dir specified, skip-if-exists doesn't make sense
-			return nil, fmt.Errorf("--skip-if-exists requires --output-dir to be specified")
-		}
-		builder = builder.SkipIfExists(outputPath)
-	}
-
-	return builder.Jsonify(opts.json).Build()
+		Cache(opts.cache).
+		Workflow(opts.file, llm, sink).
+		Jsonify(opts.json).Build()
 }
 
 //------------------------------------------------------------------------------

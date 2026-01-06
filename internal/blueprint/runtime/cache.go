@@ -9,8 +9,14 @@
 package runtime
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
+	"log/slog"
+	"path/filepath"
 
+	"github.com/fogfish/iq/internal/iosystem"
+	"github.com/fogfish/iq/internal/iosystem/storage"
 	"github.com/kshard/chatter"
 )
 
@@ -34,15 +40,73 @@ The old code in AgentStep, RouterStep, ForeachStep, RunStep all had:
 */
 
 type Cache struct {
+	prefix string
+	cache  storage.Storage
+
 	Prompter
 }
 
 var _ Prompter = (*Cache)(nil)
 
-func NewCache(p Prompter) *Cache {
-	return &Cache{Prompter: p}
+func NewCache(cache storage.Storage, prefix string, p Prompter) *Cache {
+	return &Cache{cache: cache, prefix: prefix, Prompter: p}
 }
 
-func (e *Cache) Prompt(ctx context.Context, evt Event, opts ...chatter.Opt) (Event, error) {
-	return e.Prompter.Prompt(ctx, evt, opts...)
+func (e *Cache) Prompt(ctx context.Context, in Event, opts ...chatter.Opt) (Event, error) {
+	type cachable struct {
+		Key  iosystem.Key `json:"key"`
+		Gist any          `json:"gist"`
+	}
+
+	key := iosystem.Key(filepath.Join(e.prefix, string(in.Key)))
+	has, err := e.cache.Has(ctx, key)
+	if err != nil {
+		return in, err
+	}
+
+	if has {
+		r, err := e.cache.Get(ctx, key)
+		if err != nil {
+			return in, err
+		}
+
+		var val cachable
+		if err := json.NewDecoder(r).Decode(&val); err != nil {
+			return in, err
+		}
+
+		gist, err := ToGist(val.Gist)
+		if err != nil {
+			return in, err
+		}
+
+		in.Current = gist
+		in.Key = val.Key
+		return in, nil
+	}
+
+	val, err := e.Prompter.Prompt(ctx, in, opts...)
+	if err != nil {
+		return in, err
+	}
+
+	var buf bytes.Buffer
+	err = json.NewEncoder(&buf).Encode(
+		cachable{
+			Key:  val.Key,
+			Gist: val.Current,
+		},
+	)
+	if err != nil {
+		slog.Error("cache failed", "err", err)
+		return val, nil
+	}
+
+	err = e.cache.Put(ctx, key, &buf)
+	if err != nil {
+		slog.Error("cache failed", "err", err)
+		return val, nil
+	}
+
+	return val, nil
 }

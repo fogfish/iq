@@ -13,7 +13,6 @@ import (
 	"fmt"
 
 	"github.com/fogfish/iq/internal/blueprint"
-	"github.com/fogfish/iq/internal/blueprint/compiler"
 	"github.com/fogfish/iq/internal/iosystem"
 	"github.com/fogfish/iq/internal/iosystem/conduit"
 	"github.com/fogfish/iq/internal/iosystem/processor"
@@ -32,13 +31,12 @@ import (
 //	    Concurrency(4).
 //	    Build()
 type Builder struct {
-	conduit          conduit.Config
-	runtime          *conduit.Conduit
-	reporter         *progress.Reporter
-	workflow         *blueprint.Blueprint
-	compiledWorkflow *compiler.Workflow // Compiled workflow for emit detection
-	cacheStore       storage.Storage    // Storage for skip-if-exists caching
-	err              error
+	conduit  conduit.Config
+	runtime  *conduit.Conduit
+	reporter *progress.Reporter
+	workflow *blueprint.Blueprint
+	cache    storage.Storage
+	err      error
 }
 
 // New creates a new conduit builder with default configuration.
@@ -176,6 +174,21 @@ func (b *Builder) TextCollector(enable bool) *Builder {
 	return b
 }
 
+func (b *Builder) Cache(path string) *Builder {
+	if b.err != nil || b.runtime == nil || path == "" {
+		return b
+	}
+
+	store, err := storage.NewFileSystem(path)
+	if err != nil {
+		b.err = fmt.Errorf("failed to create cache storage at %s: %w", path, err)
+		return b
+	}
+
+	b.cache = store
+	return b
+}
+
 // Workflow sets the blueprint to use for creating processors.
 // This is required.
 func (b *Builder) Workflow(file string, llm chatter.Chatter, sink iosystem.Sink) *Builder {
@@ -190,17 +203,13 @@ func (b *Builder) Workflow(file string, llm chatter.Chatter, sink iosystem.Sink)
 		return b
 	}
 
-	wrk, err := blueprint.New(file, llm, sink)
+	wrk, err := blueprint.New(file, llm, sink, b.cache)
 	if err != nil {
 		b.err = fmt.Errorf("failed to create blueprint from %s: %w", file, err)
 		return b
 	}
 
-	// Store workflow for potential use in SkipIfExists
 	b.workflow = wrk
-
-	// Store compiled workflow for emit detection
-	b.compiledWorkflow = wrk.Workflow()
 
 	// Report workflow compiled with actual counts
 	if b.reporter != nil {
@@ -213,28 +222,6 @@ func (b *Builder) Workflow(file string, llm chatter.Chatter, sink iosystem.Sink)
 	b.runtime.Name = wrk.Name()
 	b.runtime.About = wrk.About()
 	b.runtime.Input, b.runtime.Reply = wrk.Schema()
-
-	return b
-}
-
-// SkipIfExists enables step-level output caching for incremental processing.
-// When enabled, each step with an 'emit' attribute will check if its output
-// already exists in storage and skip LLM operations if found, using cached output instead.
-// Must be called after Workflow() and before Build().
-func (b *Builder) SkipIfExists(outputPath string) *Builder {
-	if b.err != nil || b.runtime == nil || b.workflow == nil || outputPath == "" {
-		return b
-	}
-
-	// Create storage for output checking/caching
-	store, err := storage.NewFileSystem(outputPath)
-	if err != nil {
-		b.err = fmt.Errorf("failed to create storage for skip-if-exists: %w", err)
-		return b
-	}
-
-	// Store reference for use in Build()
-	b.cacheStore = store
 
 	return b
 }
@@ -265,24 +252,15 @@ func (b *Builder) Build() (*ConduitWithReporter, error) {
 	}
 
 	return &ConduitWithReporter{
-		Conduit:          b.runtime,
-		reporter:         b.reporter,
-		cacheStore:       b.cacheStore,
-		compiledWorkflow: b.compiledWorkflow,
+		Conduit:  b.runtime,
+		reporter: b.reporter,
 	}, nil
 }
 
 // ConduitWithReporter wraps a conduit and injects progress reporter into context
 type ConduitWithReporter struct {
 	*conduit.Conduit
-	reporter         *progress.Reporter
-	cacheStore       storage.Storage    // Storage for skip-if-exists caching
-	compiledWorkflow *compiler.Workflow // For emit detection
-}
-
-// GetWorkflow returns the compiled workflow.
-func (c *ConduitWithReporter) GetWorkflow() *compiler.Workflow {
-	return c.compiledWorkflow
+	reporter *progress.Reporter
 }
 
 // Run executes the pipeline with progress reporter in context

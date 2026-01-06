@@ -15,6 +15,7 @@ import (
 	"github.com/fogfish/iq/internal/blueprint/ast"
 	"github.com/fogfish/iq/internal/blueprint/runtime"
 	"github.com/fogfish/iq/internal/iosystem"
+	"github.com/fogfish/iq/internal/iosystem/storage"
 	"github.com/google/cel-go/cel"
 	"github.com/kshard/chatter"
 )
@@ -23,6 +24,7 @@ import (
 type Compiler struct {
 	llm    chatter.Chatter
 	sink   iosystem.Sink
+	cache  storage.Storage
 	celEnv *cel.Env
 }
 
@@ -36,7 +38,7 @@ type Workflow struct {
 }
 
 // New creates a new compiler
-func New(llm chatter.Chatter, sink iosystem.Sink) (*Compiler, error) {
+func New(llm chatter.Chatter, sink iosystem.Sink, cache storage.Storage) (*Compiler, error) {
 	// Create CEL environment for route conditions and selector expressions
 	// Variables available in CEL expressions:
 	// - choice: output from the router agent (router context)
@@ -59,6 +61,7 @@ func New(llm chatter.Chatter, sink iosystem.Sink) (*Compiler, error) {
 	return &Compiler{
 		llm:    llm,
 		sink:   sink,
+		cache:  cache,
 		celEnv: env,
 	}, nil
 }
@@ -223,11 +226,11 @@ func (c *Compiler) compileStep(ctx context.Context, tree *ast.AST, node ast.Step
 		return nil, fmt.Errorf("unsupported step type: %+v", node)
 	}
 
-	prompter = c.compileMemento(ctx, node, prompter)
 	prompter = c.compilePrinter(ctx, node, prompter)
 	prompter = c.compileRepeater(ctx, node, prompter)
 	prompter = c.compileEmitter(ctx, node, prompter)
 	prompter = c.compileCache(ctx, node, prompter)
+	prompter = c.compileMemento(ctx, node, prompter)
 	return prompter, nil
 }
 
@@ -354,6 +357,10 @@ func (c *Compiler) compileEmitter(_ context.Context, node ast.StepNode, prompter
 }
 
 func (c *Compiler) compileCache(ctx context.Context, node ast.StepNode, prompter runtime.Prompter) runtime.Prompter {
-	// TODO: implement cache compilation
-	return prompter
+	emit := node.GetEmit()
+	if emit == "" || c.cache == nil {
+		return prompter
+	}
+
+	return runtime.NewCache(c.cache, emit, prompter)
 }

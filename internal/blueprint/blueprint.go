@@ -16,6 +16,7 @@ import (
 	"github.com/fogfish/iq/internal/blueprint/parser"
 	"github.com/fogfish/iq/internal/blueprint/runtime"
 	"github.com/fogfish/iq/internal/iosystem"
+	"github.com/fogfish/iq/internal/iosystem/storage"
 	"github.com/google/jsonschema-go/jsonschema"
 	"github.com/kshard/chatter"
 )
@@ -32,7 +33,7 @@ type Blueprint struct {
 // }
 
 // New loads and compiles a blueprint file
-func New(file string, llm chatter.Chatter, sink iosystem.Sink) (*Blueprint, error) {
+func New(file string, llm chatter.Chatter, sink iosystem.Sink, cache storage.Storage) (*Blueprint, error) {
 	// Phase 1: Parse YAML to AST
 	p := parser.New(".")
 	tree, err := p.Parse(file)
@@ -41,7 +42,7 @@ func New(file string, llm chatter.Chatter, sink iosystem.Sink) (*Blueprint, erro
 	}
 
 	// Phase 2: Compile AST to executable workflow
-	comp, err := compiler.New(llm, sink)
+	comp, err := compiler.New(llm, sink, cache)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create compiler: %w", err)
 	}
