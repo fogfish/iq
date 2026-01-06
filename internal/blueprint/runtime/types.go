@@ -5,26 +5,33 @@ import (
 	"fmt"
 
 	"github.com/fogfish/iq/internal/iosystem"
+	"github.com/fogfish/iq/internal/iosystem/codec"
 	"github.com/kshard/chatter"
 )
 
 // Input/Output content
-type Gist interface{ HKT1(Gist) }
+type Gist interface {
+	HKT1(Gist)
+	ContentType() string
+}
 
 // Input/Output content is plain text
 type Text string
 
-func (Text) HKT1(Gist) {}
+func (Text) HKT1(Gist)           {}
+func (Text) ContentType() string { return codec.ContentText }
 
 // Input/Output content is JSON
 type Json map[string]any
 
-func (Json) HKT1(Gist) {}
+func (Json) HKT1(Gist)           {}
+func (Json) ContentType() string { return codec.ContentJSON }
 
 // Input/Output content is a JSON array
 type List []any
 
-func (List) HKT1(Gist) {}
+func (List) HKT1(Gist)           {}
+func (List) ContentType() string { return codec.ContentJSON }
 
 func ToGist(x any) (Gist, error) {
 	switch v := x.(type) {
@@ -58,9 +65,18 @@ type Event struct {
 	Steps map[string]Gist
 }
 
-func (evt Event) copy(current Gist) Event {
+func NewEvent(key iosystem.Key, doc Gist) Event {
 	return Event{
-		Key:      evt.Key,
+		Key:      key,
+		Document: doc,
+		Current:  doc,
+		Steps:    make(map[string]Gist),
+	}
+}
+
+func (evt Event) copy(key iosystem.Key, current Gist) Event {
+	return Event{
+		Key:      key,
 		Document: evt.Document,
 		Current:  current,
 		Steps:    evt.Steps,

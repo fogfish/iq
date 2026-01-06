@@ -13,7 +13,6 @@ import (
 
 	"github.com/fogfish/iq/internal/iosystem"
 	"github.com/fogfish/iq/internal/iosystem/processor"
-	"github.com/fogfish/iq/internal/iosystem/storage"
 	"github.com/fogfish/iq/internal/progress"
 	"github.com/fogfish/iq/internal/service/batch"
 	"github.com/fogfish/iq/internal/service/llm"
@@ -117,6 +116,7 @@ type optsAgent struct {
 	splitterChars string
 	json          bool
 	array         bool
+	merge         bool
 	skipIfExists  bool
 }
 
@@ -141,19 +141,22 @@ func (opts *optsAgent) apply(cmd *cobra.Command) {
 	f.BoolVar(&opts.array, "array", false,
 		"Passes input documents or chunks as an array to the workflow.")
 
+	f.BoolVar(&opts.merge, "merge", false,
+		"Combine all input files into a single document before processing")
+
 	f.BoolVar(&opts.skipIfExists, "skip-if-exists", false,
 		"Skip documents that already have output (checks last step emit)")
 }
 
 // validate checks for incompatible flag combinations
 func (opts *optsAgent) validate() error {
-	if opts.array && finput.merge {
+	if opts.array && opts.merge {
 		return fmt.Errorf("--array and --merge are mutually exclusive (--array collects inputs as array, --merge combines as single document)")
 	}
 	return nil
 }
 
-func (opts *optsAgent) build(llm chatter.Chatter, snapshot storage.Storage, reporter *progress.Reporter) (*worker.ConduitWithReporter, error) {
+func (opts *optsAgent) build(llm chatter.Chatter, sink iosystem.Sink, reporter *progress.Reporter) (*worker.ConduitWithReporter, error) {
 	// Validate flags
 	if err := opts.validate(); err != nil {
 		return nil, err
@@ -163,13 +166,14 @@ func (opts *optsAgent) build(llm chatter.Chatter, snapshot storage.Storage, repo
 		// TODO: ErrorMode
 		Reporter(reporter).
 		Runtime().
-		ArrayMode(opts.array).
 		Splitter(processor.ChunkConfig{
 			Strategy:       opts.splitter,
 			ChunkSize:      opts.splitterChunk,
 			DelimiterChars: opts.splitterChars,
 		}).
-		Workflow(opts.file, llm, snapshot)
+		ListCollector(opts.array).
+		TextCollector(opts.merge).
+		Workflow(opts.file, llm, sink)
 
 	// Add skip-if-exists processor if flag enabled
 	if opts.skipIfExists {
@@ -191,8 +195,7 @@ func (opts *optsAgent) build(llm chatter.Chatter, snapshot storage.Storage, repo
 var finput optsInput
 
 type optsInput struct {
-	dir   string
-	merge bool
+	dir string
 }
 
 func (opts *optsInput) apply(cmd *cobra.Command) {
@@ -200,16 +203,11 @@ func (opts *optsInput) apply(cmd *cobra.Command) {
 
 	f.StringVarP(&opts.dir, "input-dir", "I", "",
 		"Input directory or S3 URI containing files to process")
-
-	f.BoolVar(&opts.merge, "merge", false,
-		"Combine all input files into a single document before processing")
 }
 
 func (opts *optsInput) build(files []string) (iosystem.Source, error) {
 	return source.New().
-		Files(".", files...).
-		Path(opts.dir).
-		Merge(opts.merge).
+		Files(opts.dir, files...).
 		Stdin().
 		None().
 		Build()
@@ -234,16 +232,12 @@ func (opts *optsReply) apply(cmd *cobra.Command) {
 
 	f.StringVarP(&opts.file, "output", "o", "",
 		"Path to the output file")
-
-	f.StringVarP(&opts.snapshot, "snapshot-dir", "S", "",
-		"Path to the snapshot storage directory or S3 URI")
 }
 
-func (opts *optsReply) build() (iosystem.Sink, storage.Storage, error) {
+func (opts *optsReply) build() (iosystem.Sink, error) {
 	return sink.New().
 		File(opts.file).
 		Path(opts.dir).
-		Snapshot(opts.snapshot).
 		Stdout(!fglobal.quiet && !fglobal.silent).
 		Build()
 }

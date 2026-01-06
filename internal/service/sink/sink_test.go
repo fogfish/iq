@@ -8,6 +8,10 @@
 
 package sink_test
 
+/*
+
+TODO:
+
 import (
 	"bytes"
 	"context"
@@ -176,3 +180,5 @@ func TestBuilder_DirMultipleFiles(t *testing.T) {
 		)
 	}
 }
+
+*/

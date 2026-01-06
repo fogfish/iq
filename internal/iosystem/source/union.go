@@ -8,6 +8,10 @@
 
 package source
 
+/*
+
+TODO: Union is Collector
+
 import (
 	"bytes"
 	"context"
@@ -16,6 +20,8 @@ import (
 
 	"github.com/fogfish/iq/internal/iosystem"
 )
+
+
 
 // Union combines multiple sources into a single document.
 // It reads all documents from all sources and concatenates their content.
@@ -99,3 +105,5 @@ func (m *Union) Close() error {
 	}
 	return nil
 }
+
+*/

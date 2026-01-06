@@ -51,11 +51,7 @@ func (f *ForEach) Prompt(ctx context.Context, in Event, opts ...chatter.Opt) (Ev
 
 		reply, err := f.prompter.Prompt(
 			progress.ContextForEach(ctx, f.Node.Job, i+1, len(list)),
-			Event{
-				Document: in.Document,
-				Current:  val,
-				Steps:    in.Steps,
-			},
+			in.copy(in.Key.SeqID(i+1), val),
 			opts...,
 		)
 		if err != nil {
@@ -69,7 +65,7 @@ func (f *ForEach) Prompt(ctx context.Context, in Event, opts ...chatter.Opt) (Ev
 		output[i] = reply.Current
 	}
 
-	return in.copy(output), nil
+	return in.copy(in.Key, output), nil
 }
 
 func (f *ForEach) evalSelect(in Event) (List, error) {

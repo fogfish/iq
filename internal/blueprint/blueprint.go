@@ -16,7 +16,6 @@ import (
 	"github.com/fogfish/iq/internal/blueprint/parser"
 	"github.com/fogfish/iq/internal/blueprint/runtime"
 	"github.com/fogfish/iq/internal/iosystem"
-	"github.com/fogfish/iq/internal/iosystem/storage"
 	"github.com/google/jsonschema-go/jsonschema"
 	"github.com/kshard/chatter"
 )
@@ -33,7 +32,7 @@ type Blueprint struct {
 // }
 
 // New loads and compiles a blueprint file
-func New(file string, llm chatter.Chatter, snapshot storage.Storage) (*Blueprint, error) {
+func New(file string, llm chatter.Chatter, sink iosystem.Sink) (*Blueprint, error) {
 	// Phase 1: Parse YAML to AST
 	p := parser.New(".")
 	tree, err := p.Parse(file)
@@ -42,7 +41,7 @@ func New(file string, llm chatter.Chatter, snapshot storage.Storage) (*Blueprint
 	}
 
 	// Phase 2: Compile AST to executable workflow
-	comp, err := compiler.New(llm, snapshot)
+	comp, err := compiler.New(llm, sink)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create compiler: %w", err)
 	}
@@ -83,8 +82,7 @@ func (bp *Blueprint) StepCount() int {
 }
 
 // Run executes the entrypoint job (or "main" if no entrypoint specified)
-func (bp *Blueprint) Prompt(ctx context.Context, key iosystem.Key, input any, opt ...chatter.Opt) (any, error) {
-	// Determine which job to run
+func (bp *Blueprint) Prompt(ctx context.Context, in runtime.Event, opt ...chatter.Opt) (runtime.Event, error) {
 	jobName := bp.workflow.Entrypoint
 	if jobName == "" {
 		jobName = "main"
@@ -93,29 +91,10 @@ func (bp *Blueprint) Prompt(ctx context.Context, key iosystem.Key, input any, op
 	job, exists := bp.workflow.Jobs[jobName]
 	if !exists {
 		if bp.workflow.Entrypoint == "" {
-			return nil, fmt.Errorf("no entrypoint specified and no 'main' job found")
+			return runtime.Event{}, fmt.Errorf("no entrypoint specified and no 'main' job found")
 		}
-		return nil, fmt.Errorf("entrypoint job '%s' not found in workflow", jobName)
+		return runtime.Event{}, fmt.Errorf("entrypoint job '%s' not found in workflow", jobName)
 	}
 
-	val, err := runtime.ToGist(input)
-	if err != nil {
-		return nil, fmt.Errorf("input conversion failed: %w", err)
-	}
-
-	evt := runtime.Event{
-		Key:      key,
-		Document: val,
-		Current:  val,
-		Steps:    make(map[string]runtime.Gist),
-	}
-
-	result, err := job.Prompt(ctx, evt, opt...)
-
-	// Capture LastEmitContext from the workflow context if present
-	// Note: We can't get the modified context back from job.Prompt because
-	// Go contexts are immutable. But we can store it in a side channel.
-	// For now, this won't work until we refactor job.Prompt to return context.
-
-	return result.Current, err
+	return job.Prompt(ctx, in, opt...)
 }

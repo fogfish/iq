@@ -8,16 +8,9 @@
 
 package source_test
 
-import (
-	"context"
-	"io"
-	"os"
-	"path/filepath"
-	"testing"
+/*
 
-	"github.com/fogfish/iq/internal/iosystem/source"
-	"github.com/fogfish/it/v2"
-)
+TODO: Move union to the level of Collector
 
 func TestUnionSource(t *testing.T) {
 	t.Run("Union/TwoFiles", func(t *testing.T) {
@@ -126,3 +119,5 @@ func TestUnionSource(t *testing.T) {
 		)
 	})
 }
+
+*/

@@ -14,20 +14,20 @@ import (
 
 	"github.com/fogfish/iq/internal/blueprint/ast"
 	"github.com/fogfish/iq/internal/blueprint/runtime"
-	"github.com/fogfish/iq/internal/iosystem/storage"
+	"github.com/fogfish/iq/internal/iosystem"
 	"github.com/google/cel-go/cel"
 	"github.com/kshard/chatter"
 )
 
 // Compiler compiles AST to executable workflow
 type Compiler struct {
-	llm      chatter.Chatter
-	snapshot storage.Storage
-	celEnv   *cel.Env
+	llm    chatter.Chatter
+	sink   iosystem.Sink
+	celEnv *cel.Env
 }
 
 // New creates a new compiler
-func New(llm chatter.Chatter, snapshot storage.Storage) (*Compiler, error) {
+func New(llm chatter.Chatter, sink iosystem.Sink) (*Compiler, error) {
 	// Create CEL environment for route conditions and selector expressions
 	// Variables available in CEL expressions:
 	// - choice: output from the router agent (router context)
@@ -48,9 +48,9 @@ func New(llm chatter.Chatter, snapshot storage.Storage) (*Compiler, error) {
 	}
 
 	return &Compiler{
-		llm:      llm,
-		snapshot: snapshot,
-		celEnv:   env,
+		llm:    llm,
+		sink:   sink,
+		celEnv: env,
 	}, nil
 }
 
@@ -337,11 +337,11 @@ func (c *Compiler) compileRepeater(_ context.Context, node ast.StepNode, prompte
 
 func (c *Compiler) compileEmitter(_ context.Context, node ast.StepNode, prompter runtime.Prompter) runtime.Prompter {
 	emit := node.GetEmit()
-	if emit == "" || c.snapshot == nil {
+	if emit == "" || c.sink == nil {
 		return prompter
 	}
 
-	return runtime.NewEmitter(c.snapshot, emit, prompter)
+	return runtime.NewEmitter(c.sink, emit, prompter)
 }
 
 func (c *Compiler) compileCache(ctx context.Context, node ast.StepNode, prompter runtime.Prompter) runtime.Prompter {

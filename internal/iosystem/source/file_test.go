@@ -8,6 +8,8 @@
 
 package source_test
 
+/*
+
 import (
 	"context"
 	"io"
@@ -186,3 +188,5 @@ func TestFileSource_AutoClose(t *testing.T) {
 		it.Equal(err, io.EOF),
 	)
 }
+
+*/

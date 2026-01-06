@@ -21,7 +21,7 @@ func TestNewDocument(t *testing.T) {
 	doc := iosystem.NewDocument("test.txt", reader)
 
 	it.Then(t).Should(
-		it.Equal(doc.Path, "test.txt"),
+		it.Equal(doc.Key, "test.txt"),
 		it.True(doc.Reader != nil),
 		it.True(doc.Metadata.Custom != nil),
 	)

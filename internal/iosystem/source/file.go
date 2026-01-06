@@ -8,22 +8,27 @@
 
 package source
 
+/*
+
+TODO: remove
+
 import (
 	"context"
 	"fmt"
 	"io"
 	"io/fs"
-	"path/filepath"
 
 	"github.com/fogfish/iq/internal/iosystem"
+	"github.com/fogfish/iq/internal/iosystem/codec"
 )
 
 // File reads one or more files sequentially from a filesystem.
 // A single file is a special case where paths contains one element.
 type File struct {
-	fsys  fs.FS
-	paths []string
-	index int
+	fsys   fs.FS
+	paths  []string
+	index  int
+	codecs *codec.Registry
 }
 
 // NewFile creates a source that reads files from the given filesystem.
@@ -35,8 +40,9 @@ func NewFile(fsys fs.FS, paths ...string) (iosystem.Source, error) {
 	}
 
 	return &File{
-		fsys:  fsys,
-		paths: paths,
+		fsys:   fsys,
+		paths:  paths,
+		codecs: codec.Default,
 	}, nil
 }
 
@@ -56,14 +62,7 @@ func (f *File) Next(ctx context.Context) (*iosystem.Document, error) {
 	}
 
 	doc := iosystem.NewDocument(iosystem.Key(path), &autoCloser{ReadCloser: file})
-	switch filepath.Ext(path) {
-	case ".json":
-		doc.Type = iosystem.ContentJSON
-	case ".yaml", ".yml":
-		doc.Type = iosystem.ContentYAML
-	default:
-		doc.Type = iosystem.ContentText
-	}
+	doc.Type = f.codecs.DetectContentType(path)
 
 	return doc, nil
 }
@@ -104,3 +103,4 @@ func (a *autoCloser) Close() error {
 	a.closed = true
 	return a.ReadCloser.Close()
 }
+*/

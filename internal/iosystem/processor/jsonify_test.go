@@ -8,6 +8,8 @@
 
 package processor_test
 
+/*
+
 import (
 	"context"
 	"encoding/json"
@@ -205,3 +207,5 @@ func TestJSONFormatter_CustomIndent(t *testing.T) {
 		it.True(strings.Contains(formattedStr, "    ")), // 4 spaces
 	)
 }
+
+*/

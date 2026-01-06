@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/fogfish/iq/internal/iosystem"
+	"github.com/fogfish/iq/internal/iosystem/codec"
 	"github.com/fogfish/iq/internal/iosystem/sink"
 	"github.com/fogfish/iq/internal/iosystem/source"
 	"github.com/google/jsonschema-go/jsonschema"
@@ -168,11 +169,7 @@ func (p *Conduit) runSequential(ctx context.Context, source iosystem.Source, sin
 		doc, err := source.Next(ctx)
 		if err == io.EOF {
 			// Inject EOF document into pipeline
-			eofDoc := &iosystem.Document{
-				Type: iosystem.ContentEOF,
-				Path: "",
-			}
-			_ = p.processDocument(ctx, []*iosystem.Document{eofDoc}, sink, stats)
+			_ = p.processDocument(ctx, []*iosystem.Document{iosystem.EOF()}, sink, stats)
 			return nil // Normal completion
 		}
 		if err != nil {
@@ -183,7 +180,6 @@ func (p *Conduit) runSequential(ctx context.Context, source iosystem.Source, sin
 			continue
 		}
 
-		// Wrap single document in array for monadic processing
 		if err := p.processDocument(ctx, []*iosystem.Document{doc}, sink, stats); err != nil {
 			stats.Errors = append(stats.Errors, err)
 			if p.config.Progress != nil {
@@ -230,7 +226,7 @@ func (p *Conduit) processDocument(ctx context.Context, docs []*iosystem.Document
 
 	// Write final documents to sink
 	for _, d := range currentDocs {
-		if d.Type == iosystem.ContentEOF {
+		if d.Type == codec.ContentEOF {
 			continue // Don't write EOF markers to output
 		}
 		if err := sink.Write(ctx, d); err != nil {

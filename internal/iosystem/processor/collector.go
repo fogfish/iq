@@ -9,12 +9,14 @@
 package processor
 
 import (
+	"bytes"
 	"context"
+	"io"
 
 	"github.com/fogfish/iq/internal/iosystem"
 )
 
-// ArrayCollector collects all input documents and emits them as array on EOF.
+// Collector collects all input documents and emits them as array on EOF.
 // This processor enables batch processing mode via --array CLI flag.
 //
 // Behavior:
@@ -26,13 +28,15 @@ import (
 //   - Buffers ALL documents in memory until EOF
 //   - Not suitable for very large document streams
 //   - Use only with explicit --array flag
-type ArrayCollector struct {
+type Collector struct {
+	merge     bool
 	collected []*iosystem.Document
 }
 
-// NewArrayCollector creates processor that collects documents into array.
-func NewArrayCollector() iosystem.Processor {
-	return &ArrayCollector{
+// NewCollector creates processor that collects documents into array.
+func NewCollector(merge bool) iosystem.Processor {
+	return &Collector{
+		merge:     merge,
 		collected: make([]*iosystem.Document, 0, 16), // Pre-allocate reasonable size
 	}
 }
@@ -41,24 +45,32 @@ func NewArrayCollector() iosystem.Processor {
 //
 // Normal documents: collected, return empty slice (stops propagation until EOF)
 // EOF document: emit collected []*Document array (monadic - passes documents directly)
-func (p *ArrayCollector) Process(ctx context.Context, docs []*iosystem.Document) ([]*iosystem.Document, error) {
+func (p *Collector) Process(ctx context.Context, docs []*iosystem.Document) ([]*iosystem.Document, error) {
 	// Check for EOF signal
-	if len(docs) > 0 && docs[0].Type == iosystem.ContentEOF {
-		// Return collected documents as array (monadic - no encoding!)
+	if iosystem.IsEOF(docs) && !p.merge {
 		result := p.collected
 		p.collected = make([]*iosystem.Document, 0, 16) // Reset for potential reuse
 		return result, nil
 	}
 
-	// Collect all input documents
-	p.collected = append(p.collected, docs...)
+	if iosystem.IsEOF(docs) && p.merge {
+		var buf bytes.Buffer
+		for _, doc := range p.collected {
+			_, err := io.Copy(&buf, doc.Reader)
+			if err != nil {
+				return nil, err
+			}
+			buf.WriteByte('\n')
+		}
+		return []*iosystem.Document{iosystem.NewDocument(p.collected[0].Key, &buf)}, nil
+	}
 
-	// Return empty - continue collecting until EOF
+	p.collected = append(p.collected, docs...)
 	return []*iosystem.Document{}, nil
 }
 
 // Close finalizes collection
-func (p *ArrayCollector) Close() error {
+func (p *Collector) Close() error {
 	p.collected = nil
 	return nil
 }

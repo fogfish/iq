@@ -52,7 +52,6 @@ func (s *Shell) Prompt(ctx context.Context, in Event, opts ...chatter.Opt) (Even
 	cmd.Stderr = &stderr
 
 	if err := cmd.Run(); err != nil {
-		// Include stderr in error message
 		stderrStr := stderr.String()
 		if stderrStr != "" {
 			return in, fmt.Errorf("command failed: %w\nCommand: %s\nStderr: %s", err, rendered, stderrStr)
@@ -60,5 +59,5 @@ func (s *Shell) Prompt(ctx context.Context, in Event, opts ...chatter.Opt) (Even
 		return in, fmt.Errorf("command failed: %w\nCommand: %s", err, rendered)
 	}
 
-	return in.copy(Text(stdout.String())), nil
+	return in.copy(in.Key, Text(stdout.String())), nil
 }

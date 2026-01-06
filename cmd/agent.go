@@ -79,12 +79,12 @@ func agent(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	snk, snap, err := freply.build()
+	snk, err := freply.build()
 	if err != nil {
 		return err
 	}
 
-	srv, err := fagent.build(llm, snap, reporter)
+	srv, err := fagent.build(llm, snk, reporter)
 	if err != nil {
 		return err
 	}
@@ -96,36 +96,6 @@ func agent(cmd *cobra.Command, args []string) error {
 
 	return nil
 }
-
-// workflowUsesEmit checks if any step in workflow uses emit attribute.
-// func workflowUsesEmit(workflow *compiler.Workflow) bool {
-// 	if workflow == nil {
-// 		return false
-// 	}
-// 	for _, job := range workflow.Jobs {
-// 		for _, step := range job.Steps {
-// 			switch s := step.(type) {
-// 			case *compiler.AgentStep:
-// 				if s.Emit != "" {
-// 					return true
-// 				}
-// 			case *compiler.RouterStep:
-// 				if s.Emit != "" {
-// 					return true
-// 				}
-// 			case *compiler.ForeachStep:
-// 				if s.Emit != "" {
-// 					return true
-// 				}
-// 			case *compiler.RunStep:
-// 				if s.Emit != "" {
-// 					return true
-// 				}
-// 			}
-// 		}
-// 	}
-// 	return false
-// }
 
 //------------------------------------------------------------------------------
 
@@ -180,7 +150,6 @@ func agentBatch(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	// TODO: decision about snapshot is needed
 	srv, err := fagent.build(llm, nil, reporter)
 	if err != nil {
 		reporter.WorkflowError(err)
@@ -223,7 +192,6 @@ func agentServe(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	// TODO: decision about snapshot is needed
 	srv, err := fagent.build(llm, nil, reporter)
 	if err != nil {
 		return err

@@ -14,6 +14,7 @@ import (
 	"os"
 
 	"github.com/fogfish/iq/internal/iosystem"
+	"github.com/fogfish/iq/internal/iosystem/codec"
 )
 
 // Reader wraps an io.Reader as a single-document Source.
@@ -39,7 +40,7 @@ func NewReader(path string, r io.Reader) *Reader {
 	return &Reader{
 		path:    path,
 		reader:  r,
-		content: iosystem.ContentStream,
+		content: codec.ContentStream,
 	}
 }
 
@@ -54,7 +55,7 @@ func NewReaderJSON(path string, r io.Reader) iosystem.Source {
 	return &Reader{
 		path:    path,
 		reader:  r,
-		content: iosystem.ContentJSON,
+		content: codec.ContentJSON,
 	}
 }
 

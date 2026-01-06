@@ -126,10 +126,10 @@ func (r *Router) evalRoute(ctx context.Context, route string, in Event, opts ...
 	reporter := progress.FromContext(ctx)
 	reporter.RouterMatched(route, route)
 
-	jobResult, err := job.Prompt(progress.ContextRouter(ctx, route), in, opts...)
+	result, err := job.Prompt(progress.ContextRouter(ctx, route), in, opts...)
 	if err != nil {
 		return in, err
 	}
 
-	return jobResult, nil
+	return result, nil
 }

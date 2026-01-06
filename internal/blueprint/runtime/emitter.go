@@ -1,14 +1,12 @@
 package runtime
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
 	"path/filepath"
 
 	"github.com/fogfish/iq/internal/iosystem"
-	"github.com/fogfish/iq/internal/iosystem/storage"
+	"github.com/fogfish/iq/internal/iosystem/codec"
 	"github.com/kshard/chatter"
 )
 
@@ -30,16 +28,20 @@ Needs emit configuration passed from compiler
 */
 
 type Emitter struct {
-	prefix   string
-	snapshot storage.Storage
+	prefix string
+	sink   iosystem.Sink
 
 	Prompter
 }
 
 var _ Prompter = (*Emitter)(nil)
 
-func NewEmitter(snapshot storage.Storage, prefix string, p Prompter) *Emitter {
-	return &Emitter{snapshot: snapshot, prefix: prefix, Prompter: p}
+func NewEmitter(sink iosystem.Sink, prefix string, p Prompter) *Emitter {
+	return &Emitter{
+		sink:     sink,
+		prefix:   prefix,
+		Prompter: p,
+	}
 }
 
 func (e *Emitter) Prompt(ctx context.Context, in Event, opts ...chatter.Opt) (Event, error) {
@@ -48,31 +50,17 @@ func (e *Emitter) Prompt(ctx context.Context, in Event, opts ...chatter.Opt) (Ev
 		return in, err
 	}
 
-	key := iosystem.Key(filepath.Join(e.prefix, string(in.Key)))
-	var buf bytes.Buffer
-	switch v := val.Current.(type) {
-	case Text:
-		_, err = buf.Write([]byte(v))
-		if err != nil {
-			return in, fmt.Errorf("emitter: failed to write text content: %w", err)
-		}
-	case Json, List:
-		enc := json.NewEncoder(&buf)
-		enc.SetIndent("", "  ")
-		err = enc.Encode(v)
-		if err != nil {
-			return in, fmt.Errorf("emitter: failed to encode JSON content: %w", err)
-		}
-	default:
-		return in, fmt.Errorf("emitter: unsupported content type: %T", v)
+	key := iosystem.Key(filepath.Join(e.prefix, string(val.Key)))
+	dat, err := codec.Default.Encode(val.Current, val.Current.ContentType())
+	if err != nil {
+		return in, fmt.Errorf("emitter: failed to encode content: %w", err)
 	}
+	doc := iosystem.NewDocument(key, dat)
 
-	err = e.snapshot.Put(ctx, key, &buf)
+	err = e.sink.Write(ctx, doc)
 	if err != nil {
 		return in, fmt.Errorf("emitter: failed to put document at %s: %w", key, err)
 	}
-
-	fmt.Printf("[Emitter] Emitting with prefix '%s' : %v \n", e.prefix, val.Current)
 
 	return val, nil
 }

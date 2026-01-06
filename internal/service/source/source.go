@@ -11,14 +11,10 @@ package source
 import (
 	"fmt"
 	"os"
-	"path/filepath"
-	"strings"
 
 	"github.com/fogfish/iq/internal/iosystem"
 	"github.com/fogfish/iq/internal/iosystem/source"
-	"github.com/fogfish/stream"
-	"github.com/fogfish/stream/lfs"
-	"github.com/fogfish/stream/spool"
+	"github.com/fogfish/iq/internal/iosystem/storage"
 )
 
 // Builder creates iosystem.Source instances from CLI flags.
@@ -49,48 +45,53 @@ func (b *Builder) Stdin() *Builder {
 
 // Files sets the input to read from file paths.
 // Multiple files will be read sequentially unless Merge is enabled.
-func (b *Builder) Files(dir string, paths ...string) *Builder {
-	if b.err != nil || b.src != nil || len(paths) == 0 {
+func (b *Builder) Files(dir string, file ...string) *Builder {
+	if b.err != nil || b.src != nil || (dir == "" && len(file) == 0) {
 		return b
 	}
 
-	fs, err := Mount(dir)
+	if dir == "" {
+		dir = "."
+	}
+
+	// if
+	src, err := storage.NewFileSystem(dir, file...)
 	if err != nil {
 		b.err = fmt.Errorf("failed to mount input dir %s: %w", dir, err)
 		return b
 	}
 
-	b.src, b.err = source.NewFile(fs, paths...)
+	b.src, b.err = source.NewStorage(src, "")
 	return b
 }
 
 // Merge enables merge mode - all files are concatenated into a single document.
 // Only applies when multiple files are specified.
-func (b *Builder) Merge(enable bool) *Builder {
-	if b.err != nil || b.src == nil || !enable {
-		return b
-	}
-
-	b.src, b.err = source.NewUnion(b.src)
-	return b
-}
+// func (b *Builder) Merge(enable bool) *Builder {
+// 	if b.err != nil || b.src == nil || !enable {
+// 		return b
+// 	}
+//
+// 	b.src, b.err = source.NewUnion(b.src)
+// 	return b
+// }
 
 // Path sets the input to read from files from dir path.
-func (b *Builder) Path(path string) *Builder {
-	if b.err != nil || b.src != nil || len(path) == 0 {
-		return b
-	}
+// func (b *Builder) Path(path string) *Builder {
+// 	if b.err != nil || b.src != nil || len(path) == 0 {
+// 		return b
+// 	}
 
-	dir, base := filepath.Split(path)
-	fs, err := Mount(dir)
-	if err != nil {
-		b.err = fmt.Errorf("failed to mount input dir %s: %w", dir, err)
-		return b
-	}
+// 	dir, base := filepath.Split(path)
+// 	fs, err := Mount(dir)
+// 	if err != nil {
+// 		b.err = fmt.Errorf("failed to mount input dir %s: %w", dir, err)
+// 		return b
+// 	}
 
-	b.src, b.err = source.NewFS(fs, base)
-	return b
-}
+// 	b.src, b.err = source.NewStorage(fs, base)
+// 	return b
+// }
 
 func (b *Builder) None() *Builder {
 	if b.err != nil || b.src != nil {
@@ -125,15 +126,15 @@ func HasStdinBytes() bool {
 }
 
 // Mounts local or S3 filesystem based on path prefix.
-func Mount(path string) (spool.FileSystem, error) {
-	if len(path) == 0 {
-		return nil, fmt.Errorf("undefined mount point")
-	}
+// func Mount(path string) (spool.FileSystem, error) {
+// 	if len(path) == 0 {
+// 		return nil, fmt.Errorf("undefined mount point")
+// 	}
 
-	const s3pfx = "s3://"
-	if strings.HasPrefix(path, s3pfx) {
-		return stream.NewFS(path[len(s3pfx):])
-	}
+// 	const s3pfx = "s3://"
+// 	if strings.HasPrefix(path, s3pfx) {
+// 		return stream.NewFS(path[len(s3pfx):])
+// 	}
 
-	return lfs.New(path)
-}
+// 	return lfs.New(path)
+// }

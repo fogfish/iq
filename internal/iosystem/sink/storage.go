@@ -8,6 +8,8 @@
 
 package sink
 
+/*
+
 import (
 	"context"
 	"fmt"
@@ -78,3 +80,5 @@ func (s *StorageSink) Write(ctx context.Context, doc *iosystem.Document) error {
 func (s *StorageSink) Close() error {
 	return nil
 }
+
+*/

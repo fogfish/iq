@@ -118,14 +118,14 @@ func (agt *Manifold) Config(map[string]*Job) error {
 }
 
 // Executes the agent with given input and returns the output
-func (agt *Manifold) Prompt(ctx context.Context, input Event, opt ...chatter.Opt) (Event, error) {
+func (agt *Manifold) Prompt(ctx context.Context, in Event, opt ...chatter.Opt) (Event, error) {
 	opt = append(opt, aio.Route(agt.Node.RunsOn))
-	reply, err := agt.manifold.Prompt(ctx, input, opt...)
+	reply, err := agt.manifold.Prompt(ctx, in, opt...)
 	if err != nil {
-		return input, err
+		return in, err
 	}
 
-	return input.copy(reply), nil
+	return in.copy(in.Key, reply), nil
 }
 
 func (agt *Manifold) encode(in Event) (chatter.Message, error) {

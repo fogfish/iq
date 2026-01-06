@@ -107,7 +107,7 @@ func (b *Builder) Reporter(r *progress.Reporter) *Builder {
 	// Wire up progress callback
 	b.conduit.Progress = func(doc *iosystem.Document, err error) {
 		if err != nil {
-			r.DocumentError(doc.Path, err)
+			r.DocumentError(string(doc.Key), err)
 		} else {
 			// We'll report completion at the end of processing
 		}
@@ -154,21 +154,31 @@ func (b *Builder) Splitter(conf processor.ChunkConfig) *Builder {
 //
 // Memory warning: All documents buffered in memory until EOF.
 // Not suitable for very large document streams.
-func (b *Builder) ArrayMode(enable bool) *Builder {
+func (b *Builder) ListCollector(enable bool) *Builder {
 	if b.err != nil || b.runtime == nil || !enable {
 		return b
 	}
 
 	// Add ArrayCollector as first processor
 	// It will collect documents and emit array on EOF
-	b.runtime.AddProcessor(processor.NewArrayCollector())
+	b.runtime.AddProcessor(processor.NewCollector(false))
+
+	return b
+}
+
+func (b *Builder) TextCollector(enable bool) *Builder {
+	if b.err != nil || b.runtime == nil || !enable {
+		return b
+	}
+
+	b.runtime.AddProcessor(processor.NewCollector(true))
 
 	return b
 }
 
 // Workflow sets the blueprint to use for creating processors.
 // This is required.
-func (b *Builder) Workflow(file string, llm chatter.Chatter, snapshot storage.Storage) *Builder {
+func (b *Builder) Workflow(file string, llm chatter.Chatter, sink iosystem.Sink) *Builder {
 	if b.err != nil || b.runtime == nil {
 		return b
 	}
@@ -180,7 +190,7 @@ func (b *Builder) Workflow(file string, llm chatter.Chatter, snapshot storage.St
 		return b
 	}
 
-	wrk, err := blueprint.New(file, llm, snapshot)
+	wrk, err := blueprint.New(file, llm, sink)
 	if err != nil {
 		b.err = fmt.Errorf("failed to create blueprint from %s: %w", file, err)
 		return b

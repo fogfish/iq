@@ -79,7 +79,7 @@ func TestPipeline_WithChunking(t *testing.T) {
 	// Verify each chunk has proper metadata
 	for _, doc := range snk.docs {
 		it.Then(t).Should(
-			it.True(strings.Contains(doc.Path, "#chunk")),
+			it.True(strings.Contains(string(doc.Key), "#chunk")),
 			it.Equal(doc.Metadata.Custom["original_path"], "mock.txt"),
 		)
 	}
@@ -222,7 +222,7 @@ func (m *mockSink) Write(ctx context.Context, doc *iosystem.Document) error {
 	buf := &bytes.Buffer{}
 	io.Copy(buf, doc.Reader)
 
-	captured := iosystem.NewDocument(iosystem.Key(doc.Path), buf)
+	captured := iosystem.NewDocument(iosystem.Key(doc.Key), buf)
 	for k, v := range doc.Metadata.Custom {
 		captured.WithMetadata(k, v)
 	}
@@ -244,7 +244,7 @@ func TestConduit_ArrayCollector(t *testing.T) {
 	// Identity should receive array and pass it through
 	cfg := &conduit.Config{Concurrency: 1, ErrorMode: conduit.FailFast}
 	c := conduit.New(cfg)
-	c.AddProcessor(processor.NewArrayCollector())
+	c.AddProcessor(processor.NewCollector(false))
 	c.AddProcessor(processor.NewIdentity())
 
 	ctx := context.Background()

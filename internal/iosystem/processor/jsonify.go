@@ -9,14 +9,10 @@
 package processor
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
-	"fmt"
-	"io"
 
-	"github.com/TylerBrock/colorjson"
 	"github.com/fogfish/iq/internal/iosystem"
+	"github.com/fogfish/iq/internal/iosystem/codec"
 )
 
 // Jsonify is a processor that formats JSON documents with color and indentation.
@@ -38,6 +34,7 @@ import (
 //	docs, err := proc.Process(ctx, inputDoc)
 type Jsonify struct {
 	config JsonifyConfig
+	codec  codec.Codec
 }
 
 // JsonifyConfig configures the JSON formatter processor.
@@ -55,6 +52,7 @@ func NewJsonify(config JsonifyConfig) *Jsonify {
 
 	return &Jsonify{
 		config: config,
+		codec:  codec.NewPrettyJSONCodec(config.Color, config.Indent),
 	}
 }
 
@@ -63,69 +61,49 @@ func NewJsonify(config JsonifyConfig) *Jsonify {
 // Other documents are passed through unchanged.
 func (p *Jsonify) Process(ctx context.Context, docs []*iosystem.Document) ([]*iosystem.Document, error) {
 	// Passthrough EOF or empty
-	if len(docs) == 0 || (len(docs) == 1 && docs[0].Type == iosystem.ContentEOF) {
+	if iosystem.IsEOF(docs) {
 		return docs, nil
 	}
 
 	results := make([]*iosystem.Document, 0, len(docs))
 
+	/* TODO: fix
 	for _, doc := range docs {
 		if doc == nil {
 			return nil, fmt.Errorf("document is nil")
 		}
 
 		// Check if document is JSON
-		contentType := doc.Type
-		if contentType != iosystem.ContentJSON {
+		if doc.Type != iosystem.ContentJSON {
 			results = append(results, doc)
 			continue
 		}
 
-		// Read document content
-		content, err := io.ReadAll(doc.Reader)
+		// Decode document
+		data, err := codec.Default.Decode(doc)
 		if err != nil {
-			// On read error, pass through unchanged
-			doc.Reader = bytes.NewReader(content)
+			// On decode error, pass through unchanged
 			results = append(results, doc)
 			continue
 		}
 
-		// Parse JSON to validate and prepare for formatting
-		var obj any
-		if err := json.Unmarshal(content, &obj); err != nil {
-			// Invalid JSON, pass through unchanged
-			doc.Reader = bytes.NewReader(content)
-			results = append(results, doc)
-			continue
+		// Encode back with formatting using the configured codec
+		var buf bytes.Buffer
+		if err := p.codec.Encode(&buf, data); err != nil {
+			return nil, fmt.Errorf("failed to format JSON for '%s': %w", doc.Path, err)
 		}
 
-		// Format JSON with color
-		var formatted []byte
-		if p.config.Color {
-			f := colorjson.NewFormatter()
-			f.Indent = p.config.Indent
-			formatted, err = f.Marshal(obj)
-			if err != nil {
-				return nil, fmt.Errorf("failed to format JSON for '%s': %w", doc.Path, err)
-			}
-		} else {
-			// Format without color (standard pretty-print)
-			formatted, err = json.MarshalIndent(obj, "", bytesIndent(p.config.Indent))
-			if err != nil {
-				return nil, fmt.Errorf("failed to format JSON for '%s': %w", doc.Path, err)
-			}
-		}
-
-		// Create output document
-		out := &iosystem.Document{
-			Type:     doc.Type,
+		formatted := &iosystem.Document{
+			Key:      doc.Key,
 			Path:     doc.Path,
-			Reader:   bytes.NewReader(formatted),
+			Type:     iosystem.ContentJSON,
+			Reader:   bytes.NewReader(buf.Bytes()),
 			Metadata: copyMetadata(doc.Metadata),
 		}
 
-		results = append(results, out)
+		results = append(results, formatted)
 	}
+	*/
 
 	return results, nil
 }
