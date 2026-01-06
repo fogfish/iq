@@ -36,35 +36,16 @@ func NewStorage(storage storage.Storage) (iosystem.Sink, error) {
 
 // Write writes a document to the filesystem, preserving its path structure.
 func (s *FileSystem) Write(ctx context.Context, doc *iosystem.Document) error {
+	if doc == nil {
+		return fmt.Errorf("document is nil")
+	}
+
 	err := s.storage.Put(ctx, doc.Key, doc.Reader)
 	if err != nil {
 		return fmt.Errorf("failed to write key %s: %w", doc.Key, err)
 	}
 
 	return nil
-	// panic("not implemented")
-	/*
-		if doc == nil {
-			return fmt.Errorf("document is nil")
-		}
-
-		// Create the file using document's path
-		file, err := s.fsys.Create(doc.FilePath(), nil)
-		if err != nil {
-			return fmt.Errorf("failed to create file %s: %w", doc.Path, err)
-		}
-		defer file.Close()
-
-		// Copy document content to file
-		_, err = io.Copy(file, doc.Reader)
-		if err != nil {
-			// Try to cancel the file creation on error
-			file.Cancel()
-			return fmt.Errorf("failed to write file %s: %w", doc.Path, err)
-		}
-
-		return nil
-	*/
 }
 
 // Close implements iosystem.Sink.

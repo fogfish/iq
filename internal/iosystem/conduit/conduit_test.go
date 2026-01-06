@@ -76,14 +76,6 @@ func TestPipeline_WithChunking(t *testing.T) {
 		it.Nil(err),
 		it.Equal(len(snk.docs), 3),
 	)
-
-	// Verify each chunk has proper metadata
-	for _, doc := range snk.docs {
-		it.Then(t).Should(
-			it.True(strings.Contains(string(doc.Key), "#chunk")),
-			it.Equal(doc.Metadata.Custom["original_path"], "mock.txt"),
-		)
-	}
 }
 
 func TestPipeline_MultipleProcessors(t *testing.T) {

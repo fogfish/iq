@@ -140,8 +140,7 @@ func (s *FileSystem) walk(ctx context.Context, prefix iosystem.Key, visitor func
 			return nil
 		}
 
-		// Create document from file
-		key := iosystem.Key(path)
+		key := iosystem.Key(strings.TrimPrefix(path, "/"))
 		reader, err := s.Get(ctx, key)
 		if err != nil {
 			return err
