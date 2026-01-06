@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/fogfish/iq/internal/progress"
 	"github.com/kshard/chatter"
 )
 
@@ -31,8 +32,13 @@ func (j *Job) Prompt(ctx context.Context, in Event, opts ...chatter.Opt) (Event,
 	evt := in
 	var err error
 
+	jobSize := len(j.Steps)
 	for i, step := range j.Steps {
-		evt, err = step.Prompt(ctx, evt, opts...)
+		evt, err = step.Prompt(
+			progress.ContextCallStack(ctx, j.Name, jobSize, i+1),
+			evt,
+			opts...,
+		)
 		if err != nil {
 			return evt, fmt.Errorf("step %d failed: %w", i, err)
 		}

@@ -9,18 +9,8 @@
 package compiler
 
 import (
-	"bytes"
-	"context"
-	"fmt"
-	"os/exec"
-	"text/template"
-	"time"
-
 	"github.com/fogfish/iq/internal/blueprint/ast"
 	"github.com/fogfish/iq/internal/blueprint/runtime"
-	"github.com/fogfish/iq/internal/progress"
-	"github.com/google/cel-go/cel"
-	"github.com/kshard/chatter"
 )
 
 // Workflow represents a compiled, executable workflow
@@ -32,6 +22,7 @@ type Workflow struct {
 	Jobs       map[string]*runtime.Job
 }
 
+/*
 // Job represents a compiled job with executable steps
 type Job struct {
 	Name  string
@@ -752,3 +743,5 @@ func (step *RunStep) executeCommand(ctx context.Context, wfCtx *WorkflowContext)
 
 	return stdout.String(), nil
 }
+
+*/

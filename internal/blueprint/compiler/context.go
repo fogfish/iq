@@ -8,6 +8,7 @@
 
 package compiler
 
+/*
 import (
 	"bytes"
 	"context"
@@ -357,3 +358,4 @@ func (cc *CacheContext) SaveCached(ctx context.Context, emit string, output any)
 	// Save to storage
 	return cc.Storage.Put(ctx, cacheKey, bytes.NewReader(content))
 }
+*/

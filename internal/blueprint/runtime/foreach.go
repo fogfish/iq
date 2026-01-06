@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/fogfish/iq/internal/blueprint/ast"
+	"github.com/fogfish/iq/internal/progress"
 	"github.com/google/cel-go/cel"
 	"github.com/kshard/chatter"
 )
@@ -30,6 +31,48 @@ func (f *ForEach) Config(jobs map[string]*Job) error {
 }
 
 func (f *ForEach) Prompt(ctx context.Context, in Event, opts ...chatter.Opt) (Event, error) {
+	list, err := f.evalSelect(in)
+	if err != nil {
+		return in, fmt.Errorf("foreach selection failed: %w", err)
+	}
+
+	reporter := progress.FromContext(ctx)
+	reporter.ForeachStart(len(list))
+	reporter.SetForeachMode(true)
+	defer reporter.SetForeachMode(false)
+	defer reporter.ForeachComplete(len(list), len(list), 0)
+
+	output := make(List, len(list))
+	for i, item := range list {
+		val, err := ToGist(item)
+		if err != nil {
+			return in, fmt.Errorf("foreach item conversion failed: %w", err)
+		}
+
+		reply, err := f.prompter.Prompt(
+			progress.ContextForEach(ctx, f.Node.Job, i+1, len(list)),
+			Event{
+				Document: in.Document,
+				Current:  val,
+				Steps:    in.Steps,
+			},
+			opts...,
+		)
+		if err != nil {
+			reporter.ForeachItem(i+1, len(list), fmt.Sprintf("❌ %s → failed: %v", f.Node.Job, err))
+			return in, fmt.Errorf("foreach item %d processing failed: %w", i+1, err)
+		}
+		reporter.ForeachItem(i+1, len(list), fmt.Sprintf("✅ %s → completed", f.Node.Job))
+
+		// TODO: merge steps
+		// in.Steps = reply.Steps
+		output[i] = reply.Current
+	}
+
+	return in.copy(output), nil
+}
+
+func (f *ForEach) evalSelect(in Event) (List, error) {
 	var list List
 
 	if f.selector != nil {
@@ -40,13 +83,13 @@ func (f *ForEach) Prompt(ctx context.Context, in Event, opts ...chatter.Opt) (Ev
 			ast.ContextKeySteps:    in.Steps,
 		})
 		if err != nil {
-			return in, fmt.Errorf("selector evaluation failed: %w", err)
+			return nil, fmt.Errorf("selector evaluation failed: %w", err)
 		}
 		switch v := val.Value().(type) {
 		case List:
 			list = v
 		default:
-			return in, fmt.Errorf("selector must return a list, got %T", val)
+			return nil, fmt.Errorf("selector must return a list, got %T", val)
 		}
 	}
 
@@ -55,30 +98,9 @@ func (f *ForEach) Prompt(ctx context.Context, in Event, opts ...chatter.Opt) (Ev
 		case List:
 			list = v
 		default:
-			return in, fmt.Errorf("foreach input must be a list, got %T", in.Current)
+			return nil, fmt.Errorf("foreach input must be a list, got %T", in.Current)
 		}
 	}
 
-	output := make(List, len(list))
-	for i, item := range list {
-		val, err := ToGist(item)
-		if err != nil {
-			return in, fmt.Errorf("foreach item conversion failed: %w", err)
-		}
-
-		evt := Event{
-			Document: in.Document,
-			Current:  val,
-			Steps:    in.Steps,
-		}
-		reply, err := f.prompter.Prompt(ctx, evt, opts...)
-		if err != nil {
-			return in, fmt.Errorf("foreach item processing failed: %w", err)
-		}
-		// TODO: merge steps
-		// in.Steps = reply.Steps
-		output[i] = reply.Current
-	}
-
-	return in.copy(output), nil
+	return list, nil
 }

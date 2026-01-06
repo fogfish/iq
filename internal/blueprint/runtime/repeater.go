@@ -5,13 +5,12 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/fogfish/iq/internal/blueprint/ast"
 	"github.com/kshard/chatter"
 )
 
 type Repeater struct {
-	Node     string
-	attempts int
-	delay    int
+	Node     *ast.RetryNode
 	fallback Prompter
 
 	Prompter
@@ -19,20 +18,20 @@ type Repeater struct {
 
 var _ Prompter = (*Repeater)(nil)
 
-func NewRepeater(attempts int, delay int, fallback string, p Prompter) *Repeater {
-	return &Repeater{attempts: attempts, delay: delay, Node: fallback, Prompter: p}
+func NewRepeater(node *ast.RetryNode, p Prompter) *Repeater {
+	return &Repeater{Node: node, Prompter: p}
 }
 
 func (r *Repeater) Config(jobs map[string]*Job) error {
-	if r.Node != "" {
-		r.Prompter = jobs[r.Node]
-	}
+	// if r.Node.Yield != "" {
+	// 	r.Prompter = jobs[r.Node.Yield]
+	// }
 	return nil
 }
 
 func (r *Repeater) Prompt(ctx context.Context, evt Event, opts ...chatter.Opt) (Event, error) {
 	// stepInfo := progress.GetStepInfo(ctx)
-	for i := range r.attempts {
+	for i := range r.Node.Attempts {
 		// stepInfo.Attempt = i + 1
 		// stepInfo.Delay = r.delay
 		// ctx = progress.WithStepInfo(ctx, *stepInfo)
@@ -42,8 +41,8 @@ func (r *Repeater) Prompt(ctx context.Context, evt Event, opts ...chatter.Opt) (
 			return result, nil
 		}
 
-		if i < r.attempts-1 {
-			time.Sleep(time.Duration(r.delay) * time.Second)
+		if i < r.Node.Attempts-1 {
+			time.Sleep(time.Duration(r.Node.Delay) * time.Second)
 		}
 	}
 

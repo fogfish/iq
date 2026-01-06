@@ -21,14 +21,14 @@ import (
 
 // Blueprint represents a compiled workflow
 type Blueprint struct {
-	workflow        *compiler.Workflow
-	lastEmitContext *compiler.EmitContext // Captured from last execution
+	workflow *compiler.Workflow
+	// lastEmitContext *compiler.EmitContext // Captured from last execution
 }
 
 // LastEmitContext returns the emit context from the last execution
-func (bp *Blueprint) LastEmitContext() *compiler.EmitContext {
-	return bp.lastEmitContext
-}
+// func (bp *Blueprint) LastEmitContext() *compiler.EmitContext {
+// 	return bp.lastEmitContext
+// }
 
 // New loads and compiles a blueprint file
 func New(file string, llm chatter.Chatter) (*Blueprint, error) {

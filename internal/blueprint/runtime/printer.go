@@ -27,15 +27,15 @@ func (p *Printer) Prompt(ctx context.Context, evt Event, opts ...chatter.Opt) (E
 	}
 
 	startTime := time.Now()
-	reporter.StepStart(stepInfo.JobName, stepInfo.StepName, stepInfo.StepNum, stepInfo.TotalSteps)
+	reporter.StepStart(stepInfo.JobName, stepInfo.StepName, stepInfo.StepID, stepInfo.JobSize)
 
 	if stepInfo.Attempt > 1 {
-		reporter.RetryAttempt(stepInfo.Attempt, stepInfo.TotalSteps, time.Duration(stepInfo.Delay)*time.Second)
+		reporter.RetryAttempt(stepInfo.Attempt, stepInfo.JobSize, time.Duration(stepInfo.Delay)*time.Second)
 	}
 
 	result, err := p.Prompter.Prompt(ctx, evt, opts...)
 	if err != nil {
-		reporter.StepError(stepInfo.JobName, stepInfo.StepName, stepInfo.StepNum, stepInfo.TotalSteps, err)
+		reporter.StepError(stepInfo.JobName, stepInfo.StepName, stepInfo.StepID, stepInfo.JobSize, err)
 		return result, err
 	}
 
@@ -45,9 +45,7 @@ func (p *Printer) Prompt(ctx context.Context, evt Event, opts ...chatter.Opt) (E
 
 	duration := time.Since(startTime)
 	// TODO: Track actual token usage from LLM response
-	reporter.StepComplete(stepInfo.JobName, stepInfo.StepName, stepInfo.StepNum, stepInfo.TotalSteps, duration, 0)
-
-	// TODO: reporter.RetryExhausted(step.Retry.Attempts)
+	reporter.StepComplete(stepInfo.JobName, stepInfo.StepName, stepInfo.StepID, stepInfo.JobSize, duration, 0)
 
 	return result, nil
 }

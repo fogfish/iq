@@ -89,10 +89,10 @@ func TestReporter_Context(t *testing.T) {
 func TestReporter_StepInfo(t *testing.T) {
 	ctx := context.Background()
 	info := StepInfo{
-		JobName:    "test",
-		StepName:   "step1",
-		StepNum:    1,
-		TotalSteps: 3,
+		JobName:  "test",
+		StepName: "step1",
+		StepID:   1,
+		JobSize:  3,
 	}
 
 	ctx = WithStepInfo(ctx, info)
@@ -101,7 +101,7 @@ func TestReporter_StepInfo(t *testing.T) {
 	if retrieved == nil {
 		t.Fatal("Expected to retrieve step info")
 	}
-	if retrieved.JobName != "test" || retrieved.StepNum != 1 {
+	if retrieved.JobName != "test" || retrieved.StepID != 1 {
 		t.Errorf("Step info mismatch: %+v", retrieved)
 	}
 }

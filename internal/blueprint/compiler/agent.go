@@ -8,6 +8,7 @@
 
 package compiler
 
+/*
 import (
 	"context"
 	"fmt"
@@ -210,3 +211,4 @@ func (agt *Agent) decode(reply *chatter.Reply) (float64, any, error) {
 
 	return 1.0, reply.String(), nil
 }
+*/

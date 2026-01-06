@@ -24,7 +24,10 @@ func (m *Memento) Prompt(ctx context.Context, evt Event, opts ...chatter.Opt) (E
 	if err != nil {
 		return evt, err
 	}
-	evt.Steps[m.variable] = evt.Current
+
+	if m.variable != "" {
+		evt.Steps[m.variable] = evt.Current
+	}
 
 	return evt, nil
 }

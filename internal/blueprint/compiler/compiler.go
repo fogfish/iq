@@ -142,7 +142,6 @@ func (c *Compiler) validate(tree *ast.AST) error {
 func (c *Compiler) compile(ctx context.Context, tree *ast.AST) (*Workflow, error) {
 	bp := tree.Blueprint
 
-	// Compile all jobs
 	jobs := make(map[string]*runtime.Job)
 	for jobName, jobNode := range bp.Jobs {
 		job, err := c.compileJob(ctx, jobName, jobNode, tree, c.llm)
@@ -229,154 +228,6 @@ func (c *Compiler) compileStep(ctx context.Context, index int, node ast.StepNode
 	prompter = c.compileEmitter(ctx, node, prompter)
 	prompter = c.compileCache(ctx, node, prompter)
 	return prompter, nil
-
-	/*
-
-		// Prepare retry config if present
-		retryNode := &Retry{Attempts: 1}
-		retryNAst := node.GetRetry()
-		if retryNAst != nil && retryNAst.Yield != "" {
-			agtNode := tree.Agents[retryNAst.Yield]
-			if agtNode != nil {
-				agtNode.RunsOn = node.GetRunsOn()
-				agtRetry := &Agent{Node: agtNode}
-				if err := agtRetry.compile(ctx, llm); err != nil {
-					return nil, fmt.Errorf("failed to create retry agent: %w", err)
-				}
-
-				retryNode = &Retry{
-					Attempts: retryNAst.Attempts,
-					Delay:    retryNAst.Delay,
-					Yield:    agtRetry,
-				}
-			} else {
-				retryNode = &Retry{
-					Attempts: retryNAst.Attempts,
-					Delay:    retryNAst.Delay,
-				}
-			}
-		} else if retryNAst != nil {
-			retryNode = &Retry{
-				Attempts: retryNAst.Attempts,
-				Delay:    retryNAst.Delay,
-			}
-		}
-
-		// Check if this is a run step (shell command)
-		if runNode, ok := node.(*ast.RunStepNode); ok {
-			shell := runNode.RunsOn
-			if shell == "" {
-				shell = "sh"
-			}
-
-			return &RunStep{
-				Command:    runNode.Run,
-				Shell:      shell,
-				OutputName: runNode.GetOutput(),
-				Emit:       runNode.Emit,
-				Retry:      retryNode,
-			}, nil
-		}
-
-		// Check if this is a foreach step
-		if foreachNode, ok := node.(*ast.ForeachStepNode); ok {
-			var usesAgent *Agent
-			if foreachNode.Uses != "" {
-				agentNode := tree.Agents[foreachNode.Uses]
-				agentNode.RunsOn = node.GetRunsOn()
-				usesAgent = &Agent{Node: agentNode}
-				if err := usesAgent.compile(ctx, llm); err != nil {
-					return nil, fmt.Errorf("failed to initialize uses agent: %w", err)
-				}
-			}
-
-			// Compile CEL selector if provided
-			var selectorProgram cel.Program
-			if foreachNode.Selector != "" {
-				prog, err := c.compileCEL(foreachNode.Selector)
-				if err != nil {
-					return nil, fmt.Errorf("failed to compile selector '%s': %w", foreachNode.Selector, err)
-				}
-				selectorProgram = prog
-			}
-
-			// Create formatter from format configuration
-			formatter, err := NewFormatter(foreachNode.Format)
-			if err != nil {
-				return nil, fmt.Errorf("failed to create formatter: %w", err)
-			}
-
-			return &ForeachStep{
-				UsesAgent:  usesAgent,
-				Selector:   selectorProgram,
-				JobName:    foreachNode.Job,
-				OutputName: foreachNode.GetOutput(),
-				Emit:       foreachNode.Emit,
-				Retry:      retryNode,
-				Formatter:  formatter,
-			}, nil
-		}
-
-		// Get agent definition (required for router and agent steps)
-		agentNode := tree.Agents[node.GetUses()]
-
-		// Create and initialize agent
-		var agt *Agent
-		if agentNode != nil {
-			agentNode.RunsOn = node.GetRunsOn()
-			agt = &Agent{Node: agentNode}
-			if err := agt.compile(ctx, llm); err != nil {
-				return nil, fmt.Errorf("failed to initialize agent: %w", err)
-			}
-		}
-
-		// Check if this is a router step
-		if routerNode, ok := node.(*ast.RouterStepNode); ok {
-			// Compile CEL expressions
-			conditions := make([]cel.Program, 0, len(routerNode.Routes))
-			for _, route := range routerNode.Routes {
-				prog, err := c.compileCEL(route.When)
-				if err != nil {
-					return nil, fmt.Errorf("failed to compile CEL: %w", err)
-				}
-				conditions = append(conditions, prog)
-			}
-
-			return &RouterStep{
-				Agent:      agt,
-				OutputName: routerNode.GetOutput(),
-				Emit:       routerNode.Emit,
-				RouteNodes: routerNode.Routes,
-				Conditions: conditions,
-				DefaultJob: routerNode.Default,
-				Retry:      retryNode,
-			}, nil
-		}
-
-		// Create and initialize agent
-		var manifold runtime.Prompter
-		agentNode.RunsOn = node.GetRunsOn()
-		manifold, err := runtime.NewManifold(agentNode, llm)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create manifold: %w", err)
-		}
-		manifold = runtime.NewMemento(node.GetOutput(), manifold)
-		manifold = runtime.NewPrinter(manifold)
-		if retryNode != nil && retryNode.Attempts > 1 {
-			manifold = runtime.NewRepeater(retryNode.Attempts, retryNode.Delay, manifold)
-		}
-		if node.(*ast.AgentStepNode).Emit != "" {
-			manifold = runtime.NewEmitter(manifold)
-			manifold = runtime.NewCache(manifold)
-		}
-
-		return &AgentStep{
-			Manifold:   manifold,
-			OutputName: node.GetOutput(),
-			Emit:       node.(*ast.AgentStepNode).Emit,
-			Retry:      retryNode,
-		}, nil
-	*/
 }
 
 // compileCEL compiles a CEL expression
@@ -485,8 +336,8 @@ func (c *Compiler) compileRepeater(ctx context.Context, node ast.StepNode, promp
 		return prompter
 	}
 
-	if retryNode != nil && retryNode.Attempts > 1 {
-		return runtime.NewRepeater(retryNode.Attempts, retryNode.Delay, retryNode.Yield, prompter)
+	if retryNode.Attempts > 1 {
+		return runtime.NewRepeater(retryNode, prompter)
 	}
 
 	return prompter

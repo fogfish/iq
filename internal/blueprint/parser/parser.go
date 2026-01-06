@@ -376,7 +376,7 @@ func (p *Parser) convertStep(raw *stepYAML) ast.StepNode {
 		retry = &ast.RetryNode{
 			Attempts: raw.Retry.Attempts,
 			Delay:    raw.Retry.Delay,
-			Yield:    os.ExpandEnv(raw.Retry.Yield),
+			Yield:    raw.Retry.Yield,
 		}
 	}
 

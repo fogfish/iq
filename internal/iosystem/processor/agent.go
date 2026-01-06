@@ -15,7 +15,6 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/fogfish/iq/internal/blueprint/compiler"
 	"github.com/fogfish/iq/internal/iosystem"
 	"github.com/goccy/go-yaml"
 	"github.com/kshard/chatter"
@@ -85,18 +84,18 @@ func (p *Agent) Process(ctx context.Context, docs []*iosystem.Document) ([]*iosy
 	}
 
 	// Inject document key into cache context for step-level caching
-	if len(docs) > 0 {
-		cacheCtx := compiler.GetCacheContext(ctx)
-		if cacheCtx != nil {
-			cacheCtx.DocumentKey = iosystem.Key(docs[0].Path)
-			ctx = compiler.WithCacheContext(ctx, cacheCtx)
-		}
-	}
+	// if len(docs) > 0 {
+	// 	cacheCtx := compiler.GetCacheContext(ctx)
+	// 	if cacheCtx != nil {
+	// 		cacheCtx.DocumentKey = iosystem.Key(docs[0].Path)
+	// 		ctx = compiler.WithCacheContext(ctx, cacheCtx)
+	// 	}
+	// }
 
 	var input any
 
 	// Create emit capture to retrieve emit context after workflow execution
-	ctx, emitCapture := compiler.WithEmitCapture(ctx)
+	// ctx, emitCapture := compiler.WithEmitCapture(ctx)
 
 	items := make([]any, 0, len(docs))
 	for _, doc := range docs {
@@ -131,17 +130,17 @@ func (p *Agent) Process(ctx context.Context, docs []*iosystem.Document) ([]*iosy
 	reply.Metadata = copyMetadata(docs[0].Metadata)
 
 	// Store captured emit context in document metadata
-	if emitCapture != nil && emitCapture.Captured != nil {
-		if reply.Metadata.Custom == nil {
-			reply.Metadata.Custom = make(map[string]string)
-		}
-		reply.Metadata.Custom["emit.prefix"] = emitCapture.Captured.Prefix
-		// Store counters as JSON if present
-		if len(emitCapture.Captured.Counters) > 0 {
-			countersJSON, _ := json.Marshal(emitCapture.Captured.Counters)
-			reply.Metadata.Custom["emit.counters"] = string(countersJSON)
-		}
-	}
+	// if emitCapture != nil && emitCapture.Captured != nil {
+	// 	if reply.Metadata.Custom == nil {
+	// 		reply.Metadata.Custom = make(map[string]string)
+	// 	}
+	// 	reply.Metadata.Custom["emit.prefix"] = emitCapture.Captured.Prefix
+	// 	// Store counters as JSON if present
+	// 	if len(emitCapture.Captured.Counters) > 0 {
+	// 		countersJSON, _ := json.Marshal(emitCapture.Captured.Counters)
+	// 		reply.Metadata.Custom["emit.counters"] = string(countersJSON)
+	// 	}
+	// }
 
 	return []*iosystem.Document{reply}, nil
 }

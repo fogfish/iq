@@ -72,6 +72,64 @@ const (
 	IconWarning = "⚠️" // Warning message
 )
 
+// ProgressBar interface defines all progress reporting methods
+type ProgressBar interface {
+	// Token source management
+	SetTokenSource(source TokenSource)
+	SetForeachMode(inForeach bool)
+
+	// Workflow lifecycle events
+	WorkflowLoading(path string)
+	WorkflowCompiled(name string, jobCount, stepCount int)
+	WorkflowError(err error)
+
+	// Document processing events
+	DocumentStart(path string, sizeKB float64)
+	DocumentComplete(path string, duration time.Duration)
+	DocumentError(path string, err error)
+	DocumentSkipped(path string, reason string)
+
+	// Step execution events
+	StepStart(jobName, stepName string, stepNum, totalSteps int)
+	StepProgress(message string)
+	StepComplete(jobName, stepName string, stepNum, totalSteps int, duration time.Duration, tokens int)
+	StepSkipped(jobName, stepName string, stepNum, totalSteps int, reason string)
+	StepError(jobName, stepName string, stepNum, totalSteps int, err error)
+
+	// Router and control flow events
+	RouterEvaluating()
+	RouterMatched(routeName string, targetJob string)
+	RouterDefault(targetJob string)
+	RouterNoMatch()
+
+	// Foreach iteration events
+	ForeachStart(itemCount int)
+	ForeachItem(index, total int, status string)
+	ForeachComplete(successCount, totalCount int, duration time.Duration)
+
+	// Retry and recovery events
+	RetryAttempt(attempt, maxAttempts int, delay time.Duration)
+	RetrySuccess(attempt int)
+	RetryExhausted(maxAttempts int)
+
+	// LLM thinking events
+	ThinkingContent(text string)
+
+	// Batch processing events
+	BatchStart(inputPath, outputPath string, mutable bool)
+	BatchProgress(processed, total int)
+	BatchComplete()
+
+	// Chunking events
+	ChunkingStart(strategy string, chunkCount int)
+
+	// Summary and statistics
+	Summary()
+	SummaryQuick(docCount int, duration time.Duration)
+	UpdateTokens(inputTokens, outputTokens int)
+	GetStats() Stats
+}
+
 // Reporter handles all progress output to stderr with educational messages
 type Reporter struct {
 	w               io.Writer
