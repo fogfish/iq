@@ -71,7 +71,5 @@ func (e *Emitter) Prompt(ctx context.Context, in Event, opts ...chatter.Opt) (Ev
 		return in, fmt.Errorf("emitter: failed to put document at %s: %w", key, err)
 	}
 
-	fmt.Printf("===>>> %s\n", val.Key)
-
 	return val, nil
 }
