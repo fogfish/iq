@@ -30,10 +30,6 @@ func (p *Printer) Prompt(ctx context.Context, evt Event, opts ...chatter.Opt) (E
 	reporter := progress.FromContext(ctx)
 	stepInfo := progress.GetStepInfo(ctx)
 
-	if reporter == nil || stepInfo == nil {
-		return p.Prompter.Prompt(ctx, evt, opts...)
-	}
-
 	startTime := time.Now()
 	reporter.StepStart(stepInfo.JobName, stepInfo.StepName, stepInfo.StepID, stepInfo.JobSize)
 

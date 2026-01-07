@@ -114,7 +114,6 @@ type optsAgent struct {
 	splitter      string
 	splitterChunk int
 	splitterChars string
-	json          bool
 	array         bool
 	merge         bool
 	cache         string
@@ -134,9 +133,6 @@ func (opts *optsAgent) apply(cmd *cobra.Command) {
 
 	f.StringVar(&opts.splitterChars, "splitter-chars", "",
 		"Sequence of characters used by splitter as delimiter")
-
-	f.BoolVar(&opts.json, "json", false,
-		"Display output as formatted, colored JSON")
 
 	f.BoolVar(&opts.array, "array", false,
 		"Passes input documents or chunks as an array to the workflow.")
@@ -175,7 +171,7 @@ func (opts *optsAgent) build(llm chatter.Chatter, sink iosystem.Sink, reporter *
 		TextCollector(opts.merge).
 		Cache(opts.cache).
 		Workflow(opts.file, llm, sink).
-		Jsonify(opts.json).Build()
+		Build()
 }
 
 //------------------------------------------------------------------------------
@@ -208,9 +204,8 @@ func (opts *optsInput) build(files []string) (iosystem.Source, error) {
 var freply optsReply
 
 type optsReply struct {
-	dir      string
-	file     string
-	snapshot string
+	dir  string
+	file string
 }
 
 func (opts *optsReply) apply(cmd *cobra.Command) {

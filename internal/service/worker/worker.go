@@ -226,20 +226,6 @@ func (b *Builder) Workflow(file string, llm chatter.Chatter, sink iosystem.Sink)
 	return b
 }
 
-func (b *Builder) Jsonify(enable bool) *Builder {
-	if b.err != nil || b.runtime == nil || !enable {
-		return b
-	}
-
-	b.runtime.AddProcessor(
-		processor.NewJsonify(processor.JsonifyConfig{
-			Indent: 2,
-			Color:  true,
-		}),
-	)
-	return b
-}
-
 // Build creates the configured conduit with blueprint processor.
 // Returns a wrapped conduit that includes progress reporter in context.
 func (b *Builder) Build() (*ConduitWithReporter, error) {
