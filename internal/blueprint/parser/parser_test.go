@@ -103,7 +103,7 @@ jobs:
           job: process
           format:
             type: text
-            delim: "\n\n"
+            divider: "\n\n"
         output: results
   process:
     steps:
