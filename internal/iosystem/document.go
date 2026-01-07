@@ -12,17 +12,8 @@ import (
 	"io"
 	"path/filepath"
 	"strings"
-)
 
-// Content type constants
-const (
-	ContentStream = "application/octet-stream"
-	ContentJSON   = "application/json"
-	ContentYAML   = "application/x-yaml"
-	ContentPNG    = "image/png"
-	ContentJPG    = "image/jpeg"
-	ContentText   = "text/plain"
-	ContentEOF    = "application/x-eof" // Signals end of stream
+	"github.com/fogfish/iq/internal/iosystem/codec"
 )
 
 // Metadata holds document attributes (NOT part of key identity).
@@ -36,10 +27,6 @@ type Metadata struct {
 // Document represents a single input document with metadata.
 // Documents flow through the pipeline from Source → Processor → Sink.
 type Document struct {
-	// Path is the logical identifier for this document (e.g., "stdin", "file.txt", "dir/file.txt")
-	// DEPRECATED: Use Key instead. Kept for backward compatibility.
-	Path string
-
 	// Key is the simple path-based identity (e.g., "sub/a.txt")
 	Key Key
 
@@ -54,13 +41,22 @@ type Document struct {
 	Metadata Metadata
 }
 
+func EOF() *Document {
+	return &Document{
+		Type: codec.ContentEOF,
+	}
+}
+
+func IsEOF(docs []*Document) bool {
+	return len(docs) == 0 || (len(docs) == 1 && docs[0].Type == codec.ContentEOF)
+}
+
 // NewDocument creates a new document with the given key and reader.
 // The content type defaults to application/octet-stream.
-func NewDocument(key Key, reader io.Reader) *Document {
+func NewDocument(key Key, contentType string, reader io.Reader) *Document {
 	return &Document{
 		Key:      key,
-		Path:     string(key), // Backward compatibility
-		Type:     ContentStream,
+		Type:     contentType, // codec.Default.DetectContentType(string(key)),
 		Reader:   reader,
 		Metadata: Metadata{Custom: make(map[string]string)},
 	}
@@ -75,6 +71,37 @@ func (d *Document) WithMetadata(key, value string) *Document {
 	return d
 }
 
+// EnsureExtension updates the document key to have the correct file extension
+// based on the document's content type. If the extension already matches,
+// the key is unchanged.
+func (d *Document) EnsureExtension() {
+	if d.Key == "" {
+		return
+	}
+
+	// Get the expected extension for this content type
+	expectedExt := codec.Default.GetExtension(d.Type)
+	if expectedExt == "" {
+		return // No mapping for this content type
+	}
+
+	// Get current extension
+	currentExt := filepath.Ext(string(d.Key))
+
+	// If extension already matches, nothing to do
+	if currentExt == expectedExt {
+		return
+	}
+
+	// Replace or add the correct extension
+	keyStr := string(d.Key)
+	if currentExt != "" {
+		keyStr = strings.TrimSuffix(keyStr, currentExt)
+	}
+	d.Key = Key(keyStr + expectedExt)
+}
+
+/*
 func (d *Document) FilePath() string {
 	keyStr := string(d.Key)
 	if keyStr == "" {
@@ -105,3 +132,4 @@ func (d *Document) FilePath() string {
 		return keyStr
 	}
 }
+*/

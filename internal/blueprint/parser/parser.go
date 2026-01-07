@@ -282,6 +282,7 @@ type stepYAML struct {
 	Run     string       `yaml:"run,omitempty"`
 	Output  string       `yaml:"output,omitempty"`
 	Emit    string       `yaml:"emit,omitempty"`
+	Cache   string       `yaml:"cache,omitempty"`
 	Switch  []routeYAML  `yaml:"switch,omitempty"`
 	Default string       `yaml:"default,omitempty"`
 	Foreach *foreachYAML `yaml:"foreach,omitempty"`
@@ -296,8 +297,8 @@ type foreachYAML struct {
 }
 
 type formatYAML struct {
-	Type      string `yaml:"type,omitempty"`
-	Delimiter string `yaml:"delim,omitempty"`
+	Type    string `yaml:"type,omitempty"`
+	Divider string `yaml:"divider,omitempty"`
 }
 
 type routeYAML struct {
@@ -376,7 +377,7 @@ func (p *Parser) convertStep(raw *stepYAML) ast.StepNode {
 		retry = &ast.RetryNode{
 			Attempts: raw.Retry.Attempts,
 			Delay:    raw.Retry.Delay,
-			Yield:    os.ExpandEnv(raw.Retry.Yield),
+			Yield:    raw.Retry.Yield,
 		}
 	}
 
@@ -388,6 +389,7 @@ func (p *Parser) convertStep(raw *stepYAML) ast.StepNode {
 			Run:    raw.Run,
 			Output: raw.Output,
 			Emit:   raw.Emit,
+			Cache:  raw.Cache,
 			Retry:  retry,
 		}
 	}
@@ -407,20 +409,20 @@ func (p *Parser) convertStep(raw *stepYAML) ast.StepNode {
 				ftype = "json"
 			}
 
-			delim := raw.Foreach.Format.Delimiter
+			delim := raw.Foreach.Format.Divider
 			if delim == "" {
 				delim = "\n" // Default newline
 			}
 
 			format = &ast.FormatNode{
-				Type:      ftype,
-				Delimiter: delim,
+				Type:    ftype,
+				Divider: delim,
 			}
 		} else {
 			// Default: JSON array
 			format = &ast.FormatNode{
-				Type:      "json",
-				Delimiter: "\n",
+				Type:    "json",
+				Divider: "\n",
 			}
 		}
 
@@ -432,6 +434,7 @@ func (p *Parser) convertStep(raw *stepYAML) ast.StepNode {
 			Job:      raw.Foreach.Job,
 			Output:   raw.Output,
 			Emit:     raw.Emit,
+			Cache:    raw.Cache,
 			Format:   format,
 			Retry:    retry,
 		}
@@ -453,6 +456,7 @@ func (p *Parser) convertStep(raw *stepYAML) ast.StepNode {
 			Uses:    os.ExpandEnv(raw.Uses),
 			Output:  raw.Output,
 			Emit:    raw.Emit,
+			Cache:   raw.Cache,
 			Routes:  routes,
 			Default: raw.Default,
 			Retry:   retry,
@@ -466,6 +470,7 @@ func (p *Parser) convertStep(raw *stepYAML) ast.StepNode {
 		Uses:   os.ExpandEnv(raw.Uses),
 		Output: raw.Output,
 		Emit:   raw.Emit,
+		Cache:  raw.Cache,
 		Retry:  retry,
 	}
 }

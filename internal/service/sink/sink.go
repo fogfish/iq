@@ -18,7 +18,6 @@ import (
 	"github.com/fogfish/iq/internal/iosystem/storage"
 	"github.com/fogfish/stream"
 	"github.com/fogfish/stream/lfs"
-	"github.com/fogfish/stream/spool"
 )
 
 // Builder creates iosystem.Sink instances from CLI flags.
@@ -85,37 +84,18 @@ func (b *Builder) File(path string) *Builder {
 
 // Path sets the output directory.
 // Documents will be written preserving their path structure.
-func (b *Builder) Path(path string) *Builder {
-	if b.err != nil || b.snk != nil || len(path) == 0 {
+func (b *Builder) Path(dir string) *Builder {
+	if b.err != nil || b.snk != nil || len(dir) == 0 {
 		return b
 	}
 
-	fs, err := Mount(path)
+	src, err := storage.NewFileSystem(dir)
 	if err != nil {
-		b.err = fmt.Errorf("failed to mount path %s: %w", path, err)
+		b.err = fmt.Errorf("failed to mount output dir %s: %w", dir, err)
 		return b
 	}
 
-	b.snk, b.err = sink.NewFS(fs)
-	return b
-}
-
-// Storage sets output to use storage interface (for emit support).
-// This should be used when workflows use emit attributes for output control.
-func (b *Builder) Storage(path string) *Builder {
-	if b.err != nil || b.snk != nil || len(path) == 0 {
-		return b
-	}
-
-	// Create storage
-	store, err := storage.NewFS(path)
-	if err != nil {
-		b.err = fmt.Errorf("failed to create storage at %s: %w", path, err)
-		return b
-	}
-
-	// Create storage sink
-	b.snk = sink.NewStorage(store)
+	b.snk, b.err = sink.NewStorage(src)
 	return b
 }
 
@@ -129,26 +109,4 @@ func (b *Builder) Build() (iosystem.Sink, error) {
 	}
 
 	return b.snk, b.err
-}
-
-func Mount(path string) (spool.FileSystem, error) {
-	if strings.HasPrefix(path, "s3://") {
-		fs, err := stream.NewFS(path[len("s3://"):])
-		if err != nil {
-			return nil, fmt.Errorf("failed to mount S3 bucket for path %s: %w", path, err)
-		}
-		return fs, nil
-	}
-
-	pabs, err := filepath.Abs(path)
-	if err != nil {
-		return nil, fmt.Errorf("failed to resolve path %s: %w", path, err)
-	}
-
-	// Use lfs for local paths to avoid versioning
-	fs, err := lfs.New(pabs)
-	if err != nil {
-		return nil, fmt.Errorf("failed to mount path %s: %w", path, err)
-	}
-	return fs, nil
 }

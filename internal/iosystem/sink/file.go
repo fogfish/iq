@@ -14,6 +14,7 @@ import (
 	"io"
 
 	"github.com/fogfish/iq/internal/iosystem"
+	"github.com/fogfish/iq/internal/iosystem/codec"
 	"github.com/fogfish/stream"
 )
 
@@ -44,7 +45,7 @@ func NewFile(fsys stream.CreateFS[struct{}], path string) (iosystem.Sink, error)
 // The file is created on the first write and kept open until Close().
 func (f *File) Write(ctx context.Context, doc *iosystem.Document) error {
 	switch doc.Type {
-	case iosystem.ContentPNG, iosystem.ContentJPG:
+	case codec.ContentPNG, codec.ContentJPG:
 		return f.writeImage(ctx, doc)
 	default:
 		return f.writeText(ctx, doc)
@@ -73,17 +74,17 @@ func (f *File) writeText(ctx context.Context, doc *iosystem.Document) error {
 }
 
 func (f *File) writeImage(ctx context.Context, doc *iosystem.Document) error {
-	doc.Path = f.path
-	fd, err := f.fsys.Create(doc.FilePath(), nil)
+	doc.Key = iosystem.Key(f.path)
+	fd, err := f.fsys.Create(string(doc.Key), nil)
 	if err != nil {
-		return fmt.Errorf("failed to create file %s: %w", doc.FilePath(), err)
+		return fmt.Errorf("failed to create file %s: %w", doc.Key, err)
 	}
 	defer fd.Close()
 
 	// Write document content
 	_, err = io.Copy(fd, doc.Reader)
 	if err != nil {
-		return fmt.Errorf("failed to write to file %s: %w", doc.FilePath(), err)
+		return fmt.Errorf("failed to write to file %s: %w", doc.Key, err)
 	}
 
 	return nil

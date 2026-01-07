@@ -10,10 +10,12 @@ package batch
 
 import (
 	"fmt"
+	"path/filepath"
+	"strings"
 
-	"github.com/fogfish/iq/internal/service/sink"
-	"github.com/fogfish/iq/internal/service/source"
 	"github.com/fogfish/opts"
+	"github.com/fogfish/stream"
+	"github.com/fogfish/stream/lfs"
 	"github.com/fogfish/stream/spool"
 )
 
@@ -35,7 +37,7 @@ func (b *Builder) Reader(path string) *Builder {
 		return b
 	}
 
-	b.r, b.err = source.Mount(path)
+	b.r, b.err = Mount(path)
 	return b
 }
 
@@ -43,7 +45,7 @@ func (b *Builder) Writer(path string) *Builder {
 	if b.err != nil {
 		return b
 	}
-	b.w, b.err = sink.Mount(path)
+	b.w, b.err = Mount(path)
 	return b
 }
 
@@ -99,4 +101,26 @@ func (b *Builder) Build() (*spool.Spool, error) {
 	}
 
 	return spool.New(b.r, b.w, b.opts...), nil
+}
+
+func Mount(path string) (spool.FileSystem, error) {
+	if strings.HasPrefix(path, "s3://") {
+		fs, err := stream.NewFS(path[len("s3://"):])
+		if err != nil {
+			return nil, fmt.Errorf("failed to mount S3 bucket for path %s: %w", path, err)
+		}
+		return fs, nil
+	}
+
+	pabs, err := filepath.Abs(path)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve path %s: %w", path, err)
+	}
+
+	// Use lfs for local paths to avoid versioning
+	fs, err := lfs.New(pabs)
+	if err != nil {
+		return nil, fmt.Errorf("failed to mount path %s: %w", path, err)
+	}
+	return fs, nil
 }

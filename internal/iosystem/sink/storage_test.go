@@ -9,141 +9,245 @@
 package sink_test
 
 import (
-	"bytes"
 	"context"
+	"io"
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 
-	"github.com/fogfish/iq/internal/blueprint/compiler"
 	"github.com/fogfish/iq/internal/iosystem"
+	"github.com/fogfish/iq/internal/iosystem/codec"
 	"github.com/fogfish/iq/internal/iosystem/sink"
 	"github.com/fogfish/iq/internal/iosystem/storage"
+	"github.com/fogfish/it/v2"
+	"github.com/fogfish/stream/lfs"
 )
 
-func TestStorageSink_WithEmit(t *testing.T) {
-	tmpDir := t.TempDir()
-	
-	// Create storage
-	store, err := storage.NewFS(tmpDir)
-	if err != nil {
-		t.Fatalf("Failed to create storage: %v", err)
-	}
-	
-	// Create sink
-	snk := sink.NewStorage(store)
-	defer snk.Close()
-	
-	// Create document
-	doc := &iosystem.Document{
-		Key:    "test.txt",
-		Path:   "input/test.txt",
-		Reader: bytes.NewReader([]byte("test content")),
-	}
-	
-	// Create context with emit
-	ctx := context.Background()
-	emitCtx := &compiler.EmitContext{
-		Prefix: "output",
-	}
-	ctx = compiler.WithEmitContext(ctx, emitCtx)
-	
-	// Write document
-	err = snk.Write(ctx, doc)
-	if err != nil {
-		t.Fatalf("Write failed: %v", err)
-	}
-	
-	// Verify output at correct location
-	expectedKey := iosystem.Key("output/test.txt")
-	exists, err := store.Has(ctx, expectedKey)
-	if err != nil {
-		t.Fatalf("Has failed: %v", err)
-	}
-	if !exists {
-		t.Errorf("Expected output at %s", expectedKey)
-	}
-}
+func TestFSSink(t *testing.T) {
+	t.Run("Write/SingleFile", func(t *testing.T) {
+		// Create temp directory
+		tmpDir := t.TempDir()
 
-func TestStorageSink_WithEmitCounters(t *testing.T) {
-	tmpDir := t.TempDir()
-	
-	// Create storage
-	store, err := storage.NewFS(tmpDir)
-	if err != nil {
-		t.Fatalf("Failed to create storage: %v", err)
-	}
-	
-	// Create sink
-	snk := sink.NewStorage(store)
-	defer snk.Close()
-	
-	// Create document
-	doc := &iosystem.Document{
-		Key:    "test.txt",
-		Path:   "input/test.txt",
-		Reader: bytes.NewReader([]byte("test content")),
-	}
-	
-	// Create context with emit and counters
-	ctx := context.Background()
-	emitCtx := &compiler.EmitContext{
-		Prefix:   "output",
-		Counters: []int{1, 2},
-	}
-	ctx = compiler.WithEmitContext(ctx, emitCtx)
-	
-	// Write document
-	err = snk.Write(ctx, doc)
-	if err != nil {
-		t.Fatalf("Write failed: %v", err)
-	}
-	
-	// Verify output with counters
-	expectedKey := iosystem.Key("output/test.000001.000002.txt")
-	exists, err := store.Has(ctx, expectedKey)
-	if err != nil {
-		t.Fatalf("Has failed: %v", err)
-	}
-	if !exists {
-		t.Errorf("Expected output at %s", expectedKey)
-	}
-}
+		// Create filesystem
+		fsys, err := storage.NewFileSystem(tmpDir)
+		it.Then(t).Should(it.Nil(err))
 
-func TestStorageSink_WithoutEmit(t *testing.T) {
-	tmpDir := t.TempDir()
-	
-	// Create storage
-	store, err := storage.NewFS(tmpDir)
-	if err != nil {
-		t.Fatalf("Failed to create storage: %v", err)
-	}
-	
-	// Create sink
-	snk := sink.NewStorage(store)
-	defer snk.Close()
-	
-	// Create document
-	doc := &iosystem.Document{
-		Key:    "test.txt",
-		Path:   "input/test.txt",
-		Reader: bytes.NewReader([]byte("test content")),
-	}
-	
-	// Create context without emit
-	ctx := context.Background()
-	
-	// Write document
-	err = snk.Write(ctx, doc)
-	if err != nil {
-		t.Fatalf("Write failed: %v", err)
-	}
-	
-	// Verify output at original key
-	expectedKey := iosystem.Key("test.txt")
-	exists, err := store.Has(ctx, expectedKey)
-	if err != nil {
-		t.Fatalf("Has failed: %v", err)
-	}
-	if !exists {
-		t.Errorf("Expected output at %s", expectedKey)
-	}
+		// Create FSSink
+		snk, err := sink.NewStorage(fsys)
+		it.Then(t).Should(it.Nil(err))
+		defer snk.Close()
+
+		// Write document (lfs paths don't need leading slash)
+		ctx := context.Background()
+		doc := iosystem.NewDocument(
+			iosystem.Key("/test.txt"),
+			codec.ContentText,
+			io.NopCloser(strings.NewReader("test content")),
+		)
+		err = snk.Write(ctx, doc)
+		it.Then(t).Should(it.Nil(err))
+
+		// Verify file was created
+		content, err := os.ReadFile(filepath.Join(tmpDir, "test.txt"))
+		it.Then(t).Should(
+			it.Nil(err),
+			it.Equal(string(content), "test content"),
+		)
+	})
+
+	t.Run("Write/PreservePathStructure", func(t *testing.T) {
+		// Create temp directory
+		tmpDir := t.TempDir()
+
+		// Create filesystem
+		fsys, err := storage.NewFileSystem(tmpDir)
+		it.Then(t).Should(it.Nil(err))
+
+		// Create FSSink
+		snk, err := sink.NewStorage(fsys)
+		it.Then(t).Should(it.Nil(err))
+		defer snk.Close()
+
+		// Write document with nested path
+		ctx := context.Background()
+		doc := iosystem.NewDocument(
+			iosystem.Key("/subdir/nested/file.txt"),
+			codec.ContentText,
+			io.NopCloser(strings.NewReader("nested content")),
+		)
+		err = snk.Write(ctx, doc)
+		it.Then(t).Should(it.Nil(err))
+
+		// Verify file was created with correct path
+		content, err := os.ReadFile(filepath.Join(tmpDir, "subdir", "nested", "file.txt"))
+		it.Then(t).Should(
+			it.Nil(err),
+			it.Equal(string(content), "nested content"),
+		)
+	})
+
+	t.Run("Write/MultipleFiles", func(t *testing.T) {
+		// Create temp directory
+		tmpDir := t.TempDir()
+
+		// Create filesystem
+		fsys, err := storage.NewFileSystem(tmpDir)
+		it.Then(t).Should(it.Nil(err))
+
+		// Create FSSink
+		snk, err := sink.NewStorage(fsys)
+		it.Then(t).Should(it.Nil(err))
+		defer snk.Close()
+
+		// Write multiple documents
+		ctx := context.Background()
+		docs := []struct {
+			path    string
+			content string
+		}{
+			{"/file1.txt", "content1"},
+			{"/file2.txt", "content2"},
+			{"/dir/file3.txt", "content3"},
+		}
+
+		for _, d := range docs {
+			doc := iosystem.NewDocument(
+				iosystem.Key(d.path),
+				codec.ContentText,
+				io.NopCloser(strings.NewReader(d.content)),
+			)
+			err := snk.Write(ctx, doc)
+			it.Then(t).Should(it.Nil(err))
+		}
+
+		// Verify all files were created
+		for _, d := range docs {
+			relPath := strings.TrimPrefix(d.path, "/")
+			content, err := os.ReadFile(filepath.Join(tmpDir, relPath))
+			it.Then(t).Should(
+				it.Nil(err),
+				it.Equal(string(content), d.content),
+			)
+		}
+	})
+
+	// t.Run("Write/PathWithoutLeadingSlash", func(t *testing.T) {
+	// 	// Create temp directory
+	// 	tmpDir := t.TempDir()
+
+	// 	// Create filesystem
+	// 	fsys, err := lfs.New(tmpDir)
+	// 	it.Then(t).Should(it.Nil(err))
+
+	// 	// Create FSSink
+	// 	snk, err := sink.NewStorage(fsys)
+	// 	it.Then(t).Should(it.Nil(err))
+	// 	defer snk.Close()
+
+	// 	// Write document without leading slash (lfs requires leading slash)
+	// 	// This should fail
+	// 	ctx := context.Background()
+	// 	doc := iosystem.NewDocument("test.txt", io.NopCloser(strings.NewReader("test content")))
+	// 	err = snk.Write(ctx, doc)
+	// 	it.Then(t).ShouldNot(it.Nil(err)) // Expect error - lfs requires leading /
+	// })
+
+	t.Run("Write/LargeFile", func(t *testing.T) {
+		// Create temp directory
+		tmpDir := t.TempDir()
+
+		// Create filesystem
+		fsys, err := storage.NewFileSystem(tmpDir)
+		it.Then(t).Should(it.Nil(err))
+
+		// Create FSSink
+		snk, err := sink.NewStorage(fsys)
+		it.Then(t).Should(it.Nil(err))
+		defer snk.Close()
+
+		// Create large content (1MB)
+		largeContent := strings.Repeat("x", 1024*1024)
+
+		// Write document
+		ctx := context.Background()
+		doc := iosystem.NewDocument(
+			iosystem.Key("/large.txt"),
+			codec.ContentText,
+			io.NopCloser(strings.NewReader(largeContent)),
+		)
+		err = snk.Write(ctx, doc)
+		it.Then(t).Should(it.Nil(err))
+
+		// Verify file size
+		info, err := os.Stat(filepath.Join(tmpDir, "large.txt"))
+		it.Then(t).Should(
+			it.Nil(err),
+			it.Equal(info.Size(), int64(1024*1024)),
+		)
+	})
+
+	t.Run("Write/ErrorNilDocument", func(t *testing.T) {
+		// Create temp directory
+		tmpDir := t.TempDir()
+
+		// Create filesystem
+		fsys, err := storage.NewFileSystem(tmpDir)
+		it.Then(t).Should(it.Nil(err))
+
+		// Create FSSink
+		snk, err := sink.NewStorage(fsys)
+		it.Then(t).Should(it.Nil(err))
+		defer snk.Close()
+
+		// Try to write nil document
+		ctx := context.Background()
+		err = snk.Write(ctx, nil)
+		it.Then(t).ShouldNot(
+			it.Nil(err),
+		)
+	})
+
+	t.Run("ErrorNonexistentPath", func(t *testing.T) {
+		// Try to create filesystem with nonexistent path
+		_, err := lfs.New("/nonexistent/path/that/does/not/exist")
+		it.Then(t).ShouldNot(
+			it.Nil(err),
+		)
+	})
+
+	t.Run("Write/OverwriteExistingFile", func(t *testing.T) {
+		// Create temp directory with existing file
+		tmpDir := t.TempDir()
+		existingFile := filepath.Join(tmpDir, "test.txt")
+		it.Then(t).Should(
+			it.Nil(os.WriteFile(existingFile, []byte("old content"), 0644)),
+		)
+
+		// Create filesystem
+		fsys, err := storage.NewFileSystem(tmpDir)
+		it.Then(t).Should(it.Nil(err))
+
+		// Create FSSink
+		snk, err := sink.NewStorage(fsys)
+		it.Then(t).Should(it.Nil(err))
+		defer snk.Close()
+
+		// Write document with same path
+		ctx := context.Background()
+		doc := iosystem.NewDocument(
+			iosystem.Key("/test.txt"),
+			codec.ContentText,
+			io.NopCloser(strings.NewReader("new content")),
+		)
+		err = snk.Write(ctx, doc)
+		it.Then(t).Should(it.Nil(err))
+
+		// Verify file was overwritten
+		content, err := os.ReadFile(existingFile)
+		it.Then(t).Should(
+			it.Nil(err),
+			it.Equal(string(content), "new content"),
+		)
+	})
 }

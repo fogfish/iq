@@ -70,41 +70,27 @@ func NewChunker(config ChunkConfig) iosystem.Processor {
 // Process splits the input document into chunks and returns multiple documents.
 func (p *Chunker) Process(ctx context.Context, docs []*iosystem.Document) ([]*iosystem.Document, error) {
 	// Passthrough EOF or empty
-	if len(docs) == 0 || (len(docs) == 1 && docs[0].Type == iosystem.ContentEOF) {
+	if iosystem.IsEOF(docs) {
 		return docs, nil
 	}
 
 	results := make([]*iosystem.Document, 0)
 
 	for _, doc := range docs {
-		// Create scanner based on strategy
-		s := p.createScanner(doc.Reader)
-
 		var chunks []*iosystem.Document
-		chunkNum := 0
+		scanner := p.createScanner(doc.Reader)
 
-		for s.Scan() {
-			txt := strings.TrimSpace(s.Text())
+		for scanner.Scan() {
+			txt := strings.TrimSpace(scanner.Text())
 			if len(txt) == 0 {
 				continue
 			}
 
-			chunkNum++
-			chunkPath := fmt.Sprintf("%s#chunk%d", doc.Path, chunkNum)
-
-			chunkDoc := iosystem.NewDocument(iosystem.Key(chunkPath), strings.NewReader(txt))
-
-			// Copy metadata from original
-			for k, v := range doc.Metadata.Custom {
-				chunkDoc.WithMetadata(k, v)
-			}
-			chunkDoc.WithMetadata("chunk_num", fmt.Sprintf("%d", chunkNum))
-			chunkDoc.WithMetadata("original_path", doc.Path)
-
-			chunks = append(chunks, chunkDoc)
+			chunk := iosystem.NewDocument(doc.Key, doc.Type, strings.NewReader(txt))
+			chunks = append(chunks, chunk)
 		}
 
-		if err := s.Err(); err != nil {
+		if err := scanner.Err(); err != nil {
 			return nil, fmt.Errorf("chunking error: %w", err)
 		}
 

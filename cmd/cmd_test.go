@@ -75,7 +75,7 @@ func TestAgentWithFileMerge(t *testing.T) {
 	// iq agent -f testdata/prompt.md --merge FILE1 FILE2
 	fmodel.profile = "mock"
 	fagent.file = "testdata/workflow.yml"
-	finput.merge = true
+	fagent.merge = true
 
 	out, err := sut(agentCmd, []string{"testdata/doc.txt", "testdata/doc.txt"})
 

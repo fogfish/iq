@@ -14,6 +14,7 @@ import (
 	"io"
 
 	"github.com/fogfish/iq/internal/iosystem"
+	"github.com/fogfish/iq/internal/iosystem/codec"
 )
 
 type None struct {
@@ -31,7 +32,7 @@ func (s *None) Next(ctx context.Context) (*iosystem.Document, error) {
 		return nil, io.EOF
 	}
 	s.consumed = true
-	return iosystem.NewDocument("", bytes.NewBuffer(nil)), nil
+	return iosystem.NewDocument("", codec.ContentText, bytes.NewBuffer(nil)), nil
 }
 
 // Close does nothing since None doesn't own any resources.

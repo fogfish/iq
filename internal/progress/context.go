@@ -8,7 +8,9 @@
 
 package progress
 
-import "context"
+import (
+	"context"
+)
 
 // Context keys - using plain strings to allow cross-package access
 const (
@@ -17,12 +19,71 @@ const (
 	foreachModeKey = "iq.progress.foreachmode"
 )
 
+var silent = &Silent{}
+
 // StepInfo carries information about the current step execution
 type StepInfo struct {
-	JobName    string
-	StepName   string
-	StepNum    int
-	TotalSteps int
+	// Nesting support for router and foreach
+	Parent *StepInfo // Link to parent step (for nested jobs)
+
+	JobName string
+	JobSize int
+
+	StepID   int
+	StepName string
+
+	// Retry-specific fields
+	Attempt int
+	Delay   int
+
+	// ForEach-specific fields
+	ItemIndex int // Current item (1-based), 0 = not in foreach
+	ItemTotal int // Total items, 0 = not in foreach
+}
+
+func ContextCallStack(ctx context.Context, jobName string, jobSize, stepID int) context.Context {
+	info := GetStepInfo(ctx)
+
+	// top-level invokation, no context info
+	if info == nil {
+		return WithStepInfo(ctx, StepInfo{
+			JobName: jobName,
+			StepID:  stepID,
+			JobSize: jobSize,
+		})
+	}
+
+	info.JobName = jobName
+	info.JobSize = jobSize
+	info.StepID = stepID
+
+	return WithStepInfo(ctx, *info)
+}
+
+func ContextForEach(ctx context.Context, jobName string, index, total int) context.Context {
+	info := GetStepInfo(ctx)
+	if info == nil {
+		return ctx
+	}
+
+	return WithStepInfo(ctx, StepInfo{
+		JobName:   jobName,
+		Parent:    info,
+		ItemIndex: index,
+		ItemTotal: total,
+	})
+}
+
+func ContextRouter(ctx context.Context, jobName string) context.Context {
+	info := GetStepInfo(ctx)
+	if info == nil {
+		return ctx
+	}
+
+	return WithStepInfo(ctx, StepInfo{
+		JobName: jobName,
+		Parent:  info,
+	})
 }
 
 // WithReporter embeds a progress reporter in the context
@@ -32,11 +93,11 @@ func WithReporter(ctx context.Context, reporter *Reporter) context.Context {
 }
 
 // FromContext extracts the progress reporter from context
-func FromContext(ctx context.Context) *Reporter {
+func FromContext(ctx context.Context) ProgressBar {
 	if reporter, ok := ctx.Value(reporterKey).(*Reporter); ok {
 		return reporter
 	}
-	return nil
+	return silent
 }
 
 // WithStepInfo embeds step information in the context
@@ -51,18 +112,4 @@ func GetStepInfo(ctx context.Context) *StepInfo {
 		return &info
 	}
 	return nil
-}
-
-// WithForeachMode marks the context as being inside a foreach loop
-func WithForeachMode(ctx context.Context) context.Context {
-	//lint:ignore SA1029 due to cross-package context key access
-	return context.WithValue(ctx, foreachModeKey, true)
-}
-
-// IsInForeachMode checks if we're currently inside a foreach loop
-func IsInForeachMode(ctx context.Context) bool {
-	if inForeach, ok := ctx.Value(foreachModeKey).(bool); ok {
-		return inForeach
-	}
-	return false
 }

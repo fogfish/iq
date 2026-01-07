@@ -114,9 +114,9 @@ type optsAgent struct {
 	splitter      string
 	splitterChunk int
 	splitterChars string
-	json          bool
 	array         bool
-	skipIfExists  bool
+	merge         bool
+	cache         string
 }
 
 func (opts *optsAgent) apply(cmd *cobra.Command) {
@@ -134,54 +134,44 @@ func (opts *optsAgent) apply(cmd *cobra.Command) {
 	f.StringVar(&opts.splitterChars, "splitter-chars", "",
 		"Sequence of characters used by splitter as delimiter")
 
-	f.BoolVar(&opts.json, "json", false,
-		"Display output as formatted, colored JSON")
-
 	f.BoolVar(&opts.array, "array", false,
 		"Passes input documents or chunks as an array to the workflow.")
 
-	f.BoolVar(&opts.skipIfExists, "skip-if-exists", false,
-		"Skip documents that already have output (checks last step emit)")
+	f.BoolVar(&opts.merge, "merge", false,
+		"Combine all input files into a single document before processing")
+
+	f.StringVar(&opts.cache, "cache-dir", "",
+		"Path to the LLM response cache database (enables caching)")
 }
 
 // validate checks for incompatible flag combinations
 func (opts *optsAgent) validate() error {
-	if opts.array && finput.merge {
+	if opts.array && opts.merge {
 		return fmt.Errorf("--array and --merge are mutually exclusive (--array collects inputs as array, --merge combines as single document)")
 	}
 	return nil
 }
 
-func (opts *optsAgent) build(llm chatter.Chatter, reporter *progress.Reporter) (*worker.ConduitWithReporter, error) {
+func (opts *optsAgent) build(llm chatter.Chatter, sink iosystem.Sink, reporter *progress.Reporter) (*worker.ConduitWithReporter, error) {
 	// Validate flags
 	if err := opts.validate(); err != nil {
 		return nil, err
 	}
 
-	builder := worker.New().
+	return worker.New().
 		// TODO: ErrorMode
 		Reporter(reporter).
 		Runtime().
-		ArrayMode(opts.array).
 		Splitter(processor.ChunkConfig{
 			Strategy:       opts.splitter,
 			ChunkSize:      opts.splitterChunk,
 			DelimiterChars: opts.splitterChars,
 		}).
-		Workflow(opts.file, llm)
-
-	// Add skip-if-exists processor if flag enabled
-	if opts.skipIfExists {
-		// Get output path from freply
-		outputPath := freply.dir
-		if outputPath == "" {
-			// If no output dir specified, skip-if-exists doesn't make sense
-			return nil, fmt.Errorf("--skip-if-exists requires --output-dir to be specified")
-		}
-		builder = builder.SkipIfExists(outputPath)
-	}
-
-	return builder.Jsonify(opts.json).Build()
+		ListCollector(opts.array).
+		TextCollector(opts.merge).
+		Cache(opts.cache).
+		Workflow(opts.file, llm, sink).
+		Build()
 }
 
 //------------------------------------------------------------------------------
@@ -190,8 +180,7 @@ func (opts *optsAgent) build(llm chatter.Chatter, reporter *progress.Reporter) (
 var finput optsInput
 
 type optsInput struct {
-	dir   string
-	merge bool
+	dir string
 }
 
 func (opts *optsInput) apply(cmd *cobra.Command) {
@@ -199,16 +188,11 @@ func (opts *optsInput) apply(cmd *cobra.Command) {
 
 	f.StringVarP(&opts.dir, "input-dir", "I", "",
 		"Input directory or S3 URI containing files to process")
-
-	f.BoolVar(&opts.merge, "merge", false,
-		"Combine all input files into a single document before processing")
 }
 
 func (opts *optsInput) build(files []string) (iosystem.Source, error) {
 	return source.New().
-		Files(".", files...).
-		Path(opts.dir).
-		Merge(opts.merge).
+		Files(opts.dir, files...).
 		Stdin().
 		None().
 		Build()
@@ -232,7 +216,6 @@ func (opts *optsReply) apply(cmd *cobra.Command) {
 
 	f.StringVarP(&opts.file, "output", "o", "",
 		"Path to the output file")
-
 }
 
 func (opts *optsReply) build() (iosystem.Sink, error) {
@@ -241,19 +224,6 @@ func (opts *optsReply) build() (iosystem.Sink, error) {
 		Path(opts.dir).
 		Stdout(!fglobal.quiet && !fglobal.silent).
 		Build()
-}
-
-// buildWithEmit builds sink with emit support if usesEmit is true and dir is set
-func (opts *optsReply) buildWithEmit(usesEmit bool) (iosystem.Sink, error) {
-	// If workflow uses emit and output directory is specified, use Storage sink
-	if usesEmit && opts.dir != "" {
-		return sink.New().
-			Storage(opts.dir).
-			Build()
-	}
-	
-	// Otherwise use regular build
-	return opts.build()
 }
 
 //------------------------------------------------------------------------------

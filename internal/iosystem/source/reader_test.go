@@ -29,7 +29,7 @@ func TestReaderSource_SingleDocument(t *testing.T) {
 	doc, err := src.Next(ctx)
 	it.Then(t).Should(
 		it.Nil(err),
-		it.Equal(doc.Path, "test.txt"),
+		it.Equal(doc.Key, "test.txt"),
 	)
 	it.Then(t).ShouldNot(
 		it.Nil(doc),
@@ -82,7 +82,7 @@ func TestReaderSource_EmptyContent(t *testing.T) {
 
 	it.Then(t).Should(
 		it.Nil(err),
-		it.Equal(doc.Path, "empty.txt"),
+		it.Equal(doc.Key, "empty.txt"),
 	)
 	it.Then(t).ShouldNot(
 		it.Nil(doc),

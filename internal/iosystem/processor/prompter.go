@@ -16,6 +16,7 @@ import (
 	"strings"
 
 	"github.com/fogfish/iq/internal/iosystem"
+	"github.com/fogfish/iq/internal/iosystem/codec"
 	"github.com/kshard/chatter"
 )
 
@@ -41,8 +42,7 @@ func NewPrompter(llm chatter.Chatter) *Prompter {
 // The agent's response becomes the content of the output document.
 // Output format depends on agent's configuration (text or JSON).
 func (p *Prompter) Process(ctx context.Context, docs []*iosystem.Document) ([]*iosystem.Document, error) {
-	// Passthrough EOF or empty
-	if len(docs) == 0 || (len(docs) == 1 && docs[0].Type == iosystem.ContentEOF) {
+	if iosystem.IsEOF(docs) {
 		return docs, nil
 	}
 
@@ -60,16 +60,16 @@ func (p *Prompter) Process(ctx context.Context, docs []*iosystem.Document) ([]*i
 
 		result, err := p.llm.Prompt(ctx, content)
 		if err != nil {
-			return nil, fmt.Errorf("prompter processing failed for '%s': %w", doc.Path, err)
+			return nil, fmt.Errorf("prompter processing failed for '%s': %w", doc.Key, err)
 		}
 
 		reply, err := p.encode(result)
 		if err != nil {
-			return nil, fmt.Errorf("failed to encode prompter response for '%s': %w", doc.Path, err)
+			return nil, fmt.Errorf("failed to encode prompter response for '%s': %w", doc.Key, err)
 		}
 
 		for _, r := range reply {
-			r.Path = doc.Path
+			r.Key = doc.Key
 			r.Metadata = copyMetadata(doc.Metadata)
 		}
 
@@ -98,7 +98,7 @@ func (p *Prompter) encode(reply *chatter.Reply) ([]*iosystem.Document, error) {
 		case chatter.Text:
 			seq = append(seq, &iosystem.Document{
 				Reader: strings.NewReader(string(v)),
-				Type:   iosystem.ContentText,
+				Type:   codec.ContentText,
 			})
 		case *chatter.Binary:
 			seq = append(seq, &iosystem.Document{

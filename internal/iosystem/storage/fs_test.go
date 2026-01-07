@@ -22,7 +22,7 @@ import (
 
 func TestFSStorage_PutGet(t *testing.T) {
 	tmpDir := t.TempDir()
-	store, err := storage.NewFS(tmpDir)
+	store, err := storage.NewFileSystem(tmpDir)
 	if err != nil {
 		t.Fatalf("NewFS failed: %v", err)
 	}
@@ -55,7 +55,7 @@ func TestFSStorage_PutGet(t *testing.T) {
 
 func TestFSStorage_Has(t *testing.T) {
 	tmpDir := t.TempDir()
-	store, err := storage.NewFS(tmpDir)
+	store, err := storage.NewFileSystem(tmpDir)
 	if err != nil {
 		t.Fatalf("NewFS failed: %v", err)
 	}
@@ -93,7 +93,7 @@ func TestFSStorage_Walk(t *testing.T) {
 	os.WriteFile(filepath.Join(tmpDir, "a.txt"), []byte("a"), 0644)
 	os.WriteFile(filepath.Join(tmpDir, "sub", "b.txt"), []byte("b"), 0644)
 
-	store, err := storage.NewFS(tmpDir)
+	store, err := storage.NewFileSystem(tmpDir)
 	if err != nil {
 		t.Fatalf("NewFS failed: %v", err)
 	}
@@ -121,7 +121,7 @@ func TestFSStorage_Walk(t *testing.T) {
 
 func TestFSStorage_GetNonExistent(t *testing.T) {
 	tmpDir := t.TempDir()
-	store, err := storage.NewFS(tmpDir)
+	store, err := storage.NewFileSystem(tmpDir)
 	if err != nil {
 		t.Fatalf("NewFS failed: %v", err)
 	}
@@ -136,7 +136,7 @@ func TestFSStorage_GetNonExistent(t *testing.T) {
 }
 
 func TestFSStorage_EmptyPath(t *testing.T) {
-	_, err := storage.NewFS("")
+	_, err := storage.NewFileSystem("")
 	if err == nil {
 		t.Error("Expected error when creating storage with empty path")
 	}
@@ -144,7 +144,7 @@ func TestFSStorage_EmptyPath(t *testing.T) {
 
 func TestFSStorage_PutOverwrite(t *testing.T) {
 	tmpDir := t.TempDir()
-	store, err := storage.NewFS(tmpDir)
+	store, err := storage.NewFileSystem(tmpDir)
 	if err != nil {
 		t.Fatalf("NewFS failed: %v", err)
 	}

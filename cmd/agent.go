@@ -13,7 +13,6 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/fogfish/iq/internal/blueprint/compiler"
 	snk "github.com/fogfish/iq/internal/iosystem/sink"
 	src "github.com/fogfish/iq/internal/iosystem/source"
 	"github.com/spf13/cobra"
@@ -75,22 +74,17 @@ func agent(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	srv, err := fagent.build(llm, reporter)
-	if err != nil {
-		reporter.WorkflowError(err)
-		return err
-	}
-
 	src, err := finput.build(args)
 	if err != nil {
 		return err
 	}
 
-	// Get workflow to check if it uses emit
-	workflow := srv.GetWorkflow()
-	usesEmit := workflowUsesEmit(workflow)
+	snk, err := freply.build()
+	if err != nil {
+		return err
+	}
 
-	snk, err := freply.buildWithEmit(usesEmit)
+	srv, err := fagent.build(llm, snk, reporter)
 	if err != nil {
 		return err
 	}
@@ -101,36 +95,6 @@ func agent(cmd *cobra.Command, args []string) error {
 	}
 
 	return nil
-}
-
-// workflowUsesEmit checks if any step in workflow uses emit attribute.
-func workflowUsesEmit(workflow *compiler.Workflow) bool {
-	if workflow == nil {
-		return false
-	}
-	for _, job := range workflow.Jobs {
-		for _, step := range job.Steps {
-			switch s := step.(type) {
-			case *compiler.AgentStep:
-				if s.Emit != "" {
-					return true
-				}
-			case *compiler.RouterStep:
-				if s.Emit != "" {
-					return true
-				}
-			case *compiler.ForeachStep:
-				if s.Emit != "" {
-					return true
-				}
-			case *compiler.RunStep:
-				if s.Emit != "" {
-					return true
-				}
-			}
-		}
-	}
-	return false
 }
 
 //------------------------------------------------------------------------------
@@ -186,7 +150,7 @@ func agentBatch(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	srv, err := fagent.build(llm, reporter)
+	srv, err := fagent.build(llm, nil, reporter)
 	if err != nil {
 		reporter.WorkflowError(err)
 		return err
@@ -228,7 +192,7 @@ func agentServe(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	srv, err := fagent.build(llm, reporter)
+	srv, err := fagent.build(llm, nil, reporter)
 	if err != nil {
 		return err
 	}

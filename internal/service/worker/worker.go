@@ -13,7 +13,6 @@ import (
 	"fmt"
 
 	"github.com/fogfish/iq/internal/blueprint"
-	"github.com/fogfish/iq/internal/blueprint/compiler"
 	"github.com/fogfish/iq/internal/iosystem"
 	"github.com/fogfish/iq/internal/iosystem/conduit"
 	"github.com/fogfish/iq/internal/iosystem/processor"
@@ -32,13 +31,12 @@ import (
 //	    Concurrency(4).
 //	    Build()
 type Builder struct {
-	conduit         conduit.Config
-	runtime         *conduit.Conduit
-	reporter        *progress.Reporter
-	workflow        *blueprint.Blueprint
-	compiledWorkflow *compiler.Workflow // Compiled workflow for emit detection
-	cacheStore      storage.Storage    // Storage for skip-if-exists caching
-	err             error
+	conduit  conduit.Config
+	runtime  *conduit.Conduit
+	reporter *progress.Reporter
+	workflow *blueprint.Blueprint
+	cache    storage.Storage
+	err      error
 }
 
 // New creates a new conduit builder with default configuration.
@@ -107,7 +105,7 @@ func (b *Builder) Reporter(r *progress.Reporter) *Builder {
 	// Wire up progress callback
 	b.conduit.Progress = func(doc *iosystem.Document, err error) {
 		if err != nil {
-			r.DocumentError(doc.Path, err)
+			r.DocumentError(string(doc.Key), err)
 		} else {
 			// We'll report completion at the end of processing
 		}
@@ -154,21 +152,46 @@ func (b *Builder) Splitter(conf processor.ChunkConfig) *Builder {
 //
 // Memory warning: All documents buffered in memory until EOF.
 // Not suitable for very large document streams.
-func (b *Builder) ArrayMode(enable bool) *Builder {
+func (b *Builder) ListCollector(enable bool) *Builder {
 	if b.err != nil || b.runtime == nil || !enable {
 		return b
 	}
 
 	// Add ArrayCollector as first processor
 	// It will collect documents and emit array on EOF
-	b.runtime.AddProcessor(processor.NewArrayCollector())
+	b.runtime.AddProcessor(processor.NewCollector(false))
 
+	return b
+}
+
+func (b *Builder) TextCollector(enable bool) *Builder {
+	if b.err != nil || b.runtime == nil || !enable {
+		return b
+	}
+
+	b.runtime.AddProcessor(processor.NewCollector(true))
+
+	return b
+}
+
+func (b *Builder) Cache(path string) *Builder {
+	if b.err != nil || b.runtime == nil || path == "" {
+		return b
+	}
+
+	store, err := storage.NewFileSystem(path)
+	if err != nil {
+		b.err = fmt.Errorf("failed to create cache storage at %s: %w", path, err)
+		return b
+	}
+
+	b.cache = store
 	return b
 }
 
 // Workflow sets the blueprint to use for creating processors.
 // This is required.
-func (b *Builder) Workflow(file string, llm chatter.Chatter) *Builder {
+func (b *Builder) Workflow(file string, llm chatter.Chatter, sink iosystem.Sink) *Builder {
 	if b.err != nil || b.runtime == nil {
 		return b
 	}
@@ -180,17 +203,13 @@ func (b *Builder) Workflow(file string, llm chatter.Chatter) *Builder {
 		return b
 	}
 
-	wrk, err := blueprint.New(file, llm)
+	wrk, err := blueprint.New(file, llm, sink, b.cache)
 	if err != nil {
 		b.err = fmt.Errorf("failed to create blueprint from %s: %w", file, err)
 		return b
 	}
 
-	// Store workflow for potential use in SkipIfExists
 	b.workflow = wrk
-	
-	// Store compiled workflow for emit detection
-	b.compiledWorkflow = wrk.Workflow()
 
 	// Report workflow compiled with actual counts
 	if b.reporter != nil {
@@ -207,42 +226,6 @@ func (b *Builder) Workflow(file string, llm chatter.Chatter) *Builder {
 	return b
 }
 
-// SkipIfExists enables step-level output caching for incremental processing.
-// When enabled, each step with an 'emit' attribute will check if its output
-// already exists in storage and skip LLM operations if found, using cached output instead.
-// Must be called after Workflow() and before Build().
-func (b *Builder) SkipIfExists(outputPath string) *Builder {
-	if b.err != nil || b.runtime == nil || b.workflow == nil || outputPath == "" {
-		return b
-	}
-
-	// Create storage for output checking/caching
-	store, err := storage.NewFS(outputPath)
-	if err != nil {
-		b.err = fmt.Errorf("failed to create storage for skip-if-exists: %w", err)
-		return b
-	}
-
-	// Store reference for use in Build()
-	b.cacheStore = store
-
-	return b
-}
-
-func (b *Builder) Jsonify(enable bool) *Builder {
-	if b.err != nil || b.runtime == nil || !enable {
-		return b
-	}
-
-	b.runtime.AddProcessor(
-		processor.NewJsonify(processor.JsonifyConfig{
-			Indent: 2,
-			Color:  true,
-		}),
-	)
-	return b
-}
-
 // Build creates the configured conduit with blueprint processor.
 // Returns a wrapped conduit that includes progress reporter in context.
 func (b *Builder) Build() (*ConduitWithReporter, error) {
@@ -255,24 +238,15 @@ func (b *Builder) Build() (*ConduitWithReporter, error) {
 	}
 
 	return &ConduitWithReporter{
-		Conduit:          b.runtime,
-		reporter:         b.reporter,
-		cacheStore:       b.cacheStore,
-		compiledWorkflow: b.compiledWorkflow,
+		Conduit:  b.runtime,
+		reporter: b.reporter,
 	}, nil
 }
 
 // ConduitWithReporter wraps a conduit and injects progress reporter into context
 type ConduitWithReporter struct {
 	*conduit.Conduit
-	reporter         *progress.Reporter
-	cacheStore       storage.Storage    // Storage for skip-if-exists caching
-	compiledWorkflow *compiler.Workflow // For emit detection
-}
-
-// GetWorkflow returns the compiled workflow.
-func (c *ConduitWithReporter) GetWorkflow() *compiler.Workflow {
-	return c.compiledWorkflow
+	reporter *progress.Reporter
 }
 
 // Run executes the pipeline with progress reporter in context
@@ -283,15 +257,6 @@ func (c *ConduitWithReporter) Run(ctx context.Context, source iosystem.Source, s
 
 		// Wrap sink to buffer output until after summary
 		sink = newBufferingSink(sink)
-	}
-
-	// Add cache context if storage configured
-	if c.cacheStore != nil {
-		cacheCtx := &compiler.CacheContext{
-			Storage: c.cacheStore,
-			Enabled: true,
-		}
-		ctx = compiler.WithCacheContext(ctx, cacheCtx)
 	}
 
 	stats, err := c.Conduit.Run(ctx, source, sink)

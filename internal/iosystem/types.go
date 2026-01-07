@@ -8,7 +8,12 @@
 
 package iosystem
 
-import "context"
+import (
+	"context"
+	"fmt"
+	"path/filepath"
+	"strings"
+)
 
 // Source produces documents from an input source.
 // Sources are the entry point of a processing pipeline.
@@ -80,3 +85,17 @@ type Sink interface {
 //	"sub/a.txt"       - file in subdirectory
 //	"summary/a.txt"   - file with emit prefix
 type Key string
+
+func (k Key) SeqID(id int) Key {
+	dir := filepath.Dir(string(k))
+	base := filepath.Base(string(k))
+	ext := filepath.Ext(base)
+
+	name := strings.TrimSuffix(base, ext)
+	newBase := fmt.Sprintf("%s.%04d%s", name, id, ext)
+
+	if dir == "." {
+		return Key(newBase)
+	}
+	return Key(filepath.Join(dir, newBase))
+}

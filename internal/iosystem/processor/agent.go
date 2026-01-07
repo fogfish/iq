@@ -9,21 +9,18 @@
 package processor
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
-	"io"
 
-	"github.com/fogfish/iq/internal/blueprint/compiler"
+	"github.com/fogfish/iq/internal/blueprint/runtime"
 	"github.com/fogfish/iq/internal/iosystem"
-	"github.com/goccy/go-yaml"
+	"github.com/fogfish/iq/internal/iosystem/codec"
 	"github.com/kshard/chatter"
 )
 
 // Worker abstraction
 type Worker interface {
-	Prompt(ctx context.Context, input any, opt ...chatter.Opt) (any, error)
+	Prompt(ctx context.Context, in runtime.Event, opt ...chatter.Opt) (runtime.Event, error)
 }
 
 // Agent wraps a blueprint to use as a pipeline processor.
@@ -47,6 +44,7 @@ type Worker interface {
 type Agent struct {
 	w      Worker
 	config AgentConfig
+	codecs *codec.Registry
 }
 
 // AgentConfig configures the agent processor.
@@ -60,6 +58,7 @@ func NewAgent(w Worker, config *AgentConfig) *Agent {
 	p := &Agent{
 		w:      w,
 		config: AgentConfig{Options: []chatter.Opt{}},
+		codecs: codec.Default,
 	}
 
 	if config != nil {
@@ -79,141 +78,68 @@ func NewAgent(w Worker, config *AgentConfig) *Agent {
 // The agent's response becomes the content of the output document.
 // Output format depends on agent's configuration (text or JSON).
 func (p *Agent) Process(ctx context.Context, docs []*iosystem.Document) ([]*iosystem.Document, error) {
-	// Passthrough EOF or empty
-	if len(docs) == 0 || (len(docs) == 1 && docs[0].Type == iosystem.ContentEOF) {
+	if iosystem.IsEOF(docs) {
 		return docs, nil
 	}
 
-	// Inject document key into cache context for step-level caching
-	if len(docs) > 0 {
-		cacheCtx := compiler.GetCacheContext(ctx)
-		if cacheCtx != nil {
-			cacheCtx.DocumentKey = iosystem.Key(docs[0].Path)
-			ctx = compiler.WithCacheContext(ctx, cacheCtx)
-		}
-	}
-
-	var input any
-
-	// Create emit capture to retrieve emit context after workflow execution
-	ctx, emitCapture := compiler.WithEmitCapture(ctx)
-
-	items := make([]any, 0, len(docs))
-	for _, doc := range docs {
-		content, err := p.decode(doc)
-		if err != nil {
-			return nil, fmt.Errorf("failed to read document: %w", err)
-		}
-		items = append(items, content)
-	}
-	input = items
-
-	if len(items) == 1 {
-		input = items[0]
-	}
-
-	result, err := p.w.Prompt(ctx, input, p.config.Options...)
+	input, err := p.decode(docs)
 	if err != nil {
-		docPath := docs[0].Path
-		if len(docs) > 1 {
-			docPath = fmt.Sprintf("%s (array of %d)", docPath, len(docs))
-		}
-		return nil, fmt.Errorf("agent processing failed for '%s': %w", docPath, err)
+		return nil, fmt.Errorf("failed to decode document: %w", err)
 	}
 
-	reply, err := p.encode(result)
+	reply, err := p.w.Prompt(ctx, input, p.config.Options...)
+	if err != nil {
+		return nil, fmt.Errorf("agent processing failed for '%s': %w", docs[0].Key, err)
+	}
+
+	doc, err := p.encode(reply)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode agent response: %w", err)
 	}
 
-	reply.Key = docs[0].Key
-	reply.Path = docs[0].Path + p.config.Suffix
-	reply.Metadata = copyMetadata(docs[0].Metadata)
-
-	// Store captured emit context in document metadata
-	if emitCapture != nil && emitCapture.Captured != nil {
-		if reply.Metadata.Custom == nil {
-			reply.Metadata.Custom = make(map[string]string)
-		}
-		reply.Metadata.Custom["emit.prefix"] = emitCapture.Captured.Prefix
-		// Store counters as JSON if present
-		if len(emitCapture.Captured.Counters) > 0 {
-			countersJSON, _ := json.Marshal(emitCapture.Captured.Counters)
-			reply.Metadata.Custom["emit.counters"] = string(countersJSON)
-		}
-	}
-
-	return []*iosystem.Document{reply}, nil
+	return []*iosystem.Document{doc}, nil
 }
 
-// prepare the document for processing by the blueprint.
-func (p *Agent) decode(doc *iosystem.Document) (any, error) {
-	// Read document content
-	content, err := io.ReadAll(doc.Reader)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read document: %w", err)
-	}
-
-	switch doc.Type {
-	case iosystem.ContentJSON:
-		var input map[string]any
-		if err := json.Unmarshal(content, &input); err != nil {
-			return nil, fmt.Errorf("failed to unmarshal JSON document: %w", err)
-		}
-		return input, nil
-	case iosystem.ContentYAML:
-		var input map[string]any
-		if err := yaml.Unmarshal(content, &input); err != nil {
-			return nil, fmt.Errorf("failed to unmarshal YAML document: %w", err)
-		}
-		return input, nil
-	default:
-		return content, nil
-	}
-}
-
-func (p *Agent) encode(reply any) (*iosystem.Document, error) {
-	switch v := reply.(type) {
-	case string:
-		return &iosystem.Document{
-			Reader: bytes.NewReader([]byte(v)),
-			Type:   iosystem.ContentText,
-		}, nil
-	case []byte:
-		return &iosystem.Document{
-			Reader: bytes.NewReader(v),
-			Type:   iosystem.ContentStream,
-		}, nil
-	default:
-		data, err := json.Marshal(v)
+// decode prepares the document for processing by the blueprint.
+func (p *Agent) decode(docs []*iosystem.Document) (runtime.Event, error) {
+	data := make([]any, 0, len(docs))
+	for _, doc := range docs {
+		content, err := p.codecs.Decode(doc.Reader, doc.Type)
 		if err != nil {
-			return nil, fmt.Errorf("failed to marshal agent response: %w", err)
+			return runtime.Event{}, fmt.Errorf("failed to read document: %w", err)
 		}
-		return &iosystem.Document{
-			Reader: bytes.NewReader(data),
-			Type:   iosystem.ContentJSON,
-		}, nil
+		data = append(data, content)
 	}
+
+	if len(data) == 1 {
+		doc, err := runtime.ToGist(data[0])
+		if err != nil {
+			return runtime.Event{}, fmt.Errorf("input conversion failed: %w", err)
+		}
+		return runtime.NewEvent(docs[0].Key, doc), nil
+	}
+
+	doc, err := runtime.ToGist(data)
+	if err != nil {
+		return runtime.Event{}, fmt.Errorf("input conversion failed: %w", err)
+	}
+	return runtime.NewEvent(docs[0].Key, doc), nil
+}
+
+func (p *Agent) encode(reply runtime.Event) (*iosystem.Document, error) {
+	raw, err := p.codecs.Encode(reply.Current, reply.Current.ContentType())
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode agent reply: %w", err)
+	}
+
+	doc := iosystem.NewDocument(reply.Key, reply.Current.ContentType(), raw)
+	doc.EnsureExtension()
+
+	return doc, nil
 }
 
 // Close releases resources. For AgentProcessor, this is a no-op
 // as the agent lifecycle is managed externally.
 func (p *Agent) Close() error {
 	return nil
-}
-
-// copyMetadata creates a shallow copy of metadata.
-func copyMetadata(m iosystem.Metadata) iosystem.Metadata {
-	copy := iosystem.Metadata{
-		ContentType: m.ContentType,
-		Extension:   m.Extension,
-		Size:        m.Size,
-	}
-	if m.Custom != nil {
-		copy.Custom = make(map[string]string, len(m.Custom))
-		for k, v := range m.Custom {
-			copy.Custom[k] = v
-		}
-	}
-	return copy
 }

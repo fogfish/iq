@@ -3,9 +3,11 @@ jobs:
   main:
     steps:
       - uses: prompts/rainbow.md
-        foreach:
+      
+      - foreach:
           job: explain
 
   explain:
     steps:
       - uses: prompts/explain.md
+

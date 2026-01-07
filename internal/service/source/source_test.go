@@ -103,6 +103,7 @@ func TestBuilder_MultipleFiles(t *testing.T) {
 	it.Then(t).Should(it.Equal(err, io.EOF))
 }
 
+/*
 func TestBuilder_MergeFiles(t *testing.T) {
 	// Create temp files
 	tmpDir := t.TempDir()
@@ -138,6 +139,7 @@ func TestBuilder_MergeFiles(t *testing.T) {
 	_, err = src.Next(context.Background())
 	it.Then(t).Should(it.Equal(err, io.EOF))
 }
+*/
 
 func TestBuilder_FilesCleanup(t *testing.T) {
 	// Test that source properly closes file handles

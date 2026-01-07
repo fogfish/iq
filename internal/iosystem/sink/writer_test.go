@@ -16,6 +16,7 @@ import (
 	"testing"
 
 	"github.com/fogfish/iq/internal/iosystem"
+	"github.com/fogfish/iq/internal/iosystem/codec"
 	"github.com/fogfish/iq/internal/iosystem/sink"
 	"github.com/fogfish/it/v2"
 )
@@ -24,7 +25,7 @@ func TestWriterSink_SingleDocument(t *testing.T) {
 	var buf bytes.Buffer
 	snk := sink.NewWriter(&buf)
 
-	doc := iosystem.NewDocument("test.txt", strings.NewReader("test content"))
+	doc := iosystem.NewDocument("test.txt", codec.ContentText, strings.NewReader("test content"))
 	ctx := context.Background()
 
 	err := snk.Write(ctx, doc)
@@ -41,12 +42,12 @@ func TestWriterSink_MultipleWrites(t *testing.T) {
 	ctx := context.Background()
 
 	// Write first document
-	doc1 := iosystem.NewDocument("doc1.txt", strings.NewReader("first "))
+	doc1 := iosystem.NewDocument("doc1.txt", codec.ContentText, strings.NewReader("first "))
 	err := snk.Write(ctx, doc1)
 	it.Then(t).Should(it.Nil(err))
 
 	// Write second document (appends to same writer)
-	doc2 := iosystem.NewDocument("doc2.txt", strings.NewReader("second"))
+	doc2 := iosystem.NewDocument("doc2.txt", codec.ContentText, strings.NewReader("second"))
 	err = snk.Write(ctx, doc2)
 	it.Then(t).Should(it.Nil(err))
 
@@ -58,7 +59,7 @@ func TestWriterSink_EmptyDocument(t *testing.T) {
 	var buf bytes.Buffer
 	snk := sink.NewWriter(&buf)
 
-	doc := iosystem.NewDocument("empty.txt", strings.NewReader(""))
+	doc := iosystem.NewDocument("empty.txt", codec.ContentText, strings.NewReader(""))
 	ctx := context.Background()
 
 	err := snk.Write(ctx, doc)
@@ -77,7 +78,7 @@ func TestWriterSink_Close(t *testing.T) {
 	it.Then(t).Should(it.Nil(err))
 
 	// Should still be able to write after close (writer lifecycle managed by caller)
-	doc := iosystem.NewDocument("test.txt", strings.NewReader("content"))
+	doc := iosystem.NewDocument("test.txt", codec.ContentText, strings.NewReader("content"))
 	ctx := context.Background()
 	err = snk.Write(ctx, doc)
 	it.Then(t).Should(it.Nil(err))
@@ -87,7 +88,7 @@ func TestWriterSink_WithMetadata(t *testing.T) {
 	var buf bytes.Buffer
 	snk := sink.NewWriter(&buf)
 
-	doc := iosystem.NewDocument("test.txt", strings.NewReader("content"))
+	doc := iosystem.NewDocument("test.txt", codec.ContentText, strings.NewReader("content"))
 	doc.WithMetadata("key", "value")
 
 	ctx := context.Background()
@@ -107,7 +108,7 @@ func TestWriterSink_LargeContent(t *testing.T) {
 
 	// Create a large string (1MB)
 	largeContent := strings.Repeat("x", 1024*1024)
-	doc := iosystem.NewDocument("large.txt", strings.NewReader(largeContent))
+	doc := iosystem.NewDocument("large.txt", codec.ContentText, strings.NewReader(largeContent))
 
 	ctx := context.Background()
 	err := snk.Write(ctx, doc)
@@ -124,7 +125,7 @@ func TestWriterSink_WithPipeline(t *testing.T) {
 	var buf bytes.Buffer
 	snk := sink.NewWriter(&buf)
 
-	doc := iosystem.NewDocument("pipeline.txt", strings.NewReader("pipeline test"))
+	doc := iosystem.NewDocument("pipeline.txt", codec.ContentText, strings.NewReader("pipeline test"))
 	ctx := context.Background()
 
 	err := snk.Write(ctx, doc)
@@ -140,7 +141,7 @@ func TestWriterSink_ReadError(t *testing.T) {
 
 	// Create a reader that fails
 	failingReader := &errorReader{err: io.ErrUnexpectedEOF}
-	doc := iosystem.NewDocument("fail.txt", failingReader)
+	doc := iosystem.NewDocument("fail.txt", codec.ContentText, failingReader)
 
 	ctx := context.Background()
 	err := snk.Write(ctx, doc)

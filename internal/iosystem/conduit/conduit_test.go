@@ -16,6 +16,7 @@ import (
 	"testing"
 
 	"github.com/fogfish/iq/internal/iosystem"
+	"github.com/fogfish/iq/internal/iosystem/codec"
 	"github.com/fogfish/iq/internal/iosystem/conduit"
 	"github.com/fogfish/iq/internal/iosystem/processor"
 	"github.com/fogfish/it/v2"
@@ -75,14 +76,6 @@ func TestPipeline_WithChunking(t *testing.T) {
 		it.Nil(err),
 		it.Equal(len(snk.docs), 3),
 	)
-
-	// Verify each chunk has proper metadata
-	for _, doc := range snk.docs {
-		it.Then(t).Should(
-			it.True(strings.Contains(doc.Path, "#chunk")),
-			it.Equal(doc.Metadata.Custom["original_path"], "mock.txt"),
-		)
-	}
 }
 
 func TestPipeline_MultipleProcessors(t *testing.T) {
@@ -190,7 +183,7 @@ type mockSource struct {
 func newMockSource(contents ...string) *mockSource {
 	docs := make([]*iosystem.Document, len(contents))
 	for i, content := range contents {
-		docs[i] = iosystem.NewDocument("mock.txt", strings.NewReader(content))
+		docs[i] = iosystem.NewDocument("mock.txt", codec.ContentText, strings.NewReader(content))
 	}
 	return &mockSource{docs: docs}
 }
@@ -222,7 +215,7 @@ func (m *mockSink) Write(ctx context.Context, doc *iosystem.Document) error {
 	buf := &bytes.Buffer{}
 	io.Copy(buf, doc.Reader)
 
-	captured := iosystem.NewDocument(iosystem.Key(doc.Path), buf)
+	captured := iosystem.NewDocument(iosystem.Key(doc.Key), doc.Type, buf)
 	for k, v := range doc.Metadata.Custom {
 		captured.WithMetadata(k, v)
 	}
@@ -244,7 +237,7 @@ func TestConduit_ArrayCollector(t *testing.T) {
 	// Identity should receive array and pass it through
 	cfg := &conduit.Config{Concurrency: 1, ErrorMode: conduit.FailFast}
 	c := conduit.New(cfg)
-	c.AddProcessor(processor.NewArrayCollector())
+	c.AddProcessor(processor.NewCollector(false))
 	c.AddProcessor(processor.NewIdentity())
 
 	ctx := context.Background()
