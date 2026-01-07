@@ -63,6 +63,7 @@ type StepNode interface {
 	GetRetry() *RetryNode
 	GetOutput() string
 	GetEmit() string
+	GetCache() string
 }
 
 // AgentStepNode represents a simple agent execution step
@@ -72,6 +73,7 @@ type AgentStepNode struct {
 	Uses   string // Path to agent file
 	Output string // Optional name to store output in context
 	Emit   string // Optional output key prefix
+	Cache  string // Optional cache key
 	Retry  *RetryNode
 }
 
@@ -82,6 +84,7 @@ func (n *AgentStepNode) GetRetry() *RetryNode { return n.Retry }
 func (n *AgentStepNode) GetOutput() string    { return n.Output }
 func (n *AgentStepNode) GetRunsOn() string    { return n.RunsOn }
 func (n *AgentStepNode) GetEmit() string      { return n.Emit }
+func (n *AgentStepNode) GetCache() string     { return n.Cache }
 
 // RouterStepNode represents a conditional routing step
 type RouterStepNode struct {
@@ -90,6 +93,7 @@ type RouterStepNode struct {
 	Uses    string      // Path to agent file
 	Output  string      // Optional name to store output in context
 	Emit    string      // Optional output key prefix
+	Cache   string      // Optional cache key
 	Routes  []RouteNode // Ordered routes (first match wins)
 	Default string      // Default job name if no route matches
 	Retry   *RetryNode
@@ -102,6 +106,7 @@ func (n *RouterStepNode) GetRetry() *RetryNode { return n.Retry }
 func (n *RouterStepNode) GetOutput() string    { return n.Output }
 func (n *RouterStepNode) GetRunsOn() string    { return n.RunsOn }
 func (n *RouterStepNode) GetEmit() string      { return n.Emit }
+func (n *RouterStepNode) GetCache() string     { return n.Cache }
 
 // RouteNode represents a single conditional route
 type RouteNode struct {
@@ -118,6 +123,7 @@ type ForeachStepNode struct {
 	Job      string      // Job to execute for each array item
 	Output   string      // Optional name to store results array in context
 	Emit     string      // Optional output key prefix
+	Cache    string      // Optional cache key
 	Format   *FormatNode // Optional: output serialization format
 	Retry    *RetryNode
 }
@@ -129,6 +135,7 @@ func (n *ForeachStepNode) GetRetry() *RetryNode { return n.Retry }
 func (n *ForeachStepNode) GetOutput() string    { return n.Output }
 func (n *ForeachStepNode) GetRunsOn() string    { return n.RunsOn }
 func (n *ForeachStepNode) GetEmit() string      { return n.Emit }
+func (n *ForeachStepNode) GetCache() string     { return n.Cache }
 
 // RunStepNode represents a shell command execution step
 type RunStepNode struct {
@@ -137,6 +144,7 @@ type RunStepNode struct {
 	Run    string // Shell command with template variables
 	Output string // Optional name to store output in context
 	Emit   string // Optional output key prefix
+	Cache  string // Optional cache key
 	Retry  *RetryNode
 }
 
@@ -147,6 +155,7 @@ func (n *RunStepNode) GetRetry() *RetryNode { return n.Retry }
 func (n *RunStepNode) GetOutput() string    { return n.Output }
 func (n *RunStepNode) GetRunsOn() string    { return n.RunsOn }
 func (n *RunStepNode) GetEmit() string      { return n.Emit }
+func (n *RunStepNode) GetCache() string     { return n.Cache }
 
 type RetryNode struct {
 	Attempts int    // Number of retry attempts

@@ -226,10 +226,10 @@ func (c *Compiler) compileStep(ctx context.Context, tree *ast.AST, node ast.Step
 		return nil, fmt.Errorf("unsupported step type: %+v", node)
 	}
 
+	prompter = c.compileCache(ctx, node, prompter)
 	prompter = c.compilePrinter(ctx, node, prompter)
 	prompter = c.compileRepeater(ctx, node, prompter)
 	prompter = c.compileEmitter(ctx, node, prompter)
-	prompter = c.compileCache(ctx, node, prompter)
 	prompter = c.compileMemento(ctx, node, prompter)
 	return prompter, nil
 }
@@ -357,7 +357,7 @@ func (c *Compiler) compileEmitter(_ context.Context, node ast.StepNode, prompter
 }
 
 func (c *Compiler) compileCache(ctx context.Context, node ast.StepNode, prompter runtime.Prompter) runtime.Prompter {
-	emit := node.GetEmit()
+	emit := node.GetCache()
 	if emit == "" || c.cache == nil {
 		return prompter
 	}
