@@ -127,6 +127,21 @@ func (agt *Manifold) Config(map[string]*Job) error {
 
 // Executes the agent with given input and returns the output
 func (agt *Manifold) Prompt(ctx context.Context, in Event, opt ...chatter.Opt) (Event, error) {
+	if agt.Node.RunsOn == "/dev/null" {
+		var sb strings.Builder
+		err := agt.prompt.Execute(&sb, map[string]any{
+			ast.ContextKeyDocument: in.Document,
+			ast.ContextKeyInput:    in.Current,
+			ast.ContextKeyCurrent:  in.Current,
+			ast.ContextKeySteps:    in.Steps,
+		})
+		if err != nil {
+			return Event{}, err
+		}
+
+		return in.copy(in.Key, Text(sb.String())), nil
+	}
+
 	opt = append(opt, aio.Route(agt.Node.RunsOn))
 	reply, err := agt.manifold.Prompt(ctx, in, opt...)
 	if err != nil {
