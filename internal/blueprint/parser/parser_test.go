@@ -124,8 +124,8 @@ jobs:
 	if step.Format.Type != "text" {
 		t.Errorf("Expected type 'text', got '%s'", step.Format.Type)
 	}
-	if step.Format.Delimiter != "\n\n" {
-		t.Errorf("Expected delimiter '\\n\\n', got '%s'", step.Format.Delimiter)
+	if step.Format.Divider != "\n\n" {
+		t.Errorf("Expected delimiter '\\n\\n', got '%s'", step.Format.Divider)
 	}
 }
 
@@ -231,8 +231,8 @@ jobs:
 	}
 
 	step := tree.Jobs["main"].Steps[0].(*ast.ForeachStepNode)
-	if step.Format.Delimiter != "\n" {
-		t.Errorf("Expected default delimiter '\\n', got '%s'", step.Format.Delimiter)
+	if step.Format.Divider != "\n" {
+		t.Errorf("Expected default delimiter '\\n', got '%s'", step.Format.Divider)
 	}
 }
 

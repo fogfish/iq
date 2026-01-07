@@ -308,7 +308,7 @@ func (c *Compiler) compileForEach(_ context.Context, tree *ast.AST, node *ast.Fo
 		selector = prog
 	}
 
-	return runtime.NewForEach(node, selector), nil
+	return runtime.NewForEach(node, selector)
 }
 
 func (c *Compiler) compileShellNode(_ context.Context, tree *ast.AST, node *ast.RunStepNode) (runtime.Prompter, error) {

@@ -297,8 +297,8 @@ type foreachYAML struct {
 }
 
 type formatYAML struct {
-	Type      string `yaml:"type,omitempty"`
-	Delimiter string `yaml:"delim,omitempty"`
+	Type    string `yaml:"type,omitempty"`
+	Divider string `yaml:"divider,omitempty"`
 }
 
 type routeYAML struct {
@@ -409,20 +409,20 @@ func (p *Parser) convertStep(raw *stepYAML) ast.StepNode {
 				ftype = "json"
 			}
 
-			delim := raw.Foreach.Format.Delimiter
+			delim := raw.Foreach.Format.Divider
 			if delim == "" {
 				delim = "\n" // Default newline
 			}
 
 			format = &ast.FormatNode{
-				Type:      ftype,
-				Delimiter: delim,
+				Type:    ftype,
+				Divider: delim,
 			}
 		} else {
 			// Default: JSON array
 			format = &ast.FormatNode{
-				Type:      "json",
-				Delimiter: "\n",
+				Type:    "json",
+				Divider: "\n",
 			}
 		}
 

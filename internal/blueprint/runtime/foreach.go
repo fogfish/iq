@@ -22,12 +22,17 @@ type ForEach struct {
 	Node     *ast.ForeachStepNode
 	selector cel.Program
 	prompter Prompter
+	format   Formatter
 }
 
 var _ Prompter = (*ForEach)(nil)
 
-func NewForEach(node *ast.ForeachStepNode, selector cel.Program) *ForEach {
-	return &ForEach{Node: node, selector: selector}
+func NewForEach(node *ast.ForeachStepNode, selector cel.Program) (*ForEach, error) {
+	format, err := NewFormatter(node.Format)
+	if err != nil {
+		return nil, fmt.Errorf("foreach format unknown: %w", err)
+	}
+	return &ForEach{Node: node, selector: selector, format: format}, nil
 }
 
 func (f *ForEach) Config(jobs map[string]*Job) error {
@@ -73,7 +78,12 @@ func (f *ForEach) Prompt(ctx context.Context, in Event, opts ...chatter.Opt) (Ev
 		output[i] = reply.Current
 	}
 
-	return in.copy(in.Key, output), nil
+	_, val, err := f.format.Format(output)
+	if err != nil {
+		return in, fmt.Errorf("foreach formatting failed: %w", err)
+	}
+
+	return in.copy(in.Key, val), nil
 }
 
 func (f *ForEach) evalSelect(in Event) (List, error) {

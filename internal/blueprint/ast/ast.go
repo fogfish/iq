@@ -165,8 +165,8 @@ type RetryNode struct {
 
 // FormatNode configures output serialization after foreach
 type FormatNode struct {
-	Type      string // "json", "jsonl", "text" (default: "json")
-	Delimiter string // For text format (default: "\n")
+	Type    string // "json", "jsonl", "text" (default: "json")
+	Divider string // For text format (default: "\n")
 }
 
 // AgentNode represents an agent definition
