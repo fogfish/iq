@@ -106,6 +106,7 @@ func (s *FileSystem) Walk(ctx context.Context, prefix iosystem.Key, visitor func
 	// Walk only specified files
 	if len(s.files) > 0 {
 		for _, file := range s.files {
+			file = strings.TrimPrefix(file, "./")
 			key := iosystem.Key(file)
 			reader, err := s.Get(ctx, key)
 			if err != nil {
