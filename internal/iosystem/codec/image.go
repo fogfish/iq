@@ -9,7 +9,11 @@
 package codec
 
 import (
+	"bytes"
 	"fmt"
+	"image"
+	"image/jpeg"
+	_ "image/png" // Register PNG decoder
 	"io"
 )
 
@@ -50,9 +54,27 @@ func (c *ImageCodec) Decode(r io.Reader) (any, error) {
 func (c *ImageCodec) Encode(w io.Writer, data any) error {
 	switch v := data.(type) {
 	case []byte:
-		_, err := w.Write(v)
-		return err
+		// Re-encode all images to JPEG
+		return reencodeToJPEG(w, v, c.contentType)
 	default:
 		return fmt.Errorf("image codec: expected []byte, got %T", data)
 	}
+}
+
+// reencodeToJPEG decodes an image (PNG or JPEG) and re-encodes it as JPEG.
+// This is mandatory for all image outputs.
+func reencodeToJPEG(w io.Writer, data []byte, inputMimeType string) error {
+	// Decode the input image (supports both PNG and JPEG via registered decoders)
+	img, format, err := image.Decode(bytes.NewReader(data))
+	if err != nil {
+		return fmt.Errorf("failed to decode image (format: %s): %w", format, err)
+	}
+
+	// Re-encode as JPEG with high quality
+	opts := &jpeg.Options{Quality: 95}
+	if err := jpeg.Encode(w, img, opts); err != nil {
+		return fmt.Errorf("failed to encode image as JPEG: %w", err)
+	}
+
+	return nil
 }

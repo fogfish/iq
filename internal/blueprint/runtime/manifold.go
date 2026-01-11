@@ -10,6 +10,7 @@ package runtime
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os/exec"
 	"strings"
@@ -44,6 +45,7 @@ func (agt *Manifold) Close() error {
 type Manifold struct {
 	Node     *ast.AgentNode
 	manifold *agent.Manifold[Event, Gist]
+	static   string
 	prompt   *template.Template
 	servers  []server
 }
@@ -63,9 +65,18 @@ func NewManifold(node *ast.AgentNode, llm chatter.Chatter) (agt *Manifold, err e
 
 	//
 	// Prompt
-	agt.prompt, err = template.New("").Parse(agt.Node.Prompt)
-	if err != nil {
-		return
+	static, dynamic, found := strings.Cut(agt.Node.Prompt, "--")
+	if found {
+		agt.static = static
+		agt.prompt, err = template.New("").Parse(dynamic)
+		if err != nil {
+			return
+		}
+	} else {
+		agt.prompt, err = template.New("").Parse(agt.Node.Prompt)
+		if err != nil {
+			return
+		}
 	}
 
 	//
@@ -171,7 +182,12 @@ func (agt *Manifold) encode(in Event) (chatter.Message, error) {
 	}
 
 	var prompt chatter.Prompt
-	prompt.WithTask(sb.String())
+	if agt.static != "" {
+		prompt.WithTask(agt.static)
+		prompt.WithBlob("", sb.String())
+	} else {
+		prompt.WithTask(sb.String())
+	}
 
 	if agt.Node.Format == "json" {
 		// Only harden with schema if reply schema is defined
@@ -197,6 +213,35 @@ func (agt *Manifold) validateSchema(in Event, schema *jsonschema.Schema) error {
 }
 
 func (agt *Manifold) decode(reply *chatter.Reply) (float64, Gist, error) {
+	// Check if reply contains binary content (images)
+	if len(reply.Content) > 0 {
+		binaries := make([]Binary, 0)
+
+		for _, c := range reply.Content {
+			switch v := c.(type) {
+			case *chatter.Binary:
+				binaries = append(binaries, Binary{
+					Type: v.Type,
+					Data: v.Data,
+				})
+			}
+		}
+
+		// If we have binaries, return them
+		if len(binaries) > 0 {
+			if len(binaries) == 1 {
+				return 1.0, binaries[0], nil
+			}
+
+			list := make([]any, len(binaries))
+			for i, b := range binaries {
+				list[i] = b
+			}
+			return 1.0, List(list), nil
+		}
+	}
+
+	// JSON format handling
 	if agt.Node.Format == "json" {
 		var obj any
 		// Decode with schema (will validate if schema is non-nil)
@@ -210,10 +255,15 @@ func (agt *Manifold) decode(reply *chatter.Reply) (float64, Gist, error) {
 		case map[string]any:
 			return 1.0, Json(v), nil
 		default:
-			return 0.0, nil, fmt.Errorf("unsupported reply shape: %T", obj)
+			b, err := json.Marshal(obj)
+			if err != nil {
+				return 0.0, nil, fmt.Errorf("unsupported reply shape: %+v", obj)
+			}
 
+			return 0.0, nil, fmt.Errorf("unsupported reply shape: %s", string(b))
 		}
 	}
 
+	// Default text handling
 	return 1.0, Text(reply.String()), nil
 }
