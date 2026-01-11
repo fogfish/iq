@@ -11,6 +11,8 @@ package processor
 import (
 	"context"
 	"fmt"
+	"path/filepath"
+	"strings"
 
 	"github.com/fogfish/iq/internal/blueprint/runtime"
 	"github.com/fogfish/iq/internal/iosystem"
@@ -92,12 +94,12 @@ func (p *Agent) Process(ctx context.Context, docs []*iosystem.Document) ([]*iosy
 		return nil, fmt.Errorf("agent processing failed for '%s': %w", docs[0].Key, err)
 	}
 
-	doc, err := p.encode(reply)
+	result, err := p.encode(docs[0].Key, reply)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode agent response: %w", err)
 	}
 
-	return []*iosystem.Document{doc}, nil
+	return result, nil
 }
 
 // decode prepares the document for processing by the blueprint.
@@ -126,16 +128,82 @@ func (p *Agent) decode(docs []*iosystem.Document) (runtime.Event, error) {
 	return runtime.NewEvent(docs[0].Key, doc), nil
 }
 
-func (p *Agent) encode(reply runtime.Event) (*iosystem.Document, error) {
+func (p *Agent) encode(key iosystem.Key, reply runtime.Event) ([]*iosystem.Document, error) {
+	// Check if Current is Binary type - handle specially for multiple images
+	if bin, ok := reply.Current.(runtime.Binary); ok {
+		return p.encodeSingleBinary(key, bin)
+	}
+
+	// Check if Current is List of Binary - handle multiple images
+	if list, ok := reply.Current.(runtime.List); ok {
+		binaries := make([]runtime.Binary, 0)
+		for _, item := range list {
+			if bin, ok := item.(runtime.Binary); ok {
+				binaries = append(binaries, bin)
+			}
+		}
+		if len(binaries) > 0 {
+			return p.encodeMultipleBinaries(key, binaries)
+		}
+	}
+
+	// Standard text/JSON encoding
 	raw, err := p.codecs.Encode(reply.Current, reply.Current.ContentType())
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode agent reply: %w", err)
 	}
 
-	doc := iosystem.NewDocument(reply.Key, reply.Current.ContentType(), raw)
+	doc := iosystem.NewDocument(key, reply.Current.ContentType(), raw)
 	doc.EnsureExtension()
 
-	return doc, nil
+	return []*iosystem.Document{doc}, nil
+}
+
+func (p *Agent) encodeSingleBinary(key iosystem.Key, bin runtime.Binary) ([]*iosystem.Document, error) {
+	// Use codec to re-encode (this triggers JPEG conversion in ImageCodec)
+	raw, err := p.codecs.Encode(bin.Data, bin.Type)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode binary: %w", err)
+	}
+
+	// Always output as JPEG after re-encoding
+	doc := iosystem.NewDocument(key, codec.ContentJPG, raw)
+	doc.EnsureExtension()
+
+	return []*iosystem.Document{doc}, nil
+}
+
+func (p *Agent) encodeMultipleBinaries(key iosystem.Key, binaries []runtime.Binary) ([]*iosystem.Document, error) {
+	docs := make([]*iosystem.Document, 0, len(binaries))
+
+	for i, bin := range binaries {
+		// Re-encode via codec (triggers JPEG conversion)
+		raw, err := p.codecs.Encode(bin.Data, bin.Type)
+		if err != nil {
+			return nil, fmt.Errorf("failed to encode binary %d: %w", i+1, err)
+		}
+
+		// Generate numbered key: "image.0001.jpg", "image.0002.jpg"
+		numberedKey := addNumberToKey(key, i+1)
+
+		doc := iosystem.NewDocument(numberedKey, codec.ContentJPG, raw)
+		doc.EnsureExtension()
+
+		docs = append(docs, doc)
+	}
+
+	return docs, nil
+}
+
+// addNumberToKey creates a numbered filename like "image.0001.jpg"
+func addNumberToKey(key iosystem.Key, num int) iosystem.Key {
+	// Remove extension
+	keyStr := string(key)
+	ext := filepath.Ext(keyStr)
+	base := strings.TrimSuffix(keyStr, ext)
+
+	// Add number with 4-digit padding
+	return iosystem.Key(fmt.Sprintf("%s.%04d.jpg", base, num))
 }
 
 // Close releases resources. For AgentProcessor, this is a no-op

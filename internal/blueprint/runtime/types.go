@@ -10,6 +10,7 @@ package runtime
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 
 	"github.com/fogfish/iq/internal/iosystem"
@@ -41,6 +42,15 @@ type List []any
 func (List) HKT1(Gist)           {}
 func (List) ContentType() string { return codec.ContentJSON }
 
+// Input/Output content is binary data (images, files, etc)
+type Binary struct {
+	Type string // MIME type (e.g., "image/png", "image/jpeg")
+	Data []byte
+}
+
+func (Binary) HKT1(Gist)             {}
+func (b Binary) ContentType() string { return b.Type }
+
 func ToGist(x any) (Gist, error) {
 	switch v := x.(type) {
 	case string:
@@ -48,6 +58,30 @@ func ToGist(x any) (Gist, error) {
 	case []byte:
 		return Text(v), nil
 	case map[string]any:
+		// Check if this is a Binary type reconstructed from JSON cache
+		if typ, hasType := v["Type"].(string); hasType {
+			if data, hasData := v["Data"]; hasData {
+				// Try to decode the base64-encoded data
+				var dataBytes []byte
+				switch d := data.(type) {
+				case string:
+					// JSON unmarshaler decodes base64 strings to []byte, but sometimes it's still a string
+					decoded, err := base64DecodeIfNeeded(d)
+					if err != nil {
+						return nil, fmt.Errorf("failed to decode binary data: %w", err)
+					}
+					dataBytes = decoded
+				case []byte:
+					dataBytes = d
+				default:
+					// Not a valid Binary representation, treat as regular JSON
+					return Json(v), nil
+				}
+
+				return Binary{Type: typ, Data: dataBytes}, nil
+			}
+		}
+		// Regular JSON object
 		return Json(v), nil
 	case []any:
 		return List(v), nil
@@ -56,6 +90,21 @@ func ToGist(x any) (Gist, error) {
 	default:
 		return nil, fmt.Errorf("unsupported Gist type: %T", v)
 	}
+}
+
+// base64DecodeIfNeeded attempts to decode a base64 string
+// If it's already raw bytes or fails to decode, returns as-is
+func base64DecodeIfNeeded(s string) ([]byte, error) {
+	// First try standard base64
+	if decoded, err := base64.StdEncoding.DecodeString(s); err == nil {
+		return decoded, nil
+	}
+	// Try URL encoding
+	if decoded, err := base64.URLEncoding.DecodeString(s); err == nil {
+		return decoded, nil
+	}
+	// If it doesn't decode, assume it's raw string data
+	return []byte(s), nil
 }
 
 // Event represents an event processed by the workflow.
