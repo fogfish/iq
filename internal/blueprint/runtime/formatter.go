@@ -101,7 +101,7 @@ func (f *TextFormatter) fromList(results List) (string, Gist, error) {
 		}
 	}
 
-	return codec.ContentText, Text(buf.String()), nil
+	return codec.ContentMarkdown, Text(buf.String()), nil
 }
 
 func (f *TextFormatter) fromJson(results Json) (string, Gist, error) {
@@ -109,7 +109,7 @@ func (f *TextFormatter) fromJson(results Json) (string, Gist, error) {
 	if err != nil {
 		return "", nil, fmt.Errorf("failed to marshal result: %w", err)
 	}
-	return codec.ContentText, Text(data), nil
+	return codec.ContentMarkdown, Text(data), nil
 }
 
 //------------------------------------------------------------------------------

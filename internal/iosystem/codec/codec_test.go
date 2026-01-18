@@ -54,7 +54,7 @@ func TestJSONCodec(t *testing.T) {
 }
 
 func TestTextCodec(t *testing.T) {
-	codec := NewTextCodec()
+	codec := NewTextCodec(ContentText, ".txt")
 
 	t.Run("Decode", func(t *testing.T) {
 		input := "Hello, World!"

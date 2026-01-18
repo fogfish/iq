@@ -13,18 +13,21 @@ import (
 	"io"
 )
 
-type TextCodec struct{}
+type TextCodec struct {
+	mime string
+	ext  string
+}
 
-func NewTextCodec() Codec {
-	return &TextCodec{}
+func NewTextCodec(mime string, ext string) Codec {
+	return &TextCodec{mime: mime, ext: ext}
 }
 
 func (c *TextCodec) ContentType() string {
-	return ContentText
+	return c.mime
 }
 
 func (c *TextCodec) Extensions() []string {
-	return []string{".txt", ".md"}
+	return []string{c.ext}
 }
 
 func (c *TextCodec) Decode(r io.Reader) (any, error) {
@@ -44,7 +47,7 @@ func (c *TextCodec) Encode(w io.Writer, data any) error {
 		_, err := w.Write(v)
 		return err
 	default:
-		_, err := w.Write([]byte(fmt.Sprintf("%v", v)))
+		_, err := fmt.Fprintf(w, "%v", v)
 		return err
 	}
 }

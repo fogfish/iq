@@ -17,14 +17,15 @@ import (
 
 // Content type constants
 const (
-	ContentStream = "application/octet-stream"
-	ContentJSON   = "application/json"
-	ContentJSONL  = "application/jsonl"
-	ContentYAML   = "application/x-yaml"
-	ContentPNG    = "image/png"
-	ContentJPG    = "image/jpeg"
-	ContentText   = "text/plain"
-	ContentEOF    = "application/x-eof" // Signals end of stream
+	ContentStream   = "application/octet-stream"
+	ContentJSON     = "application/json"
+	ContentJSONL    = "application/jsonl"
+	ContentYAML     = "application/x-yaml"
+	ContentPNG      = "image/png"
+	ContentJPG      = "image/jpeg"
+	ContentText     = "text/plain"
+	ContentMarkdown = "text/markdown"
+	ContentEOF      = "application/x-eof" // Signals end of stream
 )
 
 // Codec handles encoding/decoding for a specific content type.
@@ -61,7 +62,8 @@ func NewRegistry() *Registry {
 	// Register built-in codecs
 	r.Register(NewJSONCodec(false))
 	r.Register(NewYAMLCodec())
-	r.Register(NewTextCodec())
+	r.Register(NewTextCodec(ContentText, ".txt"))
+	r.Register(NewTextCodec(ContentMarkdown, ".md"))
 	r.Register(NewBinaryCodec())
 	r.Register(NewJSONLCodec())
 	r.Register(NewImageCodec(ContentPNG))
@@ -153,12 +155,12 @@ func (r *Registry) GetExtension(contentType string) string {
 	if !ok {
 		return ""
 	}
-	
+
 	exts := codec.Extensions()
 	if len(exts) == 0 {
 		return ""
 	}
-	
+
 	// Return the first (preferred) extension
 	return exts[0]
 }
