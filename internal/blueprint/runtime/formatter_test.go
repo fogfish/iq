@@ -89,8 +89,8 @@ func TestTextFormatter_Newline(t *testing.T) {
 		t.Fatalf("Format failed: %v", err)
 	}
 
-	if contentType != "text/plain" {
-		t.Errorf("Expected text/plain, got %s", contentType)
+	if contentType != "text/markdown" {
+		t.Errorf("Expected text/markdown, got %s", contentType)
 	}
 
 	outputText, ok := output.(Text)
@@ -117,8 +117,8 @@ func TestTextFormatter_DoubleNewline(t *testing.T) {
 		t.Fatalf("Format failed: %v", err)
 	}
 
-	if contentType != "text/plain" {
-		t.Errorf("Expected text/plain, got %s", contentType)
+	if contentType != "text/markdown" {
+		t.Errorf("Expected text/markdown, got %s", contentType)
 	}
 
 	outputText := output.(Text)
@@ -142,8 +142,8 @@ func TestTextFormatter_CustomDelimiter(t *testing.T) {
 		t.Fatalf("Format failed: %v", err)
 	}
 
-	if contentType != "text/plain" {
-		t.Errorf("Expected text/plain, got %s", contentType)
+	if contentType != "text/markdown" {
+		t.Errorf("Expected text/markdown, got %s", contentType)
 	}
 
 	outputText := output.(Text)
@@ -167,8 +167,8 @@ func TestTextFormatter_MixedTypes(t *testing.T) {
 		t.Fatalf("Format failed: %v", err)
 	}
 
-	if contentType != "text/plain" {
-		t.Errorf("Expected text/plain, got %s", contentType)
+	if contentType != "text/markdown" {
+		t.Errorf("Expected text/markdown, got %s", contentType)
 	}
 
 	outputText := string(output.(Text))
@@ -197,8 +197,8 @@ func TestTextFormatter_Empty(t *testing.T) {
 		t.Fatalf("Format failed: %v", err)
 	}
 
-	if contentType != "text/plain" {
-		t.Errorf("Expected text/plain, got %s", contentType)
+	if contentType != "text/markdown" {
+		t.Errorf("Expected text/markdown, got %s", contentType)
 	}
 
 	outputText := output.(Text)

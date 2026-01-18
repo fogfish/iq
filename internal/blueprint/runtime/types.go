@@ -28,7 +28,7 @@ type Gist interface {
 type Text string
 
 func (Text) HKT1(Gist)           {}
-func (Text) ContentType() string { return codec.ContentText }
+func (Text) ContentType() string { return codec.ContentMarkdown }
 
 // Input/Output content is JSON
 type Json map[string]any

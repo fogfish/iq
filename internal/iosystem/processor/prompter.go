@@ -98,7 +98,7 @@ func (p *Prompter) encode(reply *chatter.Reply) ([]*iosystem.Document, error) {
 		case chatter.Text:
 			seq = append(seq, &iosystem.Document{
 				Reader: strings.NewReader(string(v)),
-				Type:   codec.ContentText,
+				Type:   codec.ContentMarkdown,
 			})
 		case *chatter.Binary:
 			seq = append(seq, &iosystem.Document{
