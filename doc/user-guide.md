@@ -30,8 +30,15 @@ Build intelligent, multi-step agentic workflows with declarative YAML blueprints
       - [JSON Schema Validation](#json-schema-validation)
       - [Remote MCP Servers Integration](#remote-mcp-servers-integration)
       - [Remote MCP Servers Authentication](#remote-mcp-servers-authentication)
+    - [Caching](#caching)
+      - [How Caching Works](#how-caching-works)
+      - [Cache Key Generation](#cache-key-generation)
+      - [Cache Invalidation](#cache-invalidation)
+      - [Cache Storage Format](#cache-storage-format)
+      - [Best Practices](#best-practices)
+      - [Example Usage](#example-usage)
   - [Workflow Patterns](#workflow-patterns)
-  - [Best Practices](#best-practices)
+  - [Best Practices](#best-practices-1)
     - [Workflow Design](#workflow-design)
     - [Prompt Engineering](#prompt-engineering)
     - [Maintenance](#maintenance)
@@ -528,6 +535,90 @@ Use the authenticated API to fetch data for: {{.input}}
 ```
 
 The system automatically adds `Authorization: Bearer <token>` headers to requests to the specified host. Use the `secret` field for the Bearer token value.
+
+
+### Caching
+
+`iq` automatically caches LLM responses to save time and costs when processing workflows. Enable caching by providing the `--cache-dir` flag:
+
+```bash
+iq agent -f workflow.yml --cache-dir .cache input.txt
+```
+
+#### How Caching Works
+
+When caching is enabled, `iq` automatically wraps all prompt-executing steps with a transparent cache layer. No manual configuration is needed in your workflow YAML files.
+
+**Cached Steps:**
+- **Prompting steps** (`uses: prompts/...`)
+- **Router steps** (with router agent defined)
+
+**Non-Cached Steps:**
+- **Command steps** (`run:`) — Cheap to execute and may have side effects
+- **Foreach steps** — Container steps that iterate over nested jobs
+
+#### Cache Key Generation
+
+Cache keys are automatically generated based on:
+- **Workflow name** — From your YAML file's `name` field
+- **Job name** — The job containing the step
+- **Step name** — From the step's `name` field, or auto-generated as `step-{index}`
+- **Content hash** — First 6 characters of SHA256 hash of the prompt content
+
+**Example cache key format:**
+```
+workflow/job/extract-a3f2b1/doc.txt
+workflow/job/step-2-c4d5e6/report.md
+```
+
+#### Cache Invalidation
+
+Cache entries are automatically invalidated when prompts change:
+
+1. **Prompt modified** → New content hash → New cache key
+2. **Old cache entries** remain but are not used
+3. **No manual cleanup** needed
+
+This ensures you always get fresh results after updating prompts while maintaining previous cache for unchanged steps.
+
+#### Cache Storage Format
+
+Cache files are stored as Markdown with YAML front matter for easy inspection:
+
+```markdown
+---
+key: "research/main/extract-a3f2b1/doc.txt"
+workflow: "research"
+job: "main"
+step: "extract-a3f2b1"
+timestamp: "2026-01-21T10:30:00Z"
+---
+
+[Cached LLM response content]
+```
+
+This format makes cache entries human-readable and debuggable.
+
+#### Best Practices
+
+1. **Use consistent naming** — Name your steps for better cache key readability
+2. **Organize cache directories** — Use project-specific cache dirs (`.cache`, `tmp/cache`)
+3. **Version control** — Add cache directory to `.gitignore`
+4. **Development workflow** — Delete cache when testing prompt changes
+5. **Production use** — Persist cache between runs for cost savings
+
+#### Example Usage
+
+```bash
+# First run - executes all steps and caches results
+iq agent -f research.yml --cache-dir .cache input.txt
+
+# Second run - uses cached results (instant, no API calls)
+iq agent -f research.yml --cache-dir .cache input.txt
+
+# After modifying a prompt - only affected steps re-execute
+iq agent -f research.yml --cache-dir .cache input.txt
+```
 
 
 ## Workflow Patterns

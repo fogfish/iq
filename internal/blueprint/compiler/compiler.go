@@ -10,7 +10,10 @@ package compiler
 
 import (
 	"context"
+	"crypto/sha256"
 	"fmt"
+	"path/filepath"
+	"strings"
 
 	"github.com/fogfish/iq/internal/blueprint/ast"
 	"github.com/fogfish/iq/internal/blueprint/runtime"
@@ -159,7 +162,7 @@ func (c *Compiler) compile(ctx context.Context, tree *ast.AST) (*Workflow, error
 
 	jobs := make(map[string]*runtime.Job)
 	for jobName, jobNode := range bp.Jobs {
-		job, err := c.compileJob(ctx, tree, jobName, jobNode)
+		job, err := c.compileJob(ctx, tree, bp.Name, jobName, jobNode)
 		if err != nil {
 			return nil, fmt.Errorf("failed to compile job '%s': %w", jobName, err)
 		}
@@ -183,10 +186,10 @@ func (c *Compiler) compile(ctx context.Context, tree *ast.AST) (*Workflow, error
 }
 
 // compileJob compiles a single job
-func (c *Compiler) compileJob(ctx context.Context, tree *ast.AST, name string, node *ast.JobNode) (*runtime.Job, error) {
+func (c *Compiler) compileJob(ctx context.Context, tree *ast.AST, workflow, jobName string, node *ast.JobNode) (*runtime.Job, error) {
 	steps := make([]runtime.Prompter, 0, len(node.Steps))
-	for _, stepNode := range node.Steps {
-		step, err := c.compileStep(ctx, tree, stepNode)
+	for i, stepNode := range node.Steps {
+		step, err := c.compileStep(ctx, tree, workflow, jobName, i, stepNode)
 		if err != nil {
 			return nil, err
 		}
@@ -194,13 +197,13 @@ func (c *Compiler) compileJob(ctx context.Context, tree *ast.AST, name string, n
 	}
 
 	return &runtime.Job{
-		Name:  name,
+		Name:  jobName,
 		Steps: steps,
 	}, nil
 }
 
 // compileStep compiles a single step
-func (c *Compiler) compileStep(ctx context.Context, tree *ast.AST, node ast.StepNode) (prompter runtime.Prompter, err error) {
+func (c *Compiler) compileStep(ctx context.Context, tree *ast.AST, workflow, job string, stepIndex int, node ast.StepNode) (prompter runtime.Prompter, err error) {
 	switch v := node.(type) {
 	case *ast.AgentStepNode:
 		prompter, err = c.compileAgentNode(ctx, tree, v)
@@ -226,7 +229,7 @@ func (c *Compiler) compileStep(ctx context.Context, tree *ast.AST, node ast.Step
 		return nil, fmt.Errorf("unsupported step type: %+v", node)
 	}
 
-	prompter = c.compileCache(ctx, node, prompter)
+	prompter = c.compileCache(ctx, tree, workflow, job, stepIndex, node, prompter)
 	prompter = c.compilePrinter(ctx, node, prompter)
 	prompter = c.compileRepeater(ctx, node, prompter)
 	prompter = c.compileEmitter(ctx, node, prompter)
@@ -356,11 +359,59 @@ func (c *Compiler) compileEmitter(_ context.Context, node ast.StepNode, prompter
 	return runtime.NewEmitter(c.sink, emit, prompter)
 }
 
-func (c *Compiler) compileCache(ctx context.Context, node ast.StepNode, prompter runtime.Prompter) runtime.Prompter {
-	emit := node.GetCache()
-	if emit == "" || c.cache == nil {
+func (c *Compiler) compileCache(ctx context.Context, tree *ast.AST, workflow, job string, stepIndex int, node ast.StepNode, prompter runtime.Prompter) runtime.Prompter {
+	// Automatically enable caching for all steps when cache storage is available
+	if c.cache == nil {
 		return prompter
 	}
 
-	return runtime.NewCache(c.cache, emit, prompter)
+	// Extract cacheable content based on node type
+	content := c.extractStepContent(tree, node)
+	if content == "" {
+		return prompter // Not cacheable
+	}
+
+	// Calculate SHA256 hash (first 6 hex chars)
+	hash := sha256.Sum256([]byte(content))
+	contentHash := fmt.Sprintf("%x", hash[:3])
+
+	// Get step name
+	stepName := node.GetName()
+	if stepName == "" {
+		uses := node.GetUses()
+		if uses != "" {
+			stepName = strings.TrimSuffix(filepath.Base(uses), filepath.Ext(uses))
+		}
+	}
+	if stepName == "" {
+		stepName = fmt.Sprintf("step-%d", stepIndex)
+	}
+
+	return runtime.NewCache(c.cache, workflow, job, stepName, contentHash, prompter)
+}
+
+// extractStepContent extracts the content to be hashed for caching based on step type
+func (c *Compiler) extractStepContent(tree *ast.AST, node ast.StepNode) string {
+	switch v := node.(type) {
+	case *ast.AgentStepNode:
+		// Always has uses (required for agent steps)
+		if agent, ok := tree.Agents[v.Uses]; ok {
+			return agent.Prompt
+		}
+	case *ast.RouterStepNode:
+		// Only cacheable if has uses (router agent)
+		if v.Uses != "" {
+			if agent, ok := tree.Agents[v.Uses]; ok {
+				return agent.Prompt
+			}
+		}
+	case *ast.ForeachStepNode:
+		// Container step - not directly cacheable
+		// If has uses (array generator), that agent's prompt is cached separately
+		return ""
+	case *ast.RunStepNode:
+		// Not cacheable - commands are cheap and have side effects
+		return ""
+	}
+	return ""
 }

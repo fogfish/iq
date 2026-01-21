@@ -33,6 +33,7 @@
 * **Chaining, Routing, Iterating and State management** is natively supported using flexible, rule-based language.
 * **Native Model Context Protocol (MCP) integration and server modes** connect and orchestrate external tools directly within your workflows, and optionally run a workflow as an MCP server.
 * **Fail-safe execution** recover from errors with built-in supervisor and fallback strategies.
+* **Automatic caching** reduces costs and speeds up execution by caching LLM responses with intelligent invalidation.
 * **Flexible I/O** seamless input/output into stdio, files, directories, S3, SQS and many other.   
 * **Support multiple LLM providers** works with OpenAI, AWS Bedrock, and local models.
 
@@ -158,6 +159,18 @@ Run the workflow from your shell, pass the topic you want to research via stdio:
 ```bash
 echo "singularity" | iq agent -f research.yml
 ```
+
+**Enable caching** to save time and costs on repeated runs:
+
+```bash
+# First run - executes workflow and caches results
+echo "singularity" | iq agent -f research.yml --cache-dir .cache
+
+# Second run - instant, uses cached results
+echo "singularity" | iq agent -f research.yml --cache-dir .cache
+```
+
+Caching is automatic—no changes to your workflow YAML needed. Cache entries are invalidated automatically when prompts change.
 
 See [**User Guide**](./doc/user-guide.md) about the workflow syntax. 
 
