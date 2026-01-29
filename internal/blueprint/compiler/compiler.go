@@ -325,11 +325,18 @@ func (c *Compiler) compileShellNode(_ context.Context, tree *ast.AST, node *ast.
 }
 
 func (c *Compiler) compileMemento(_ context.Context, node ast.StepNode, prompter runtime.Prompter) runtime.Prompter {
-	variable := node.GetOutput()
-	if variable == "" {
+	stepName := node.GetName()
+	if stepName == "" {
+		uses := node.GetUses()
+		if uses != "" {
+			stepName = strings.TrimSuffix(filepath.Base(uses), filepath.Ext(uses))
+		}
+	}
+	if stepName == "" {
 		return prompter
 	}
-	return runtime.NewMemento(node.GetOutput(), prompter)
+
+	return runtime.NewMemento(stepName, prompter)
 
 }
 
