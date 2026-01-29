@@ -32,7 +32,7 @@ func TestFSStorage_PutGet(t *testing.T) {
 	content := []byte("hello world")
 
 	// Put
-	err = store.Put(ctx, key, bytes.NewReader(content))
+	_, err = store.Put(ctx, key, bytes.NewReader(content))
 	if err != nil {
 		t.Fatalf("Put failed: %v", err)
 	}
@@ -154,14 +154,14 @@ func TestFSStorage_PutOverwrite(t *testing.T) {
 
 	// Put first version
 	content1 := []byte("version 1")
-	err = store.Put(ctx, key, bytes.NewReader(content1))
+	_, err = store.Put(ctx, key, bytes.NewReader(content1))
 	if err != nil {
 		t.Fatalf("First Put failed: %v", err)
 	}
 
 	// Overwrite with second version
 	content2 := []byte("version 2")
-	err = store.Put(ctx, key, bytes.NewReader(content2))
+	_, err = store.Put(ctx, key, bytes.NewReader(content2))
 	if err != nil {
 		t.Fatalf("Second Put failed: %v", err)
 	}

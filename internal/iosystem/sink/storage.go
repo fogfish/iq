@@ -35,17 +35,17 @@ func NewStorage(storage storage.Storage) (iosystem.Sink, error) {
 }
 
 // Write writes a document to the filesystem, preserving its path structure.
-func (s *FileSystem) Write(ctx context.Context, doc *iosystem.Document) error {
+func (s *FileSystem) Write(ctx context.Context, doc *iosystem.Document) (string, error) {
 	if doc == nil {
-		return fmt.Errorf("document is nil")
+		return "", fmt.Errorf("document is nil")
 	}
 
-	err := s.storage.Put(ctx, doc.Key, doc.Reader)
+	path, err := s.storage.Put(ctx, doc.Key, doc.Reader)
 	if err != nil {
-		return fmt.Errorf("failed to write key %s: %w", doc.Key, err)
+		return "", fmt.Errorf("failed to write key %s: %w", doc.Key, err)
 	}
 
-	return nil
+	return path, nil
 }
 
 // Close implements iosystem.Sink.

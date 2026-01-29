@@ -11,6 +11,7 @@ package runtime
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -19,6 +20,7 @@ import (
 	"time"
 
 	"github.com/fogfish/iq/internal/iosystem"
+	"github.com/fogfish/iq/internal/iosystem/codec"
 	"github.com/fogfish/iq/internal/iosystem/storage"
 	"github.com/goccy/go-yaml"
 	"github.com/kshard/chatter"
@@ -117,7 +119,7 @@ func (e *Cache) Prompt(ctx context.Context, in Event, opts ...chatter.Opt) (Even
 		return val, nil
 	}
 
-	err = e.cache.Put(ctx, key, bytes.NewReader(content))
+	_, err = e.cache.Put(ctx, key, bytes.NewReader(content))
 	if err != nil {
 		slog.Error("cache failed", "err", err)
 		return val, nil
@@ -128,32 +130,66 @@ func (e *Cache) Prompt(ctx context.Context, in Event, opts ...chatter.Opt) (Even
 
 // writeCacheFile creates a markdown file with YAML front matter
 func (e *Cache) writeCacheFile(docKey iosystem.Key, gist any) ([]byte, error) {
-	// Determine content type and marshal content
 	var content []byte
 	var contentType string
 	var err error
 
-	// Get the actual Gist type to determine content type
-	if g, ok := gist.(Gist); ok {
-		contentType = g.ContentType()
-		// For JSON, marshal with indentation
-		// For text/markdown, use as-is (binary string)
-		if contentType == "application/json" {
-			content, err = json.MarshalIndent(gist, "", "  ")
-			if err != nil {
-				return nil, err
-			}
-		} else {
-			content = fmt.Appendf(nil, "%v", gist)
-		}
-	} else {
-		// Fallback: marshal as JSON
-		contentType = "application/json"
+	switch v := gist.(type) {
+	case Text:
+		contentType = v.ContentType()
+		content = []byte(v)
+	case Json:
+		contentType = v.ContentType()
 		content, err = json.MarshalIndent(gist, "", "  ")
 		if err != nil {
 			return nil, err
 		}
+	case List:
+		contentType = v.ContentType()
+		content, err = json.MarshalIndent(gist, "", "  ")
+		if err != nil {
+			return nil, err
+		}
+	case Binary:
+		contentType = v.ContentType()
+		enc := base64.StdEncoding
+		buf := make([]byte, enc.EncodedLen(len(v.Data)))
+		enc.Encode(buf, v.Data)
+		content = buf
 	}
+
+	// // Get the actual Gist type to determine content type
+	// if g, ok := gist.(Gist); ok {
+	// 	switch g.ContentType() {
+	// 	case codec.ContentJSON:
+	// 		content, err = json.MarshalIndent(gist, "", "  ")
+	// 		if err != nil {
+	// 			return nil, err
+	// 		}
+	// 	case codec.ContentJPG, codec.ContentPNG:
+	// 	case codec.ContentText, codec.ContentMarkdown:
+	// 	default:
+	// 	}
+
+	// 	contentType = g.ContentType()
+	// 	// For JSON, marshal with indentation
+	// 	// For text/markdown, use as-is (binary string)
+	// 	if contentType == "application/json" {
+	// 		content, err = json.MarshalIndent(gist, "", "  ")
+	// 		if err != nil {
+	// 			return nil, err
+	// 		}
+	// 	} else {
+	// 		content = fmt.Appendf(nil, "%v", gist)
+	// 	}
+	// } else {
+	// 	// Fallback: marshal as JSON
+	// 	contentType = "application/json"
+	// 	content, err = json.MarshalIndent(gist, "", "  ")
+	// 	if err != nil {
+	// 		return nil, err
+	// 	}
+	// }
 
 	meta := CacheMetadata{
 		Key:         string(docKey),
@@ -201,15 +237,35 @@ func (e *Cache) parseCacheFile(content []byte) (iosystem.Key, Gist, error) {
 	var gist any
 	var err error
 
-	if meta.ContentType == "application/json" {
-		// Parse JSON directly
+	switch meta.ContentType {
+	case codec.ContentPNG, codec.ContentJPG:
+		dec := base64.StdEncoding
+		data := make([]byte, dec.DecodedLen(len(body)))
+		n, err := dec.Decode(data, body)
+		if err != nil {
+			return "", nil, fmt.Errorf("failed to decode binary cache gist: %w", err)
+		}
+		gist = Binary{
+			Type: meta.ContentType,
+			Data: data[:n],
+		}
+	case codec.ContentJSON:
 		if err := json.Unmarshal(body, &gist); err != nil {
 			return "", nil, fmt.Errorf("failed to parse cache gist: %w", err)
 		}
-	} else {
-		// Text/markdown content - use as-is
+	default:
 		gist = string(body)
 	}
+
+	// if meta.ContentType == "application/json" {
+	// 	// Parse JSON directly
+	// 	if err := json.Unmarshal(body, &gist); err != nil {
+	// 		return "", nil, fmt.Errorf("failed to parse cache gist: %w", err)
+	// 	}
+	// } else {
+	// 	// Text/markdown content - use as-is
+	// 	gist = string(body)
+	// }
 
 	// Convert gist to proper type
 	result, err := ToGist(gist)

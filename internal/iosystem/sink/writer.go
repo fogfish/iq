@@ -41,9 +41,10 @@ func NewStdout() *Writer {
 }
 
 // Write copies the document content to the underlying writer.
-func (s *Writer) Write(ctx context.Context, doc *iosystem.Document) error {
+func (s *Writer) Write(ctx context.Context, doc *iosystem.Document) (string, error) {
 	_, err := io.Copy(s.writer, doc.Reader)
-	return err
+	// Writer sink doesn't have a path, return empty string
+	return "", err
 }
 
 // Close does nothing since WriterSink doesn't own the writer.

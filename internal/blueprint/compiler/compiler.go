@@ -55,6 +55,7 @@ func New(llm chatter.Chatter, sink iosystem.Sink, cache storage.Storage) (*Compi
 		cel.Variable(ast.ContextKeyInput, cel.DynType),
 		cel.Variable(ast.ContextKeyCurrent, cel.DynType),
 		cel.Variable(ast.ContextKeySteps, cel.MapType(cel.StringType, cel.DynType)),
+		cel.Variable(ast.ContextKeyEnv, cel.MapType(cel.StringType, cel.DynType)),
 		cel.Variable(ast.ContextKeyDocument, cel.DynType),
 	)
 	if err != nil {
@@ -324,11 +325,18 @@ func (c *Compiler) compileShellNode(_ context.Context, tree *ast.AST, node *ast.
 }
 
 func (c *Compiler) compileMemento(_ context.Context, node ast.StepNode, prompter runtime.Prompter) runtime.Prompter {
-	variable := node.GetOutput()
-	if variable == "" {
+	stepName := node.GetName()
+	if stepName == "" {
+		uses := node.GetUses()
+		if uses != "" {
+			stepName = strings.TrimSuffix(filepath.Base(uses), filepath.Ext(uses))
+		}
+	}
+	if stepName == "" {
 		return prompter
 	}
-	return runtime.NewMemento(node.GetOutput(), prompter)
+
+	return runtime.NewMemento(stepName, prompter)
 
 }
 

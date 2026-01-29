@@ -19,7 +19,8 @@ import (
 type Storage interface {
 	// Put writes value to key (overwrites if exists).
 	// Key should be a relative path like "sub/file.txt".
-	Put(ctx context.Context, key iosystem.Key, value io.Reader) error
+	// Returns the absolute path where the document was stored.
+	Put(ctx context.Context, key iosystem.Key, value io.Reader) (string, error)
 
 	// Get reads value from key (returns auto-closing reader).
 	// Returns error if key does not exist.

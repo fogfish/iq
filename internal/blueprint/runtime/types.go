@@ -12,7 +12,9 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"time"
 
+	"github.com/fogfish/iq/internal/blueprint/ast"
 	"github.com/fogfish/iq/internal/iosystem"
 	"github.com/fogfish/iq/internal/iosystem/codec"
 	"github.com/kshard/chatter"
@@ -137,6 +139,18 @@ func (evt Event) copy(key iosystem.Key, current Gist) Event {
 		Document: evt.Document,
 		Current:  current,
 		Steps:    evt.Steps,
+	}
+}
+
+func (evt Event) ToState() map[string]any {
+	return map[string]any{
+		ast.ContextKeyDocument: evt.Document,
+		ast.ContextKeyInput:    evt.Current,
+		ast.ContextKeyCurrent:  evt.Current,
+		ast.ContextKeySteps:    evt.Steps,
+		ast.ContextKeyEnv: map[string]any{
+			"time": time.Now().Format(time.RFC3339),
+		},
 	}
 }
 

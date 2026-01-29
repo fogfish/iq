@@ -61,9 +61,21 @@ func (e *Emitter) Prompt(ctx context.Context, in Event, opts ...chatter.Opt) (Ev
 
 	// Handle Binary type specially
 	if bin, ok := val.Current.(Binary); ok {
-		if err := e.emitSingleBinary(ctx, val.Key, bin); err != nil {
-			return in, err
+		prefixedKey := iosystem.Key(filepath.Join(e.prefix, string(val.Key)))
+		dat, err := codec.Default.Encode(bin.Data, bin.Type)
+		if err != nil {
+			return in, fmt.Errorf("emitter: failed to encode binary: %w", err)
 		}
+		doc := iosystem.NewDocument(prefixedKey, codec.ContentJPG, dat)
+		doc.EnsureExtension()
+
+		path, err := e.sink.Write(ctx, doc)
+		if err != nil {
+			return in, fmt.Errorf("emitter: failed to put binary document at %s: %w", prefixedKey, err)
+		}
+
+		// Store emitted path in steps environment
+		val.Steps[e.prefix] = Text(path)
 		return val, nil
 	}
 
@@ -76,9 +88,16 @@ func (e *Emitter) Prompt(ctx context.Context, in Event, opts ...chatter.Opt) (Ev
 			}
 		}
 		if len(binaries) > 0 {
-			if err := e.emitMultipleBinaries(ctx, val.Key, binaries); err != nil {
+			paths, err := e.emitMultipleBinariesWithPaths(ctx, val.Key, binaries)
+			if err != nil {
 				return in, err
 			}
+			// Store array of paths for multiple binaries
+			pathsList := make([]any, len(paths))
+			for i, p := range paths {
+				pathsList[i] = p
+			}
+			val.Steps[e.prefix] = List(pathsList)
 			return val, nil
 		}
 	}
@@ -92,35 +111,20 @@ func (e *Emitter) Prompt(ctx context.Context, in Event, opts ...chatter.Opt) (Ev
 	doc := iosystem.NewDocument(key, val.Current.ContentType(), dat)
 	doc.EnsureExtension()
 
-	err = e.sink.Write(ctx, doc)
+	path, err := e.sink.Write(ctx, doc)
 	if err != nil {
 		return in, fmt.Errorf("emitter: failed to put document at %s: %w", key, err)
 	}
 
+	// Store emitted path in steps environment
+	val.Steps[e.prefix] = Text(path)
+
 	return val, nil
 }
 
-func (e *Emitter) emitSingleBinary(ctx context.Context, key iosystem.Key, bin Binary) error {
-	prefixedKey := iosystem.Key(filepath.Join(e.prefix, string(key)))
+func (e *Emitter) emitMultipleBinariesWithPaths(ctx context.Context, key iosystem.Key, binaries []Binary) ([]string, error) {
+	paths := make([]string, 0, len(binaries))
 
-	// Use codec to re-encode (triggers JPEG conversion)
-	dat, err := codec.Default.Encode(bin.Data, bin.Type)
-	if err != nil {
-		return fmt.Errorf("emitter: failed to encode binary: %w", err)
-	}
-
-	// Always output as JPEG after re-encoding
-	doc := iosystem.NewDocument(prefixedKey, codec.ContentJPG, dat)
-	doc.EnsureExtension()
-
-	if err := e.sink.Write(ctx, doc); err != nil {
-		return fmt.Errorf("emitter: failed to put binary document at %s: %w", prefixedKey, err)
-	}
-
-	return nil
-}
-
-func (e *Emitter) emitMultipleBinaries(ctx context.Context, key iosystem.Key, binaries []Binary) error {
 	for i, bin := range binaries {
 		// Generate numbered key: "image.0001.jpg", "image.0002.jpg"
 		numberedKey := addNumberToKey(key, i+1)
@@ -129,18 +133,21 @@ func (e *Emitter) emitMultipleBinaries(ctx context.Context, key iosystem.Key, bi
 		// Use codec to re-encode (triggers JPEG conversion)
 		dat, err := codec.Default.Encode(bin.Data, bin.Type)
 		if err != nil {
-			return fmt.Errorf("emitter: failed to encode binary %d: %w", i+1, err)
+			return nil, fmt.Errorf("emitter: failed to encode binary %d: %w", i+1, err)
 		}
 
 		doc := iosystem.NewDocument(prefixedKey, codec.ContentJPG, dat)
 		doc.EnsureExtension()
 
-		if err := e.sink.Write(ctx, doc); err != nil {
-			return fmt.Errorf("emitter: failed to put binary document at %s: %w", prefixedKey, err)
+		path, err := e.sink.Write(ctx, doc)
+		if err != nil {
+			return nil, fmt.Errorf("emitter: failed to put binary document at %s: %w", prefixedKey, err)
 		}
+
+		paths = append(paths, path)
 	}
 
-	return nil
+	return paths, nil
 }
 
 // addNumberToKey creates a numbered filename like "image.0001.jpg"

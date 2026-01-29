@@ -67,7 +67,7 @@ func TestAgentWithFiles(t *testing.T) {
 
 	it.Then(t).Should(
 		it.Nil(err),
-		it.String(out).Contain("Hello World! Content.Hello World! Content."),
+		it.String(out).Contain("Hello World! Content. \nHello World! Content."),
 	)
 }
 
@@ -82,7 +82,7 @@ func TestAgentWithFileMerge(t *testing.T) {
 	it.Then(t).Should(
 		it.Nil(err),
 		it.String(out).Contain("Hello World!"),
-		it.String(out).Contain("Content. Content."),
+		it.String(out).Contain("Content. \nContent."),
 	)
 }
 
