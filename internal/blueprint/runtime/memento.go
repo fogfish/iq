@@ -34,7 +34,10 @@ func (m *Memento) Prompt(ctx context.Context, evt Event, opts ...chatter.Opt) (E
 	}
 
 	if m.variable != "" {
-		evt.Steps[m.variable] = evt.Current
+		switch v := evt.Current.(type) {
+		case Text, Json, List:
+			evt.Steps[m.variable] = v
+		}
 	}
 
 	return evt, nil
