@@ -173,7 +173,7 @@ func (agt *Manifold) encode(in Event) (chatter.Message, error) {
 
 	var prompt chatter.Prompt
 	if agt.static != "" {
-		prompt.WithTask(agt.static)
+		prompt.WithTask(strings.ReplaceAll(agt.static, "%", "%%"))
 		prompt.WithBlob("", sb.String())
 	} else {
 		prompt.WithBlob("", sb.String())
