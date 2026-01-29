@@ -55,6 +55,7 @@ func New(llm chatter.Chatter, sink iosystem.Sink, cache storage.Storage) (*Compi
 		cel.Variable(ast.ContextKeyInput, cel.DynType),
 		cel.Variable(ast.ContextKeyCurrent, cel.DynType),
 		cel.Variable(ast.ContextKeySteps, cel.MapType(cel.StringType, cel.DynType)),
+		cel.Variable(ast.ContextKeyEnv, cel.MapType(cel.StringType, cel.DynType)),
 		cel.Variable(ast.ContextKeyDocument, cel.DynType),
 	)
 	if err != nil {

@@ -65,7 +65,7 @@ func NewManifold(node *ast.AgentNode, llm chatter.Chatter) (agt *Manifold, err e
 
 	//
 	// Prompt
-	static, dynamic, found := strings.Cut(agt.Node.Prompt, "--")
+	static, dynamic, found := strings.Cut(agt.Node.Prompt, "## INPUT")
 	if found {
 		agt.static = static
 		agt.prompt, err = template.New("").Parse(dynamic)
@@ -140,12 +140,7 @@ func (agt *Manifold) Config(map[string]*Job) error {
 func (agt *Manifold) Prompt(ctx context.Context, in Event, opt ...chatter.Opt) (Event, error) {
 	if agt.Node.RunsOn == "/dev/null" {
 		var sb strings.Builder
-		err := agt.prompt.Execute(&sb, map[string]any{
-			ast.ContextKeyDocument: in.Document,
-			ast.ContextKeyInput:    in.Current,
-			ast.ContextKeyCurrent:  in.Current,
-			ast.ContextKeySteps:    in.Steps,
-		})
+		err := agt.prompt.Execute(&sb, in.ToState())
 		if err != nil {
 			return Event{}, err
 		}
@@ -171,12 +166,7 @@ func (agt *Manifold) encode(in Event) (chatter.Message, error) {
 
 	// Note: this is the only place where event is converted to prompt
 	var sb strings.Builder
-	err := agt.prompt.Execute(&sb, map[string]any{
-		ast.ContextKeyDocument: in.Document,
-		ast.ContextKeyInput:    in.Current,
-		ast.ContextKeyCurrent:  in.Current,
-		ast.ContextKeySteps:    in.Steps,
-	})
+	err := agt.prompt.Execute(&sb, in.ToState())
 	if err != nil {
 		return nil, err
 	}
@@ -186,7 +176,7 @@ func (agt *Manifold) encode(in Event) (chatter.Message, error) {
 		prompt.WithTask(agt.static)
 		prompt.WithBlob("", sb.String())
 	} else {
-		prompt.WithTask(sb.String())
+		prompt.WithBlob("", sb.String())
 	}
 
 	if agt.Node.Format == "json" {

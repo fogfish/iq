@@ -229,7 +229,7 @@ func (p *Conduit) processDocument(ctx context.Context, docs []*iosystem.Document
 		if d.Type == codec.ContentEOF {
 			continue // Don't write EOF markers to output
 		}
-		if err := sink.Write(ctx, d); err != nil {
+		if _, err := sink.Write(ctx, d); err != nil {
 			return fmt.Errorf("sink error: %w", err)
 		}
 	}

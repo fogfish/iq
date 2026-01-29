@@ -24,6 +24,8 @@ const (
 	// ContextKeySteps holds named outputs from previous steps
 	ContextKeySteps = "steps"
 
+	ContextKeyEnv = "env"
+
 	// ContextKeyState is a shared key-value store for workflow data
 	ContextKeyState = "state"
 

@@ -43,7 +43,7 @@ func NewFile(fsys stream.CreateFS[struct{}], path string) (iosystem.Sink, error)
 
 // Write appends the document content to the file.
 // The file is created on the first write and kept open until Close().
-func (f *File) Write(ctx context.Context, doc *iosystem.Document) error {
+func (f *File) Write(ctx context.Context, doc *iosystem.Document) (string, error) {
 	switch doc.Type {
 	case codec.ContentPNG, codec.ContentJPG:
 		return f.writeImage(ctx, doc)
@@ -52,12 +52,12 @@ func (f *File) Write(ctx context.Context, doc *iosystem.Document) error {
 	}
 }
 
-func (f *File) writeText(ctx context.Context, doc *iosystem.Document) error {
+func (f *File) writeText(ctx context.Context, doc *iosystem.Document) (string, error) {
 	// Open file on first write
 	if f.file == nil {
 		file, err := f.fsys.Create(f.path, nil)
 		if err != nil {
-			return fmt.Errorf("failed to create file %s: %w", f.path, err)
+			return "", fmt.Errorf("failed to create file %s: %w", f.path, err)
 		}
 		f.file = file
 	}
@@ -65,29 +65,29 @@ func (f *File) writeText(ctx context.Context, doc *iosystem.Document) error {
 	// Write document content
 	_, err := io.Copy(f.file, doc.Reader)
 	if err != nil {
-		return fmt.Errorf("failed to write to file %s: %w", f.path, err)
+		return "", fmt.Errorf("failed to write to file %s: %w", f.path, err)
 	}
 
 	// Add newline separator between documents
 	_, err = f.file.Write([]byte("\n"))
-	return err
+	return f.path, err
 }
 
-func (f *File) writeImage(ctx context.Context, doc *iosystem.Document) error {
+func (f *File) writeImage(ctx context.Context, doc *iosystem.Document) (string, error) {
 	doc.Key = iosystem.Key(f.path)
 	fd, err := f.fsys.Create(string(doc.Key), nil)
 	if err != nil {
-		return fmt.Errorf("failed to create file %s: %w", doc.Key, err)
+		return "", fmt.Errorf("failed to create file %s: %w", doc.Key, err)
 	}
 	defer fd.Close()
 
 	// Write document content
 	_, err = io.Copy(fd, doc.Reader)
 	if err != nil {
-		return fmt.Errorf("failed to write to file %s: %w", doc.Key, err)
+		return "", fmt.Errorf("failed to write to file %s: %w", doc.Key, err)
 	}
 
-	return nil
+	return f.path, nil
 }
 
 // Close closes the file and releases resources.

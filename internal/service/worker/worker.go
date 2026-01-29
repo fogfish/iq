@@ -282,16 +282,16 @@ func newBufferingSink(target iosystem.Sink) *bufferingSink {
 	}
 }
 
-func (s *bufferingSink) Write(ctx context.Context, doc *iosystem.Document) error {
+func (s *bufferingSink) Write(ctx context.Context, doc *iosystem.Document) (string, error) {
 	// Buffer the document instead of writing immediately
 	s.buffer = append(s.buffer, doc)
-	return nil
+	return "", nil
 }
 
 func (s *bufferingSink) Flush() error {
 	// Write all buffered documents to the target sink
 	for _, doc := range s.buffer {
-		if err := s.target.Write(context.Background(), doc); err != nil {
+		if _, err := s.target.Write(context.Background(), doc); err != nil {
 			return err
 		}
 	}

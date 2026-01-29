@@ -28,7 +28,7 @@ func TestWriterSink_SingleDocument(t *testing.T) {
 	doc := iosystem.NewDocument("test.txt", codec.ContentText, strings.NewReader("test content"))
 	ctx := context.Background()
 
-	err := snk.Write(ctx, doc)
+	_, err := snk.Write(ctx, doc)
 	it.Then(t).Should(
 		it.Nil(err),
 		it.Equal(buf.String(), "test content"),
@@ -43,12 +43,12 @@ func TestWriterSink_MultipleWrites(t *testing.T) {
 
 	// Write first document
 	doc1 := iosystem.NewDocument("doc1.txt", codec.ContentText, strings.NewReader("first "))
-	err := snk.Write(ctx, doc1)
+	_, err := snk.Write(ctx, doc1)
 	it.Then(t).Should(it.Nil(err))
 
 	// Write second document (appends to same writer)
 	doc2 := iosystem.NewDocument("doc2.txt", codec.ContentText, strings.NewReader("second"))
-	err = snk.Write(ctx, doc2)
+	_, err = snk.Write(ctx, doc2)
 	it.Then(t).Should(it.Nil(err))
 
 	// Both documents should be concatenated
@@ -62,7 +62,7 @@ func TestWriterSink_EmptyDocument(t *testing.T) {
 	doc := iosystem.NewDocument("empty.txt", codec.ContentText, strings.NewReader(""))
 	ctx := context.Background()
 
-	err := snk.Write(ctx, doc)
+	_, err := snk.Write(ctx, doc)
 	it.Then(t).Should(
 		it.Nil(err),
 		it.Equal(buf.Len(), 0),
@@ -80,7 +80,7 @@ func TestWriterSink_Close(t *testing.T) {
 	// Should still be able to write after close (writer lifecycle managed by caller)
 	doc := iosystem.NewDocument("test.txt", codec.ContentText, strings.NewReader("content"))
 	ctx := context.Background()
-	err = snk.Write(ctx, doc)
+	_, err = snk.Write(ctx, doc)
 	it.Then(t).Should(it.Nil(err))
 }
 
@@ -92,7 +92,7 @@ func TestWriterSink_WithMetadata(t *testing.T) {
 	doc.WithMetadata("key", "value")
 
 	ctx := context.Background()
-	err := snk.Write(ctx, doc)
+	_, err := snk.Write(ctx, doc)
 
 	it.Then(t).Should(
 		it.Nil(err),
@@ -111,7 +111,7 @@ func TestWriterSink_LargeContent(t *testing.T) {
 	doc := iosystem.NewDocument("large.txt", codec.ContentText, strings.NewReader(largeContent))
 
 	ctx := context.Background()
-	err := snk.Write(ctx, doc)
+	_, err := snk.Write(ctx, doc)
 
 	it.Then(t).Should(
 		it.Nil(err),
@@ -128,7 +128,7 @@ func TestWriterSink_WithPipeline(t *testing.T) {
 	doc := iosystem.NewDocument("pipeline.txt", codec.ContentText, strings.NewReader("pipeline test"))
 	ctx := context.Background()
 
-	err := snk.Write(ctx, doc)
+	_, err := snk.Write(ctx, doc)
 	it.Then(t).Should(
 		it.Nil(err),
 		it.Equal(buf.String(), "pipeline test"),
@@ -144,7 +144,7 @@ func TestWriterSink_ReadError(t *testing.T) {
 	doc := iosystem.NewDocument("fail.txt", codec.ContentText, failingReader)
 
 	ctx := context.Background()
-	err := snk.Write(ctx, doc)
+	_, err := snk.Write(ctx, doc)
 
 	// Should propagate the read error
 	it.Then(t).ShouldNot(it.Nil(err))

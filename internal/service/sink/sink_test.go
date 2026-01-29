@@ -51,11 +51,11 @@ func TestBuilder_File(t *testing.T) {
 	ctx := context.Background()
 
 	doc1 := iosystem.NewDocument("doc1.txt", io.NopCloser(bytes.NewBufferString("first")))
-	err = snk.Write(ctx, doc1)
+	_, err = snk.Write(ctx, doc1)
 	it.Then(t).Should(it.Nil(err))
 
 	doc2 := iosystem.NewDocument("doc2.txt", io.NopCloser(bytes.NewBufferString("second")))
-	err = snk.Write(ctx, doc2)
+	_, err = snk.Write(ctx, doc2)
 	it.Then(t).Should(it.Nil(err))
 
 	// Close to flush
@@ -85,7 +85,7 @@ func TestBuilder_Dir(t *testing.T) {
 	// Write document with path
 	ctx := context.Background()
 	doc := iosystem.NewDocument("/subdir/output.txt", io.NopCloser(bytes.NewBufferString("directory content")))
-	err = snk.Write(ctx, doc)
+	_, err = snk.Write(ctx, doc)
 	it.Then(t).Should(it.Nil(err))
 
 	// Close to flush writes
@@ -118,7 +118,7 @@ func TestBuilder_FileBeforeDir(t *testing.T) {
 	// Write document
 	ctx := context.Background()
 	doc := iosystem.NewDocument("whatever.txt", io.NopCloser(bytes.NewBufferString("file mode")))
-	err = snk.Write(ctx, doc)
+	_, err = snk.Write(ctx, doc)
 	it.Then(t).Should(it.Nil(err))
 	snk.Close()
 
@@ -162,7 +162,7 @@ func TestBuilder_DirMultipleFiles(t *testing.T) {
 
 	for _, d := range docs {
 		doc := iosystem.NewDocument(iosystem.Key(d.path), io.NopCloser(bytes.NewBufferString(d.content)))
-		err = snk.Write(ctx, doc)
+		_, err = snk.Write(ctx, doc)
 		it.Then(t).Should(it.Nil(err))
 	}
 

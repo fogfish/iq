@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"path/filepath"
 	"strings"
 
 	"github.com/fogfish/iq/internal/iosystem"
@@ -41,8 +42,7 @@ func NewFileSystem(mount string, files ...string) (*FileSystem, error) {
 
 	const s3pfx = "s3://"
 	if strings.HasPrefix(mount, s3pfx) {
-		mount = mount[len(s3pfx):]
-		fsys, err := stream.NewFS(mount)
+		fsys, err := stream.NewFS(mount[len(s3pfx):])
 		if err != nil {
 			return nil, fmt.Errorf("failed to mount S3 storage at %s: %w", mount, err)
 		}
@@ -53,6 +53,11 @@ func NewFileSystem(mount string, files ...string) (*FileSystem, error) {
 		}, nil
 	}
 
+	absMount, err := filepath.Abs(mount)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get absolute path for mount %s: %w", mount, err)
+	}
+
 	fsys, err := lfs.New(mount)
 	if err != nil {
 		return nil, fmt.Errorf("failed to mount local storage at %s: %w", mount, err)
@@ -60,26 +65,26 @@ func NewFileSystem(mount string, files ...string) (*FileSystem, error) {
 
 	return &FileSystem{
 		fs:    fsys,
-		mount: mount,
+		mount: absMount,
 		files: files,
 	}, nil
 }
 
 // Put writes value to key.
-func (s *FileSystem) Put(ctx context.Context, key iosystem.Key, value io.Reader) error {
+func (s *FileSystem) Put(ctx context.Context, key iosystem.Key, value io.Reader) (string, error) {
 	file, err := s.fs.Create(string(key), nil)
 	if err != nil {
-		return fmt.Errorf("failed to create key %s: %w", key, err)
+		return "", fmt.Errorf("failed to create key %s: %w", key, err)
 	}
 	defer file.Close()
 
 	_, err = io.Copy(file, value)
 	if err != nil {
 		file.Cancel()
-		return fmt.Errorf("failed to write key %s: %w", key, err)
+		return "", fmt.Errorf("failed to write key %s: %w", key, err)
 	}
 
-	return nil
+	return s.mount + "/" + string(key), nil
 }
 
 // Get reads value from key.

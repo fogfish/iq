@@ -62,9 +62,15 @@ func (f *ForEach) Prompt(ctx context.Context, in Event, opts ...chatter.Opt) (Ev
 			return in, fmt.Errorf("foreach item conversion failed: %w", err)
 		}
 
+		evt := in.copy(in.Key.SeqID(i+1), val)
+		evt.Steps[f.Node.Job] = Json{
+			"input": val,
+			"index": Text(fmt.Sprintf("%d", i+1)),
+		}
+
 		reply, err := f.prompter.Prompt(
 			progress.ContextForEach(ctx, f.Node.Job, i+1, len(list)),
-			in.copy(in.Key.SeqID(i+1), val),
+			evt,
 			opts...,
 		)
 		if err != nil {

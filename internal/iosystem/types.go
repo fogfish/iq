@@ -68,8 +68,10 @@ type Processor interface {
 //   - Flush buffers and release resources in Close()
 type Sink interface {
 	// Write stores a document to the sink's destination.
-	// Returns error if the write fails.
-	Write(ctx context.Context, doc *Document) error
+	// Returns the absolute path where the document was written.
+	// For local files, this is the full filesystem path.
+	// For S3, this is the s3://bucket/path format.
+	Write(ctx context.Context, doc *Document) (string, error)
 
 	// Close finalizes output and releases resources.
 	// Should flush any buffered writes.

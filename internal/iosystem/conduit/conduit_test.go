@@ -210,7 +210,7 @@ func newMockSink() *mockSink {
 	return &mockSink{docs: make([]*iosystem.Document, 0)}
 }
 
-func (m *mockSink) Write(ctx context.Context, doc *iosystem.Document) error {
+func (m *mockSink) Write(ctx context.Context, doc *iosystem.Document) (string, error) {
 	// Read content to buffer so we can inspect it later
 	buf := &bytes.Buffer{}
 	io.Copy(buf, doc.Reader)
@@ -220,7 +220,7 @@ func (m *mockSink) Write(ctx context.Context, doc *iosystem.Document) error {
 		captured.WithMetadata(k, v)
 	}
 	m.docs = append(m.docs, captured)
-	return nil
+	return string(doc.Key), nil
 }
 
 func (m *mockSink) Close() error {

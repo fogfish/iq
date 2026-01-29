@@ -45,7 +45,7 @@ func TestFSSink(t *testing.T) {
 			codec.ContentText,
 			io.NopCloser(strings.NewReader("test content")),
 		)
-		err = snk.Write(ctx, doc)
+		_, err = snk.Write(ctx, doc)
 		it.Then(t).Should(it.Nil(err))
 
 		// Verify file was created
@@ -76,7 +76,7 @@ func TestFSSink(t *testing.T) {
 			codec.ContentText,
 			io.NopCloser(strings.NewReader("nested content")),
 		)
-		err = snk.Write(ctx, doc)
+		_, err = snk.Write(ctx, doc)
 		it.Then(t).Should(it.Nil(err))
 
 		// Verify file was created with correct path
@@ -117,7 +117,7 @@ func TestFSSink(t *testing.T) {
 				codec.ContentText,
 				io.NopCloser(strings.NewReader(d.content)),
 			)
-			err := snk.Write(ctx, doc)
+			_, err := snk.Write(ctx, doc)
 			it.Then(t).Should(it.Nil(err))
 		}
 
@@ -149,7 +149,7 @@ func TestFSSink(t *testing.T) {
 	// 	// This should fail
 	// 	ctx := context.Background()
 	// 	doc := iosystem.NewDocument("test.txt", io.NopCloser(strings.NewReader("test content")))
-	// 	err = snk.Write(ctx, doc)
+	// 	_, err = snk.Write(ctx, doc)
 	// 	it.Then(t).ShouldNot(it.Nil(err)) // Expect error - lfs requires leading /
 	// })
 
@@ -176,7 +176,7 @@ func TestFSSink(t *testing.T) {
 			codec.ContentText,
 			io.NopCloser(strings.NewReader(largeContent)),
 		)
-		err = snk.Write(ctx, doc)
+		_, err = snk.Write(ctx, doc)
 		it.Then(t).Should(it.Nil(err))
 
 		// Verify file size
@@ -202,7 +202,7 @@ func TestFSSink(t *testing.T) {
 
 		// Try to write nil document
 		ctx := context.Background()
-		err = snk.Write(ctx, nil)
+		_, err = snk.Write(ctx, nil)
 		it.Then(t).ShouldNot(
 			it.Nil(err),
 		)
@@ -240,7 +240,7 @@ func TestFSSink(t *testing.T) {
 			codec.ContentText,
 			io.NopCloser(strings.NewReader("new content")),
 		)
-		err = snk.Write(ctx, doc)
+		_, err = snk.Write(ctx, doc)
 		it.Then(t).Should(it.Nil(err))
 
 		// Verify file was overwritten
