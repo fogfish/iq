@@ -9,7 +9,7 @@ jobs:
           selector: input
           job: extract
           format: 
-            type: jsonl
+            type: json
 
       - uses: prompts/reduce.md
   

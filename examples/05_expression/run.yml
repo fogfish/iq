@@ -4,11 +4,10 @@ jobs:
     steps:
       - name: extract
         uses: prompts/extract.md
-        output: text
 
       - name: choice
         switch:
-          - when: steps.text.category == "laptop"
+          - when: steps.extract.category == "laptop"
             route: laptop
         default: unknown
 
