@@ -17,12 +17,14 @@
 * Make small and readable functions
 * Avoid comments in the code, purpose of code blocks is self explanatory
 * Use modernized Golang syntax
-* Use `github.com/fogfig/it/v2` to write assertion for unit tests
-* Prefer table driven tests when possible
-* Keep high up to 90% test coverage for newly added features, do not write test for shake of coverage
 * Always add license header to newly created files
 
-## Testing
+## Unit Tests & Testing
+
+Always follows the following requirements when writing unit tests even if issues have different requiements:
+* Always use `github.com/fogfig/it/v2` as assertion library when writing unit tests 
+* Prefer table driven tests when possible
+* Keep high up to 90% test coverage for newly added features, do not write test for shake of coverage
 
 Always do testing before making pull request:
 * `go test -v ./...` unit testing
