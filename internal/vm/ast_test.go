@@ -12,11 +12,10 @@ import (
 	"testing"
 
 	"github.com/fogfish/iq/internal/vm"
+	"github.com/fogfish/it/v2"
 )
 
 func TestASTConstruction(t *testing.T) {
-	// Build a representative pipeline AST:
-	// Unfold → Map("extract") → Partition("classify") → Join → Map("format") → Fold
 	prog := &vm.Program{
 		Root: vm.Seq{
 			Steps: []vm.Node{
@@ -41,33 +40,25 @@ func TestASTConstruction(t *testing.T) {
 		},
 	}
 
-	// Verify structure is constructable
 	seq, ok := prog.Root.(vm.Seq)
-	if !ok {
-		t.Fatal("root should be Seq")
-	}
-	if len(seq.Steps) != 5 {
-		t.Fatalf("expected 5 steps, got %d", len(seq.Steps))
-	}
+	it.Then(t).Should(
+		it.True(ok),
+		it.Equal(len(seq.Steps), 5),
+	)
 
-	// Verify node types
-	if _, ok := seq.Steps[0].(vm.UnfoldNode); !ok {
-		t.Error("step 0 should be UnfoldNode")
-	}
-	if _, ok := seq.Steps[1].(vm.MapNode); !ok {
-		t.Error("step 1 should be MapNode")
-	}
-	if p, ok := seq.Steps[2].(vm.PartitionNode); !ok {
-		t.Error("step 2 should be PartitionNode")
-	} else {
-		if p.Name != "classify" {
-			t.Errorf("partition name should be classify, got %s", p.Name)
-		}
-	}
+	_, ok0 := seq.Steps[0].(vm.UnfoldNode)
+	_, ok1 := seq.Steps[1].(vm.MapNode)
+	p, ok2 := seq.Steps[2].(vm.PartitionNode)
+
+	it.Then(t).Should(
+		it.True(ok0),
+		it.True(ok1),
+		it.True(ok2),
+		it.Equal(p.Name, "classify"),
+	)
 }
 
 func TestFMapNode(t *testing.T) {
-	// FMapNode for foreach/chunker patterns
 	prog := &vm.Program{
 		Root: vm.Seq{
 			Steps: []vm.Node{
@@ -79,7 +70,9 @@ func TestFMapNode(t *testing.T) {
 	}
 
 	seq := prog.Root.(vm.Seq)
-	if _, ok := seq.Steps[1].(vm.FMapNode); !ok {
-		t.Error("step 1 should be FMapNode")
-	}
+	_, ok := seq.Steps[1].(vm.FMapNode)
+
+	it.Then(t).Should(
+		it.True(ok),
+	)
 }
