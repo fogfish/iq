@@ -31,4 +31,5 @@ Always do testing before making pull request:
 
 ## Releasing 
 
-Create pull request to https://github.com/fogfish/iq when feature, fix or changes are completed. 
+* Create pull request to https://github.com/fogfish/iq when feature, fix or changes are completed. 
+* Push changes with `git push github ...` 
