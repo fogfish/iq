@@ -9,33 +9,43 @@
 package vm_test
 
 import (
+	"context"
 	"testing"
 
+	"github.com/fogfish/golem/pipe/v2"
+	"github.com/fogfish/golem/pure/monoid"
 	"github.com/fogfish/iq/internal/vm"
 	"github.com/fogfish/it/v2"
 )
 
+func identity(c *vm.Cell) (*vm.Cell, error) { return c, nil }
+
 func TestASTConstruction(t *testing.T) {
-	prog := &vm.Program{
+	extract := pipe.Lift(identity)
+	technical := pipe.Lift(identity)
+	creative := pipe.Lift(identity)
+	format := pipe.Lift(identity)
+
+	prog := &vm.App{
 		Root: vm.Seq{
 			Steps: []vm.Node{
-				vm.UnfoldNode{Name: "source"},
-				vm.MapNode{Name: "extract"},
+				vm.UnfoldNode{F: pipe.Lift(identity)},
+				vm.MapNode{F: extract},
 				vm.PartitionNode{
-					Name: "classify",
+					F: func(c *vm.Cell) bool { return c.Key == "tech" },
 					Match: vm.Seq{
 						Steps: []vm.Node{
-							vm.MapNode{Name: "technical"},
+							vm.MapNode{F: technical},
 						},
 					},
 					Default: vm.Seq{
 						Steps: []vm.Node{
-							vm.MapNode{Name: "creative"},
+							vm.MapNode{F: creative},
 						},
 					},
 				},
-				vm.MapNode{Name: "format"},
-				vm.FoldNode{Name: "sink"},
+				vm.MapNode{F: format},
+				vm.FoldNode{M: monoid.FromOp[*vm.Cell](nil, func(a, b *vm.Cell) *vm.Cell { return b })},
 			},
 		},
 	}
@@ -54,17 +64,20 @@ func TestASTConstruction(t *testing.T) {
 		it.True(ok0),
 		it.True(ok1),
 		it.True(ok2),
-		it.Equal(p.Name, "classify"),
+		it.True(p.F != nil),
 	)
 }
 
 func TestFMapNode(t *testing.T) {
-	prog := &vm.Program{
+	prog := &vm.App{
 		Root: vm.Seq{
 			Steps: []vm.Node{
-				vm.UnfoldNode{Name: "source"},
-				vm.FMapNode{Name: "foreach"},
-				vm.FoldNode{Name: "sink"},
+				vm.UnfoldNode{F: pipe.Lift(identity)},
+				vm.FMapNode{FF: pipe.LiftF(func(_ context.Context, c *vm.Cell, out chan<- *vm.Cell) error {
+					out <- c
+					return nil
+				})},
+				vm.FoldNode{M: monoid.FromOp[*vm.Cell](nil, func(a, b *vm.Cell) *vm.Cell { return b })},
 			},
 		},
 	}

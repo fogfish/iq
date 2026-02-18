@@ -80,55 +80,14 @@ The `Steps` map provides the shared memory space: any stage can store named resu
 
 Pipeline construction follows a **two-phase compilation** model, mirroring the existing Parser → AST → Compiler architecture but targeting channel topology instead of decorator chains.
 
-The critical insight is that channel creation and ownership belong to the pipe functions — `pipe.Map`, `pipe.Partition`, `pipe.FMap` etc. each create and return their output channels internally. Therefore, Phase 1 must invoke the pipe functions to build the complete, live channel topology. It does so by passing **virtual function tables** (vtables) — named indirection slots — instead of concrete processing functions. Phase 2 then populates the vtables with real implementations, before any data flows.
+The critical insight is that channel creation and ownership belong to the pipe functions — `pipe.Map`, `pipe.Partition`, `pipe.FMap` etc. each create and return their output channels internally. The AST carries **typed function references** directly in its nodes — `pipe.F[*Cell, *Cell]` for maps, `pipe.FF[*Cell, *Cell]` for fan-out, `func(*Cell) bool` for predicates, `monoid.Monoid[*Cell]` for folds. This makes the AST type-safe: the compiler cannot wire a predicate where a map is expected.
 
-**Phase 1 — Control Structure (from AST):**
-The compiler walks the AST and constructs the full channel topology by calling pipe functions with vtable references. Each step in the AST maps to a named vtable entry. The pipe functions wire channels and spawn goroutines, but no data flows yet because the source channel has not been fed.
-
-```go
-// Phase 1: build topology with vtable indirection
-vtf := make(map[string]func(*Cell) (*Cell, error))
-
-// Compiler walks AST, creates channel graph via pipe functions.
-// Each pipe.Map/FMap/Partition call creates channels and goroutines
-// that dispatch through the vtable.
-ch1, errs1 := pipe.Map(ctx, ch0, pipe.Try(
-    func(cell *Cell) (*Cell, error) { return vtf["extract"](cell) },
-))
-ch2a, ch2b := pipe.Partition(ctx, ch1,
-    pipe.Pure(func(cell *Cell) bool { return vtf["classify"](cell) }),
-)
-ch3a, errs3a := pipe.Map(ctx, ch2a, pipe.Try(
-    func(cell *Cell) (*Cell, error) { return vtf["technical"](cell) },
-))
-ch3b, errs3b := pipe.Map(ctx, ch2b, pipe.Try(
-    func(cell *Cell) (*Cell, error) { return vtf["creative"](cell) },
-))
-ch4 := pipe.Join(ctx, ch3a, ch3b)
-ch5, errs5 := pipe.Map(ctx, ch4, pipe.Try(
-    func(cell *Cell) (*Cell, error) { return vtf["format"](cell) },
-))
-```
-
-This produces a live channel topology:
-
-```
-Unfold ──→ ch0 ──Map["extract"]──→ ch1 ──Partition["classify"]──→ ch2a, ch2b
-                                                                  │        │
-                                                          Map["technical"]  Map["creative"]
-                                                                  │        │
-                                                                 ch3a    ch3b
-                                                                  └──Join──┘
-                                                                      │
-                                                            ch4 ──Map["format"]──→ ch5 ──→ Fold
-```
-
-**Phase 2 — Processing Functions (from Agents/Config):**
-The compiler fills each vtable slot with the actual processing function. These functions close over their configuration (prompt templates, CEL programs, MCP connections, JSON schemas). The vtable entries must be populated before the source `Unfold` begins emitting data.
+**Phase 1 — Build `vm.App` (functions first, then topology):**
+The domain compiler walks the blueprint AST and creates concrete processing functions (LLM calls, shell commands, CEL predicates, retry/cache wrappers). These are assembled into a `vm.App` — a control-flow AST where every node carries its typed function reference directly.
 
 ```go
-// Phase 2: populate vtable with concrete implementations
-vtf["extract"] = func(cell *Cell) (*Cell, error) {
+// Phase 1: build vm.App with typed function references
+extractFn := pipe.Lift(func(cell *Cell) (*Cell, error) {
     reply, err := llm.Prompt(ctx, renderTemplate(extractPrompt, cell))
     if err != nil {
         return cell, err
@@ -136,22 +95,56 @@ vtf["extract"] = func(cell *Cell) (*Cell, error) {
     cell.Value = decodeReply(reply)
     cell.Steps["extract"] = cell.Value
     return cell, nil
+})
+
+classifyPred := func(cell *Cell) bool {
+    return evalCEL(cell, classifyExpr)
 }
 
-vtf["classify"] = func(cell *Cell) (*Cell, error) {
-    reply, err := llm.Prompt(ctx, renderTemplate(classifyPrompt, cell))
-    cell.Value = decodeReply(reply)
-    return cell, err
+prog := &vm.App{
+    Root: vm.Seq{
+        Steps: []vm.Node{
+            vm.UnfoldNode{F: sourceFn},
+            vm.MapNode{F: extractFn},
+            vm.PartitionNode{
+                F:       classifyPred,
+                Match:   vm.Seq{Steps: []vm.Node{vm.MapNode{F: technicalFn}}},
+                Default: vm.Seq{Steps: []vm.Node{vm.MapNode{F: creativeFn}}},
+            },
+            vm.MapNode{F: formatFn},
+            vm.FoldNode{M: sinkMonoid},
+        },
+    },
 }
-
-vtf["technical"] = compiledJobFn(jobs["technical"])
-vtf["creative"]  = compiledJobFn(jobs["creative"])
-vtf["format"]    = compiledAgentFn(formatAgent)
-
-// Now start data flow — Unfold feeds ch0
 ```
 
-The vtable pattern decouples topology wiring from function implementation. The compiler can validate the complete channel graph (dead channels, missing joins, unreachable branches) before any functions are attached. It also enables late-binding scenarios like hot-reloading agent prompts without rebuilding the channel topology.
+**Phase 2 — Instantiate Channel Topology (from `vm.App`):**
+The VM compiler walks the `vm.App` and constructs the live channel topology by calling pipe functions with the function references stored in each node. Each `pipe.Map`, `pipe.FMap`, `pipe.Partition` call creates channels and spawns goroutines. No data flows yet because the source channel has not been fed.
+
+```go
+// Phase 2: walk vm.App, instantiate channel graph
+ch1, errs1 := pipe.Map(ctx, ch0, node.F)           // MapNode.F is pipe.F[*Cell, *Cell]
+ch2a, ch2b := pipe.Partition(ctx, ch1, node.F)      // PartitionNode.F is func(*Cell) bool
+ch3a, errs3a := pipe.Map(ctx, ch2a, matchNode.F)
+ch3b, errs3b := pipe.Map(ctx, ch2b, defaultNode.F)
+ch4 := pipe.Join(ctx, ch3a, ch3b)
+ch5, errs5 := pipe.Map(ctx, ch4, formatNode.F)
+```
+
+This produces a live channel topology:
+
+```
+Unfold ──→ ch0 ──Map──→ ch1 ──Partition──→ ch2a, ch2b
+                                           │        │
+                                          Map      Map
+                                           │        │
+                                          ch3a    ch3b
+                                           └──Join──┘
+                                               │
+                                         ch4 ──Map──→ ch5 ──→ Fold
+```
+
+The type-safe function reference approach provides compile-time guarantees that the original name-based vtable pattern cannot: a `MapNode` always carries an `F[*Cell, *Cell]`, a `PartitionNode` always carries a `func(*Cell) bool` predicate, and a `FoldNode` always carries a `Monoid[*Cell]`. The compiler enforces correct wiring structurally rather than through runtime lookups.
 
 ### Mapping Current Constructs to Stream Operations
 
@@ -290,24 +283,19 @@ The architecture introduces a standalone **`vm`** (virtual machine) package that
 
 ```
 vm/                        # STANDALONE — open-source candidate
-  ast.go                   # Control-flow AST (Program, Seq, Map, FMap, Partition, Join, ...)
+  ast.go                   # Control-flow AST (App, Seq, Map, FMap, Partition, Join, ...)
   cell.go                  # Cell type — generic shared memory unit
-  vm.go                    # Two-phase compiler: AST → channel topology + vtable
+  vm.go                    # Compiler: walks vm.App → channel topology
   vm_test.go               # Pure control-flow tests (no LLM, no I/O)
 ```
 
 The `vm` package defines:
 
-1. **Control-Flow AST** — a minimal, pure AST focused exclusively on data flow topology. No domain concepts (agents, prompts, schemas). Just structural nodes:
+1. **Control-Flow AST** — a type-safe AST where each node carries typed function references from `golem/pipe`. No domain concepts (agents, prompts, schemas). Just structural nodes with their processing functions:
 
 ```go
-// Program is the root of a control-flow AST.
-type Program struct {
-    Root Node
-}
-
 // Node represents a control-flow operation.
-type Node interface{ node() }
+type Node interface{ HKT1(Node) }
 
 // Seq executes a list of nodes sequentially as a channel chain.
 type Seq struct {
@@ -316,54 +304,47 @@ type Seq struct {
 
 // MapNode applies F[*Cell, *Cell] to each element.
 type MapNode struct {
-    Name string   // vtable key
+    F pipe.F[*Cell, *Cell]
 }
 
 // FMapNode applies FF[*Cell, *Cell] (fan-out) to each element.
 type FMapNode struct {
-    Name string   // vtable key
+    FF pipe.FF[*Cell, *Cell]
 }
 
 // PartitionNode splits stream by predicate into branches.
 type PartitionNode struct {
-    Name     string   // vtable key for predicate
-    Match    Node     // sub-pipeline for matched elements
-    Default  Node     // sub-pipeline for unmatched elements
+    F       func(*Cell) bool
+    Match   Node
+    Default Node
 }
 
 // FoldNode terminates a stream.
 type FoldNode struct {
-    Name string   // vtable key
+    M monoid.Monoid[*Cell]
 }
 
 // UnfoldNode produces a stream.
 type UnfoldNode struct {
-    Name string   // vtable key
+    F pipe.F[*Cell, *Cell]
 }
 ```
 
-2. **VM compiler** — takes the control-flow AST, builds the live channel topology (Phase 1), returns a handle for vtable population (Phase 2) and execution:
+2. **VM compiler** — walks the `vm.App`, instantiates the live channel topology by calling pipe functions with the typed function references stored in each AST node:
 
 ```go
-// Pipeline is a compiled, ready-to-execute channel topology.
-type Pipeline struct {
-    vtf map[string]func(*Cell) (*Cell, error)
-    // ...
+// App is the root of a control-flow AST.
+type App struct {
+    Root Node
 }
 
-// Compile builds channel topology from control-flow AST.
-func Compile(ctx context.Context, prog *Program) *Pipeline
-
-// Bind populates a vtable slot with a concrete function.
-func (p *Pipeline) Bind(name string, fn func(*Cell) (*Cell, error))
-
-// Run starts data flow (feeds the Unfold source).
-func (p *Pipeline) Run(ctx context.Context) (<-chan *Cell, <-chan error)
+// Compile walks vm.App and builds the channel topology.
+func Compile(ctx context.Context, app *App) (<-chan *Cell, <-chan error)
 ```
 
 3. **Cell** — the generic shared memory unit (as defined in the Shared Memory Model section).
 
-The application integrates the `vm` package through an **AST transformation** layer and **function binding**:
+The application integrates the `vm` package through an **AST transformation** layer:
 
 ```
 internal/
@@ -371,9 +352,8 @@ internal/
     ast/                 # unchanged — domain-specific AST (agents, prompts, schemas)
     parser/              # unchanged
     compiler/
-      compiler.go        # MODIFIED — transforms blueprint AST → vm.Program
+      compiler.go        # MODIFIED — transforms blueprint AST → vm.App
       transform.go       # NEW — blueprint AST → vm control-flow AST transformation
-      bind.go            # NEW — populates vm vtable with domain functions (LLM, shell, etc.)
     runtime/             # unchanged during transition — existing Prompter implementations
   iosystem/              # unchanged during transition
     codec/               # unchanged
@@ -384,9 +364,7 @@ internal/
     sink/                # unchanged during transition
 ```
 
-The blueprint compiler performs a two-step process:
-1. **Transform**: Walk the domain AST (`BlueprintNode` → `JobNode` → `StepNode`) and produce a `vm.Program` with `vm.Seq`, `vm.MapNode`, `vm.PartitionNode`, etc. Domain details (prompt templates, CEL expressions, MCP configs) are captured in closures, not in the VM AST.
-2. **Bind**: For each named vtable slot, create the domain function (LLM call, shell exec, cache guard, retry wrapper) and call `pipeline.Bind(name, fn)`.
+The blueprint compiler walks the domain AST (`BlueprintNode` → `JobNode` → `StepNode`), creates concrete domain functions (LLM calls, shell commands, CEL predicates, retry/cache wrappers), and assembles them into a `vm.App` with `vm.Seq`, `vm.MapNode`, `vm.PartitionNode`, etc. Domain details (prompt templates, CEL expressions, MCP configs) are captured in closures embedded directly in the AST nodes.
 
 ### Migration Strategy
 
@@ -394,7 +372,7 @@ The migration follows a strict **fail-fast integration** approach. Every phase p
 
 **Phase 1 — VM Package**
 
-Implement the `vm` package as a standalone, domain-agnostic module. Define the control-flow AST, the two-phase compiler (topology + vtable), and `Cell` type. Test extensively with pure control-flow tests — no LLM, no I/O, no application dependencies.
+Implement the `vm` package as a standalone, domain-agnostic module. Define the control-flow AST with typed function references, the compiler (AST → channel topology), and `Cell` type. Test extensively with pure control-flow tests — no LLM, no I/O, no application dependencies.
 
 This phase has **zero impact** on the existing application.
 
@@ -409,9 +387,9 @@ AFTER:   VM[ Unfold(source) → Map(blueprint.Prompt) → Fold(sink) ]
 
 **What changes:**
 - `conduit.Conduit` and its `runSequential` loop are replaced by a VM pipeline with three nodes: `UnfoldNode` → `MapNode` → `FoldNode`
-- `Unfold` binds to adapters wrapping existing `Source` implementations (filesystem, stdin, none)
-- `Fold` binds to adapters wrapping existing `Sink` implementations (stdout, file, filesystem)
-- The `Map` function performs the same work as `processor.Agent.Process()`: decode `Document` → `Event`, call `blueprint.Prompt()`, encode `Event` → `Document`
+- `UnfoldNode.F` wraps existing `Source` implementations (filesystem, stdin, none)
+- `FoldNode.M` wraps existing `Sink` implementations (stdout, file, filesystem)
+- The `MapNode.F` performs the same work as `processor.Agent.Process()`: decode `Document` → `Event`, call `blueprint.Prompt()`, encode `Event` → `Document`
 - `processor.Agent`, `processor.Chunker`, `processor.Collector`, EOF sentinel handling, `bufferingSink` are eliminated
 - Chunker becomes an `FMapNode` before the blueprint Map; Collector becomes a `FoldNode` before the blueprint Map
 
@@ -455,11 +433,11 @@ VM[ Unfold → Map(blueprint) → Fold ]
 
 **Phase 4 — AST Transformation and Full Pipeline**
 
-Transform the blueprint AST into a VM control-flow AST, node by node. Each transformation step is an independent PR that keeps the application functional. The decorator chain is absorbed into the VM pipeline as function composition within vtable bindings.
+Transform the blueprint AST into a VM control-flow AST, node by node. Each transformation step is an independent PR that keeps the application functional. The decorator chain is absorbed into the VM pipeline as function composition within AST node function references.
 
 #### Node-by-Node Transformation Analysis
 
-The transformation replaces `compiler.compileStep()` → decorator chain with direct emission of VM AST nodes + vtable bindings. Each node type below is an independent, shippable PR.
+The transformation replaces `compiler.compileStep()` → decorator chain with direct emission of VM AST nodes carrying their processing functions. Each node type below is an independent, shippable PR.
 
 **PR 4.1 — AgentStepNode (simplest, most common)**
 
@@ -470,11 +448,10 @@ AgentStepNode → Manifold → Cache(Printer(Repeater(Emitter(Memento(Manifold))
 
 VM transformation:
 ```
-AgentStepNode → MapNode{name: "job.step"}
-vtf["job.step"] = withMemento(name, withEmit(sink, withRetry(n, withCache(store, manifoldFn))))
+AgentStepNode → MapNode{F: withMemento(name, withEmit(sink, withRetry(n, withCache(store, manifoldFn))))}
 ```
 
-The `Manifold` is no longer wrapped in decorators — its concerns are composed as function wrappers inside the vtable binding. The `MapNode` in the VM AST is a single node; the complexity lives in the bound function.
+The `Manifold` is no longer wrapped in decorators — its concerns are composed as function wrappers embedded directly in the `MapNode`. The `MapNode` in the VM AST is a single node; the complexity lives in the `F` function reference.
 
 **Impact**: Covers ~70% of workflow steps. All examples with sequential agent chains (`01_chain`, `02_json_schema`, `03_state`, `09_templates`) work via VM pipeline.
 
@@ -484,8 +461,7 @@ Current: `RunStepNode → Shell → decorators`
 
 VM transformation:
 ```
-RunStepNode → MapNode{name: "job.run-N"}
-vtf["job.run-N"] = withMemento(name, shellFn)
+RunStepNode → MapNode{F: withMemento(name, shellFn)}
 ```
 
 Shell steps are rarely decorated (no cache, no retry typically). The transformation is straightforward.
@@ -509,13 +485,13 @@ Current: `Router.Prompt()` optionally calls an LLM agent, then evaluates CEL con
 VM transformation:
 ```
 RouterStepNode → Seq{
-    MapNode{name: "job.router-agent"},     // optional: LLM call to produce choice
+    MapNode{F: routerAgentFn},              // optional: LLM call to produce choice
     PartitionNode{
-        name: "job.router-condition-0",     // CEL predicate for route 0
-        Match: Seq{...route-0-job...},
-        Default: PartitionNode{             // nested: next condition
-            name: "job.router-condition-1",
-            Match: Seq{...route-1-job...},
+        F:       celPredicate0,              // CEL predicate for route 0
+        Match:   Seq{...route-0-job...},
+        Default: PartitionNode{              // nested: next condition
+            F:       celPredicate1,
+            Match:   Seq{...route-1-job...},
             Default: Seq{...default-job...},
         },
     },
@@ -524,7 +500,7 @@ RouterStepNode → Seq{
 
 Multi-route routers become nested `PartitionNode` chains (if/else-if/else). Each route's sub-job is a `Seq` of its own steps (already handled by PR 4.3).
 
-**Complexity**: The router's CEL evaluation context needs `choice` available. The vtable binding for the predicate must access the shared memory (`cell.Steps["__choice__"]`) that the preceding `MapNode` wrote.
+**Complexity**: The router's CEL evaluation context needs `choice` available. The predicate function in the `PartitionNode` must access the shared memory (`cell.Steps["__choice__"]`) that the preceding `MapNode` wrote.
 
 **Impact**: Example `04_routing` works via VM pipeline.
 
@@ -534,8 +510,7 @@ Current: `ForEach.Prompt()` evaluates CEL selector, iterates list, calls sub-job
 
 VM transformation:
 ```
-ForeachStepNode → FMapNode{name: "job.foreach"}
-vtf["job.foreach"] = arrow(func(ctx, cell, out) error {
+ForeachStepNode → FMapNode{FF: pipe.LiftF(func(ctx, cell, out) error {
     list := evalSelector(cell)
     for i, item := range list {
         subCell := cell.copy(item)
@@ -543,11 +518,11 @@ vtf["job.foreach"] = arrow(func(ctx, cell, out) error {
         result := subJobFn(subCell)
         out <- result
     }
-})
+})}
 ```
 
 ForEach is an `FMapNode` because it expands one cell into many. The sub-job execution can be either:
-- (a) A direct function call to the compiled sub-job's vtable function (simpler, preserves current sequential behavior)
+- (a) A direct function call to the compiled sub-job function (simpler, preserves current sequential behavior)
 - (b) A nested VM pipeline (enables future per-item parallelism)
 
 Option (a) is recommended for this PR to minimize risk.
@@ -558,7 +533,7 @@ Option (a) is recommended for this PR to minimize risk.
 
 With all node types transformed:
 - Remove `runtime.Job` (replaced by VM `Seq`)
-- Remove all decorator types (`Memento`, `Emitter`, `Repeater`, `Printer`, `Cache`) — their logic is absorbed into vtable function composition
+- Remove all decorator types (`Memento`, `Emitter`, `Repeater`, `Printer`, `Cache`) — their logic is absorbed into function composition within AST nodes
 - Remove `processor.Agent` bridge (already gone from Phase 2)
 - The blueprint compiler's `Compile()` now returns a `vm.Pipeline` instead of a `*Workflow` with `map[string]*runtime.Job`
 
@@ -595,7 +570,8 @@ Each PR is independently testable: the existing example workflows serve as integ
 - **Non-breaking migration**: Each phase preserves the application's external behavior. Existing components adopt channels internally behind stable interfaces. No big-bang rewrite.
 - **Simplified I/O**: Sources become `Unfold` functions, sinks become `Fold` functions. The `Conduit` orchestrator, `Processor` interface, EOF sentinels, and `processor.Agent` bridge are eventually eliminated.
 - **Zero-copy data flow**: Channels pass `*Cell` pointers. No serialization between stages. Shared `Steps` map provides natural inter-step communication.
-- **Declarative pipeline**: The control-flow AST is a pure data structure that can be inspected, validated, visualized, and optimized independently of domain logic.
+- **Type-safe pipeline**: The control-flow AST carries typed function references (`pipe.F`, `pipe.FF`, `monoid.Monoid`) — the compiler enforces correct wiring structurally at compile time.
+- **Declarative pipeline**: The control-flow AST is a data structure that can be inspected, validated, visualized, and optimized independently of domain logic.
 - **Error channels**: Errors flow through a parallel channel, enabling flexible error collection, logging, and fail-fast/skip-error modes without conditional logic in the processing path.
 - **Graceful shutdown**: `context.Context` cancellation propagates through all channel operations naturally — the library handles this in every operator.
 
@@ -606,7 +582,6 @@ Each PR is independently testable: the existing example workflows serve as integ
 - **No data-level parallelism**: This architecture processes documents sequentially through the pipeline (one cell per stage at a time). Parallel processing of multiple documents concurrently is deferred to a separate ADR.
 - **Migration effort**: Multi-phase migration touches compiler, runtime, I/O system, and service layer. Dual code paths (old runtime + VM pipeline) must coexist during transition.
 - **Two ASTs**: The domain AST and the VM control-flow AST are separate structures connected by a transformation layer. Changes to workflow semantics may require updates in both.
-- **Generic type constraints**: Go's generics work well for the algebra but the `Cell` type is a single concrete type — the type safety of `F[A, B]` is partially lost when both A and B are `*Cell`.
 
 ### Risks
 
@@ -635,7 +610,7 @@ Each PR is independently testable: the existing example workflows serve as integ
 | [#96 — Add `golem/pipe` dependency](https://github.com/fogfish/iq/issues/96)     | Foundation library for channel algebra                                              |
 | [#97 — Implement `Cell` type](https://github.com/fogfish/iq/issues/97)           | Shared memory unit flowing through channels                                         |
 | [#98 — Implement VM control-flow AST](https://github.com/fogfish/iq/issues/98)   | `Seq`, `MapNode`, `FMapNode`, `PartitionNode`, `FoldNode`, `UnfoldNode`, `JoinNode` |
-| [#99 — Implement VM two-phase compiler](https://github.com/fogfish/iq/issues/99) | `Compile()` → topology, `Bind*()` → vtable, `Run()` → execution                     |
+| [#99 — Implement VM compiler](https://github.com/fogfish/iq/issues/99)            | `Compile()` walks `vm.App` → channel topology, `Run()` → execution                   |
 
 ### Phase 2 — Replace Conduit with VM
 
