@@ -605,12 +605,12 @@ Each PR is independently testable: the existing example workflows serve as integ
 
 ### Phase 1 — Standalone VM Package (zero app impact)
 
-| Issue                                                                            | Description                                                                         |
-| -------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
-| [#96 — Add `golem/pipe` dependency](https://github.com/fogfish/iq/issues/96)     | Foundation library for channel algebra                                              |
-| [#97 — Implement `Cell` type](https://github.com/fogfish/iq/issues/97)           | Shared memory unit flowing through channels                                         |
-| [#98 — Implement VM control-flow AST](https://github.com/fogfish/iq/issues/98)   | `Seq`, `MapNode`, `FMapNode`, `PartitionNode`, `FoldNode`, `UnfoldNode`, `JoinNode` |
-| [#99 — Implement VM compiler](https://github.com/fogfish/iq/issues/99)            | `Compile()` walks `vm.App` → channel topology, `Run()` → execution                   |
+| Issue                                                                          | Description                                                                         |
+| ------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------- |
+| [#96 — Add `golem/pipe` dependency](https://github.com/fogfish/iq/issues/96)   | Foundation library for channel algebra                                              |
+| [#97 — Implement `Cell` type](https://github.com/fogfish/iq/issues/97)         | Shared memory unit flowing through channels                                         |
+| [#98 — Implement VM control-flow AST](https://github.com/fogfish/iq/issues/98) | `Seq`, `MapNode`, `FMapNode`, `PartitionNode`, `FoldNode`, `UnfoldNode`, `JoinNode` |
+| [#99 — Implement VM compiler](https://github.com/fogfish/iq/issues/99)         | `Compile()` walks `vm.App` → channel topology, `Run()` → execution                  |
 
 ### Phase 2 — Replace Conduit with VM
 
