@@ -9,7 +9,6 @@ require (
 	github.com/aws/aws-sdk-go-v2/config v1.31.16
 	github.com/aws/aws-sdk-go-v2/credentials v1.18.20
 	github.com/aws/aws-sdk-go-v2/service/sts v1.39.0
-	github.com/fogfish/golem/pipe/v2 v2.1.0
 	github.com/fogfish/it/v2 v2.2.4
 	github.com/fogfish/opts v0.0.5
 	github.com/fogfish/scanner v0.0.3
@@ -57,7 +56,6 @@ require (
 	github.com/fogfish/faults v0.3.2 // indirect
 	github.com/fogfish/golem/hseq v1.3.0 // indirect
 	github.com/fogfish/golem/optics v0.14.0 // indirect
-	github.com/fogfish/golem/pure v0.10.1 // indirect
 	github.com/fogfish/golem/trait v0.3.0 // indirect
 	github.com/fogfish/guid/v2 v2.1.0 // indirect
 	github.com/fogfish/gurl/v2 v2.10.0 // indirect
